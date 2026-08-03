@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Fraunces", ui-serif, Georgia, serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-cream text-ink antialiased;
+  }
+  h1, h2, h3, h4 {
+    @apply font-serif tracking-tight;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-6xl px-5 sm:px-8;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium
+           transition-colors disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-bark-800 text-cream hover:bg-bark-900;
+  }
+  .btn-secondary {
+    @apply btn border border-bark-300 bg-transparent text-bark-900 hover:bg-bark-100;
+  }
+  .btn-ghost {
+    @apply btn text-bark-800 hover:bg-bark-100;
+  }
+  .btn-danger {
+    @apply btn bg-red-700 text-white hover:bg-red-800;
+  }
+  .input {
+    @apply w-full rounded-lg border border-bark-200 bg-white px-3 py-2 text-sm text-ink
+           placeholder:text-bark-400 focus:border-bark-500 focus:outline-none focus:ring-1 focus:ring-bark-500;
+  }
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-bark-900;
+  }
+  .card {
+    @apply rounded-2xl border border-bark-200/70 bg-white;
+  }
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+}
