@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { isSupabaseConfigured } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types";
 
@@ -10,6 +11,10 @@ export interface SessionContext {
 
 /** The signed-in user and their profile, or null for anonymous visitors. */
 export async function getSession(): Promise<SessionContext | null> {
+  // Before the first deploy is configured there is no auth to consult, and a
+  // thrown "missing env var" here would take every page down with it.
+  if (!isSupabaseConfigured()) return null;
+
   const supabase = await createClient();
   const {
     data: { user },

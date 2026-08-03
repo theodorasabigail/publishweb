@@ -4,8 +4,7 @@ import { getSession } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import { getPaymentProvider } from "@/lib/payments";
 import { listZones } from "@/lib/shipping";
-import { createStaticClient } from "@/lib/supabase/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createStaticClient } from "@/lib/supabase/server";
 import type { Address } from "@/lib/types";
 
 export const dynamic = "force-dynamic";

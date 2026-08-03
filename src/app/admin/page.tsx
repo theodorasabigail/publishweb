@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { EmptyRow, PageHeader, Panel, StatCard } from "@/components/admin/ui";
 import { OrderStatusBadge } from "@/components/status-badge";
+import { isSupabaseConfigured } from "@/lib/env";
 import { getPaymentProvider } from "@/lib/payments";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Order, ProductVariant, RoastingRequest } from "@/lib/types";
@@ -9,6 +10,10 @@ import { formatDate, formatIDR } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 export default async function AdminOverviewPage() {
+  // The layout already shows setup guidance in this case; returning early
+  // keeps this page from querying a database that does not exist yet.
+  if (!isSupabaseConfigured()) return null;
+
   const supabase = createAdminClient();
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 

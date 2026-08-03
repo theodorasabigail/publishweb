@@ -1,0 +1,145 @@
+# Publish Coffee Roasters
+
+E-commerce site and blog archive for Publish Coffee Roasters (PT Aroma Pulau
+Arunika). Sells retail coffee in three sizes, takes custom-quote roasting
+requests, and hosts an owned, themed blog archive.
+
+Built against the v1 build spec. Two documents matter more than this one if you
+run the shop rather than the code:
+
+- **[docs/OPERATOR_SETUP.md](docs/OPERATOR_SETUP.md)** — one-time setup,
+  click by click, written for a non-developer.
+- **[docs/RUNNING_THE_SHOP.md](docs/RUNNING_THE_SHOP.md)** — the day-to-day
+  admin guide.
+
+---
+
+## Stack
+
+| Layer | Choice |
+|---|---|
+| Framework | Next.js 15 (App Router) |
+| Database | Supabase / Postgres, with Row Level Security |
+| Auth | Supabase Auth — email/password + Google |
+| Storage | Supabase Storage (`media` bucket) |
+| Payments | Xendit (default) or bank transfer + kode unik + Moota, behind one adapter |
+| Shipping | Flat-rate zones from the database |
+| Hosting | Vercel |
+| Styling | Tailwind CSS |
+
+## Running locally
+
+```bash
+npm install
+cp .env.example .env.local     # fill in the Supabase values
+npm run dev
+```
+
+Apply `supabase/migrations/*.sql` in order via the Supabase SQL editor, then
+make yourself an admin (see Step 4 of the operator setup).
+
+```bash
+npm run build       # production build
+npm run typecheck   # tsc --noEmit
+npm run lint
+```
+
+## How it fits together
+
+```
+src/
+  app/
+    (site)/          storefront: home, shop, blog, cart, checkout, account
+    admin/           the operator dashboard
+      _actions/      server actions; every one starts with an admin check
+    api/
+      checkout/      prices and creates orders (authoritative)
+      webhooks/      xendit + moota payment callbacks
+    rss.xml/, sitemap.ts, robots.ts
+  components/        UI, split site / admin
+  lib/
+    payments/        provider adapter — see below
+    shipping/        flat-rate zones, isolated for the Biteship swap
+    supabase/        browser / server / service-role clients
+supabase/migrations/ schema, RLS, seed data
+```
+
+### Three Supabase clients, on purpose
+
+- `lib/supabase/client.ts` — browser, anon key, RLS applies.
+- `lib/supabase/server.ts` — server components, carries the user's session,
+  RLS applies. This is what user-facing reads go through.
+- `lib/supabase/admin.ts` — **service role, bypasses RLS.** Only for payment
+  webhooks, order creation, and admin mutations that have already checked the
+  caller. Never import it into anything that renders in the browser.
+
+### Payments
+
+The spec left the payment path open, so it is an interface rather than a
+choice baked into checkout. `lib/payments/types.ts` defines the contract;
+`PAYMENT_PROVIDER` selects the implementation.
+
+- **`xendit`** (default) — Invoice API. Dynamic QRIS, virtual accounts,
+  e-wallets, and cards for international customers. Fully automatic.
+- **`manual_transfer`** — adds a unique 3-digit code to each order total so
+  Moota can reconcile incoming bank credits by exact amount. Domestic only.
+  Anything that fails to match becomes a queue item in Admin → Payments rather
+  than a lost order.
+
+Adding a third provider means implementing `PaymentProvider` and adding a
+webhook route. Nothing in checkout changes.
+
+Every path settles through one Postgres function, `mark_order_paid`, which is
+idempotent: a webhook delivered twice sets the status, decrements stock and
+awards loyalty points exactly once. The admin's manual "mark as paid" calls the
+same function, so a hand-settled order is indistinguishable from a real one.
+
+### Money is never trusted from the client
+
+`/api/checkout` ignores the prices in the submitted cart. It re-reads every
+variant, re-checks stock and active flags, recomputes the subtotal, resolves
+the shipping zone from the address, and prices the order from that. The cart
+carries prices only so the UI can render without a round-trip.
+
+### Row Level Security
+
+Enabled on every table. Public traffic reads published storefront content
+only; a signed-in user reads and writes only their own rows; admins get full
+access through `is_admin()`, a `SECURITY DEFINER` function so the policies that
+call it do not recurse. Orders and payment events have no client-side insert
+policy at all — those writes only ever happen server-side.
+
+## What the operator can and cannot change
+
+Bounded presentation controls, per spec §7.2. Each maps to a database field the
+templates already read:
+
+- product order (drag or arrow), feature toggle, per-product accent colour
+- hero image, headline, sub-heading and button
+- announcement banner: on/off, text, link, background
+- homepage category selection and order
+
+Deliberately **not** in the admin: free-form layout editing, arbitrary new page
+types, typography and spacing. Structural change is a code change. That is what
+keeps the live dashboard safe for a non-developer to use.
+
+## Decisions taken where the spec left them open
+
+| Question | Decision |
+|---|---|
+| Payment path | Both built. Xendit is the default; the fallback is one env var away and needs no code change. |
+| Domestic courier | Flat zones for launch. The shipping module is isolated so Biteship is an added implementation, not a rewrite. |
+| International zones | Five flat zones seeded — SE Asia, Asia-Pacific, Europe, North America, rest of world — with padded rates, editable in the admin. |
+| Loyalty rate | 1 point per Rp 10.000; Silver at 100, Gold at 500. All three are admin settings, not constants. |
+| Bilingual copy | No i18n framework. Copy is English with Indonesian where it reads more naturally (*jasa roasting*, *kode unik*, province labels at checkout). |
+| Rich text | Markdown with a toolbar and preview rather than a WYSIWYG — clean stored content, and the published typography stays ours. |
+
+## Still open
+
+- Brand assets: logo, typeface and product photography are placeholders. The
+  palette is a coffee-brown scale in `tailwind.config.ts`.
+- Transactional email. Orders confirm on-screen and the order page live-updates
+  when payment clears, but no receipt is emailed yet. Needs an ESP.
+- Newsletter capture stores addresses in `newsletter_subscribers`; nothing
+  sends to them yet.
+- Biteship live rates (spec's v2 shipping upgrade).

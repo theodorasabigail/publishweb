@@ -178,9 +178,11 @@ create index if not exists order_items_order_id_idx on public.order_items(order_
 -- --------------------------------------------------------------------------
 -- roasting_requests
 -- --------------------------------------------------------------------------
+create sequence if not exists public.roasting_ref_seq start 1;
+
 create table if not exists public.roasting_requests (
   id uuid primary key default gen_random_uuid(),
-  human_ref text not null unique default 'JR-' || lpad(nextval('public.order_ref_seq')::text, 6, '0'),
+  human_ref text not null unique default 'JR-' || lpad(nextval('public.roasting_ref_seq')::text, 5, '0'),
   user_id uuid references public.profiles(id) on delete set null,
   contact_name text not null,
   contact_phone text not null,
@@ -300,8 +302,11 @@ create table if not exists public.payment_events (
   created_at timestamptz not null default now()
 );
 create index if not exists payment_events_unmatched_idx on public.payment_events(is_matched, is_resolved);
+-- Non-partial on purpose: the webhook upsert targets ON CONFLICT
+-- (provider, external_id), which cannot be inferred from a partial index.
+-- Null external_ids stay distinct, so unidentified events are never merged.
 create unique index if not exists payment_events_provider_external_idx
-  on public.payment_events(provider, external_id) where external_id is not null;
+  on public.payment_events(provider, external_id);
 
 -- --------------------------------------------------------------------------
 -- loyalty_ledger -- every point movement, for auditability
