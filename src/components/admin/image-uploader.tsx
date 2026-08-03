@@ -2,13 +2,29 @@
 
 import { useRef, useState } from "react";
 import { ImagePlus, Loader2, X } from "lucide-react";
+import {
+  compressImage,
+  formatBytes,
+  presetFor,
+  type CompressionResult,
+} from "@/lib/image-compression";
 import { createClient } from "@/lib/supabase/client";
 
 /**
- * Uploads straight to the Supabase Storage `media` bucket from the browser,
- * using the admin's own session. The operator picks a file; the public URL
- * lands in a hidden input and gets saved with the rest of the form.
+ * Uploads to the Supabase Storage `media` bucket from the browser, using the
+ * admin's own session.
+ *
+ * Images are resized and re-encoded here, before upload. That is deliberate:
+ * the free Supabase plan has no image transformation service, so whatever gets
+ * stored is exactly what gets served, and an unshrunk photo library will eat
+ * both the 1 GB storage and the 5 GB monthly egress allowance.
  */
+
+/** Ceiling on what we will even attempt to read into a canvas. Anything
+ *  larger is a mistake -- a raw camera export or a video -- not a product
+ *  photo, and decoding it can hang a phone browser. */
+const MAX_INPUT_BYTES = 25 * 1024 * 1024;
+
 export function ImageUploader({
   name,
   label,
@@ -24,29 +40,44 @@ export function ImageUploader({
 }) {
   const [url, setUrl] = useState(defaultValue ?? "");
   const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  const [result, setResult] = useState<CompressionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function onPick(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const picked = event.target.files?.[0];
+    if (!picked) return;
 
-    if (file.size > 8 * 1024 * 1024) {
-      setError("That image is over 8 MB. Please use a smaller one.");
+    setError(null);
+    setResult(null);
+
+    if (picked.size > MAX_INPUT_BYTES) {
+      setError(
+        `That file is ${formatBytes(picked.size)}. Please pick an image under 25 MB.`,
+      );
+      if (inputRef.current) inputRef.current.value = "";
       return;
     }
 
-    setError(null);
     setBusy(true);
 
     try {
+      setStatus("Resizing…");
+      const compressed = await compressImage(picked, presetFor(folder));
+
+      setStatus("Uploading…");
       const supabase = createClient();
-      const extension = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+      const extension = compressed.file.name.split(".").pop()?.toLowerCase() ?? "jpg";
       const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
 
       const { error: uploadError } = await supabase.storage
         .from("media")
-        .upload(path, file, { cacheControl: "31536000", upsert: false });
+        .upload(path, compressed.file, {
+          cacheControl: "31536000",
+          contentType: compressed.file.type,
+          upsert: false,
+        });
 
       if (uploadError) throw uploadError;
 
@@ -55,6 +86,7 @@ export function ImageUploader({
       } = supabase.storage.from("media").getPublicUrl(path);
 
       setUrl(publicUrl);
+      setResult(compressed);
     } catch (uploadError) {
       setError(
         uploadError instanceof Error
@@ -63,6 +95,7 @@ export function ImageUploader({
       );
     } finally {
       setBusy(false);
+      setStatus(null);
       if (inputRef.current) inputRef.current.value = "";
     }
   }
@@ -75,7 +108,8 @@ export function ImageUploader({
       {url ? (
         <div className="relative w-fit">
           {/* Storage URLs vary by project, so a plain img keeps this working
-              without touching next.config image hosts. */}
+              without touching next.config image hosts. Admin-only, and the
+              stored file is already small. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={url}
@@ -84,7 +118,10 @@ export function ImageUploader({
           />
           <button
             type="button"
-            onClick={() => setUrl("")}
+            onClick={() => {
+              setUrl("");
+              setResult(null);
+            }}
             className="absolute -right-2 -top-2 rounded-full bg-white p-1 shadow ring-1 ring-bark-200 hover:bg-red-50"
             aria-label="Remove image"
           >
@@ -96,10 +133,13 @@ export function ImageUploader({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={busy}
-          className="flex h-32 w-32 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-bark-300 text-xs text-bark-500 hover:border-bark-500"
+          className="flex h-32 w-32 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-bark-300 px-2 text-center text-xs text-bark-500 hover:border-bark-500"
         >
           {busy ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              {status}
+            </>
           ) : (
             <>
               <ImagePlus className="h-5 w-5" />
@@ -116,6 +156,13 @@ export function ImageUploader({
         onChange={onPick}
         className="hidden"
       />
+
+      {result?.wasCompressed && (
+        <p className="mt-1.5 text-xs text-emerald-700">
+          Shrunk from {formatBytes(result.originalBytes)} to{" "}
+          {formatBytes(result.bytes)} before uploading.
+        </p>
+      )}
 
       {hint && <p className="mt-1.5 text-xs text-bark-500">{hint}</p>}
       {error && <p className="mt-1.5 text-xs text-red-700">{error}</p>}

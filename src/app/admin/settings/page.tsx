@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Truck } from "lucide-react";
+import { ImageIcon, Truck } from "lucide-react";
 import { HomepageCategoryPicker } from "@/components/admin/homepage-categories";
 import { ImageUploader } from "@/components/admin/image-uploader";
 import { Field, PageHeader, Panel } from "@/components/admin/ui";
@@ -25,9 +25,14 @@ export default async function AdminSettingsPage() {
         title="Site settings"
         description="The parts of the site you can change without touching code."
         action={
-          <Link href="/admin/settings/shipping" className="btn-secondary">
-            <Truck className="h-4 w-4" /> Shipping rates
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/admin/settings/media" className="btn-secondary">
+              <ImageIcon className="h-4 w-4" /> Images & storage
+            </Link>
+            <Link href="/admin/settings/shipping" className="btn-secondary">
+              <Truck className="h-4 w-4" /> Shipping rates
+            </Link>
+          </div>
         }
       />
 

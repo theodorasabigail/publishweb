@@ -135,6 +135,29 @@ Anything beyond this — page layout, spacing, new kinds of pages — is a code
 change. That is deliberate: it keeps the dashboard something you can use
 confidently without being able to break the site.
 
+## Images and storage
+
+Your Supabase free plan allows 1 GB of stored images and 5 GB of transfer a
+month. The previous setup ran into this; this one is built not to.
+
+**You do not need to resize photos before uploading.** Whatever you pick —
+straight off your phone, straight out of the camera — is shrunk in your browser
+before it is sent. A 6 MB photo typically becomes about 200 KB, and the
+uploader tells you what it did ("Shrunk from 6.2 MB to 190 KB"). At the sizes
+the site actually displays, there is no visible difference.
+
+**Check on it occasionally** at **Admin → Site settings → Images & storage**.
+It shows how much of the 1 GB is used, and turns amber past halfway.
+
+**Clear out unused files** from the same page. Replacing a product photo does
+not overwrite the old one — it uploads a new file and leaves the old one behind
+— so these build up over time. The page lists everything nothing points at any
+more and deletes them in one click. Anything uploaded in the last day is left
+alone, so a half-finished product you have not saved yet is never touched.
+
+The one thing to avoid: uploading images you do not intend to use, over and
+over. Everything else is handled.
+
 ## Shipping rates
 
 **Admin → Site settings → Shipping rates.**

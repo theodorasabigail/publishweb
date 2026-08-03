@@ -37,11 +37,14 @@ Supabase stores your products, orders, customers and blog posts.
    coffees, categories, shipping zones and three blog posts, so the site has
    something in it on day one. You can delete or edit all of it later from the
    admin dashboard.
+8. Do the same for `supabase/migrations/0004_media_usage.sql`. This powers the
+   **Images & storage** page in the admin, which shows how much of your image
+   allowance is used and lets you clear out photos nothing points at any more.
 
 ### Get your three keys
 
-8. In the sidebar, click **Project Settings** (the gear), then **API**.
-9. You need three values. Copy each into a note for now:
+9. In the sidebar, click **Project Settings** (the gear), then **API**.
+10. You need three values. Copy each into a note for now:
 
    | On the Supabase page | Call it |
    |---|---|
@@ -55,7 +58,7 @@ Supabase stores your products, orders, customers and blog posts.
 
 ### Turn on Google sign-in (optional, do it now if you want it)
 
-10. Sidebar → **Authentication** → **Providers** → **Google** → toggle on.
+11. Sidebar → **Authentication** → **Providers** → **Google** → toggle on.
     Supabase shows you what to do; it involves creating a free Google Cloud
     project. If you would rather skip this, customers can still sign up with
     email and password — everything works without it.
@@ -268,6 +271,12 @@ address.
 
 **I changed something in the admin but the site looks the same**
 Shop and blog pages are cached for a few minutes for speed. Wait, then reload.
+
+**I am worried about running out of Supabase storage**
+Open **Admin → Site settings → Images & storage**. It shows exactly how much
+of the 1 GB allowance is used and offers to delete images nothing points at
+any more. Photos are automatically shrunk when you upload them, so this should
+grow slowly.
 
 **I need to undo something**
 Orders, posts and products all keep their history. Nothing in the admin

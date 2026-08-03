@@ -94,6 +94,30 @@ idempotent: a webhook delivered twice sets the status, decrements stock and
 awards loyalty points exactly once. The admin's manual "mark as paid" calls the
 same function, so a hand-settled order is indistinguishable from a real one.
 
+### Images are shrunk before they reach Supabase
+
+The free Supabase plan gives 1 GB of file storage and 5 GB of monthly egress,
+and **does not include image transformations** — there is no server-side
+resize to fall back on, so whatever is stored is what gets served.
+
+Three things keep that allowance from draining:
+
+1. **`lib/image-compression.ts`** re-encodes every upload in the browser first
+   — downscale to a per-folder maximum, WebP where the browser can encode it,
+   quality stepped down until the file fits a size target. A 29 MB PNG comes
+   out at ~195 KB. Verified in Chromium across large photos, transparency,
+   portrait aspect ratios, already-small images and SVG passthrough.
+2. **`next.config.ts`** trims `deviceSizes`, `imageSizes` and `qualities`, and
+   raises `minimumCacheTTL` to 31 days. Vercel's optimiser fetches the original
+   from Supabase once per (url, width, quality) combination, so fewer allowed
+   combinations means fewer origin fetches. Replacing a photo writes a new
+   path, so a long TTL never serves a stale image.
+3. **Migration 0004** adds `media_storage_usage()` and `unused_media()`,
+   surfaced at Admin → Site settings → Images & storage. Replacing a photo
+   leaves the old file in the bucket; that page finds them and clears them,
+   excluding anything uploaded in the last 24 hours so in-progress edits are
+   never deleted.
+
 ### Money is never trusted from the client
 
 `/api/checkout` ignores the prices in the submitted cart. It re-reads every

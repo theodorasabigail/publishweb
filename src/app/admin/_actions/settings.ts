@@ -152,3 +152,32 @@ export async function resolvePaymentEvent(formData: FormData) {
   revalidatePath("/admin/payments");
   revalidatePath("/admin/orders");
 }
+
+/**
+ * Delete media files that no row points at any more.
+ *
+ * The candidate list comes from `unused_media()`, which excludes anything
+ * uploaded in the last 24 hours -- a file lives in the bucket from the moment
+ * it uploads until the form around it is saved, and that window must never be
+ * mistaken for garbage. The list is recomputed here rather than trusted from
+ * the form, so a stale page cannot delete a file that has since been used.
+ */
+export async function deleteUnusedMedia(): Promise<void> {
+  const { supabase } = await adminClient();
+
+  const { data, error } = await supabase.rpc("unused_media");
+  if (error) throw new Error("Could not work out which files are unused.");
+
+  const names = ((data ?? []) as { name: string }[]).map((row) => row.name);
+  if (!names.length) return;
+
+  // Supabase caps how many paths one remove() call accepts; chunk to be safe.
+  for (let i = 0; i < names.length; i += 100) {
+    const { error: removeError } = await supabase.storage
+      .from("media")
+      .remove(names.slice(i, i + 100));
+    if (removeError) throw new Error("Could not delete the files.");
+  }
+
+  revalidatePath("/admin/settings/media");
+}
