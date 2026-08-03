@@ -1,0 +1,69 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { adminClient, integer, text } from "./guard";
+
+/** Manual points adjustment. Goes through the same ledger-writing function as
+ *  order awards, so the customer's history stays complete and auditable. */
+export async function adjustLoyaltyPoints(formData: FormData) {
+  const { supabase, session } = await adminClient();
+  const userId = text(formData, "user_id");
+  const points = integer(formData, "points");
+  const reason = text(formData, "reason") || "Manual adjustment";
+
+  if (!userId || points === 0) return;
+
+  const { error } = await supabase.rpc("award_loyalty_points", {
+    p_user_id: userId,
+    p_points: points,
+    p_reason: reason,
+    p_order_id: null,
+    p_created_by: session.userId,
+  });
+
+  if (error) throw new Error("Could not adjust the points.");
+
+  revalidatePath("/admin/customers");
+  revalidatePath(`/admin/customers/${userId}`);
+}
+
+/** Override the tier a customer sits in, independent of their points. */
+export async function setCustomerTier(formData: FormData) {
+  const { supabase } = await adminClient();
+  const userId = text(formData, "user_id");
+  const tier = text(formData, "tier");
+
+  if (!["bronze", "silver", "gold"].includes(tier)) {
+    throw new Error("Unknown tier.");
+  }
+
+  await supabase.from("profiles").update({ tier }).eq("id", userId);
+
+  revalidatePath("/admin/customers");
+  revalidatePath(`/admin/customers/${userId}`);
+}
+
+/** Grant or revoke dashboard access. Guarded so the last admin cannot lock
+ *  everyone out of the shop's own back office. */
+export async function setAdminFlag(formData: FormData) {
+  const { supabase, session } = await adminClient();
+  const userId = text(formData, "user_id");
+  const makeAdmin = text(formData, "is_admin") === "true";
+
+  if (!makeAdmin) {
+    const { count } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("is_admin", true);
+
+    if ((count ?? 0) <= 1) {
+      throw new Error("You cannot remove the last admin.");
+    }
+    if (userId === session.userId) {
+      throw new Error("You cannot remove your own admin access.");
+    }
+  }
+
+  await supabase.from("profiles").update({ is_admin: makeAdmin }).eq("id", userId);
+  revalidatePath("/admin/customers");
+}
