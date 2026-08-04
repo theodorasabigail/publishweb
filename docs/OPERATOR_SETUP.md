@@ -40,11 +40,14 @@ Supabase stores your products, orders, customers and blog posts.
 8. Do the same for `supabase/migrations/0004_media_usage.sql`. This powers the
    **Images & storage** page in the admin, which shows how much of your image
    allowance is used and lets you clear out photos nothing points at any more.
+9. Do the same for `supabase/migrations/0005_pos.sql`. This adds **Counter
+   sales** — ringing up sales in the physical shop — and the **Sales** report
+   that puts shop and website takings side by side.
 
 ### Get your three keys
 
-9. In the sidebar, click **Project Settings** (the gear), then **API**.
-10. You need three values. Copy each into a note for now:
+10. In the sidebar, click **Project Settings** (the gear), then **API**.
+11. You need three values. Copy each into a note for now:
 
    | On the Supabase page | Call it |
    |---|---|
@@ -58,7 +61,7 @@ Supabase stores your products, orders, customers and blog posts.
 
 ### Turn on Google sign-in (optional, do it now if you want it)
 
-11. Sidebar → **Authentication** → **Providers** → **Google** → toggle on.
+12. Sidebar → **Authentication** → **Providers** → **Google** → toggle on.
     Supabase shows you what to do; it involves creating a free Google Cloud
     project. If you would rather skip this, customers can still sign up with
     email and password — everything works without it.

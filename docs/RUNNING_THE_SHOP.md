@@ -33,6 +33,40 @@ everything a real payment does — it takes stock down and awards loyalty points
 Only use it when you have genuinely confirmed the money arrived. Doing it twice
 is safe; the second time changes nothing.
 
+## Selling in the shop
+
+**Admin → Counter sales.** This is the till.
+
+Tap a size to add it to the sale; tap again for a second bag. The total is the
+big number at the bottom. Pick how they paid, then press the green button.
+
+- **Cash** — tap the note they handed you (or **Exact**), and the screen tells
+  you the change to give. You can also type an unusual amount.
+- **QRIS, card, transfer** — just pick it and take the payment on your own
+  device, then press the button to record it.
+- **Add customer for points** — search their name or email. Their points go up
+  exactly as they would online. Skip it for a walk-in; the sale still records
+  fine, it just earns nobody anything.
+
+The sale is recorded the moment you press the button. Stock comes down straight
+away, so **the website cannot sell a bag you just sold over the counter**. That
+is the main reason to ring sales up here rather than in a notebook.
+
+If something is out of stock, the till says so and refuses the sale rather than
+letting you sell what you do not have. If that happens and you know the stock
+figure is wrong, fix it in **Products** and ring the sale up again.
+
+## Seeing how the business is doing
+
+**Admin → Sales.** Today, the last 7 days, or the last 30.
+
+- **Total takings**, split into **shop** and **online**, so you can see which
+  side is carrying the month.
+- **Cash to count** — what should be in the drawer. Count the drawer against
+  this at the end of the day; if they disagree, something was rung up wrong.
+- **What sold** — every coffee and size, with shop and web columns side by
+  side. This is the roasting list for next week.
+
 ## Adding a coffee
 
 **Admin → Products → New product.**

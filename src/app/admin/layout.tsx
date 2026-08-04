@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  BarChart3,
   BookOpen,
   Coffee,
   CreditCard,
@@ -7,6 +8,7 @@ import {
   LayoutDashboard,
   Settings,
   ShoppingCart,
+  Store,
   Tags,
   Users,
 } from "lucide-react";
@@ -15,7 +17,9 @@ import { isSupabaseConfigured } from "@/lib/env";
 
 const NAV = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
+  { href: "/admin/pos", label: "Counter sales", icon: Store },
   { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
+  { href: "/admin/reports", label: "Sales", icon: BarChart3 },
   { href: "/admin/products", label: "Products", icon: Coffee },
   { href: "/admin/categories", label: "Categories", icon: Tags },
   { href: "/admin/roasting", label: "Roasting requests", icon: Flame },

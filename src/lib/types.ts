@@ -9,6 +9,7 @@ export type OrderStatus =
   | "cancelled";
 export type RoastingStatus = "new" | "quoted" | "accepted" | "declined" | "done";
 export type PostStatus = "draft" | "scheduled" | "published";
+export type SalesChannel = "online" | "pos";
 
 export const VARIANT_SIZES: VariantSize[] = ["100g", "200g", "1kg"];
 
@@ -135,6 +136,10 @@ export interface ShippingAddressSnapshot {
 export interface Order {
   id: string;
   human_ref: string;
+  /** Where the sale happened. Counter sales carry no address or shipping. */
+  channel: SalesChannel;
+  cash_received_idr: number | null;
+  staff_id: string | null;
   user_id: string | null;
   guest_email: string | null;
   status: OrderStatus;

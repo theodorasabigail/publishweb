@@ -118,6 +118,24 @@ Three things keep that allowance from draining:
    excluding anything uploaded in the last 24 hours so in-progress edits are
    never deleted.
 
+### One order model, two channels
+
+Counter sales reuse `orders` rather than getting their own table, marked with
+`channel` ('online' | 'pos'). A counter sale has no address, no shipping and no
+pending state — it is settled the moment it is rung up.
+
+`record_pos_sale()` does the whole thing in one transaction: locks every
+variant and checks stock before writing anything, prices from the database
+(never from the till screen), then settles through the same `mark_order_paid`
+the payment webhooks use. A sale that fails any check writes nothing — no
+phantom order, no half-decremented stock.
+
+The payoff is that stock is genuinely shared: selling the last bag at the
+counter makes it unavailable online in the same instant, because it is one
+`product_variants.stock` column and one settlement path. `sales_summary()` and
+`product_sales_report()` then read across both channels, with day boundaries in
+WIB rather than UTC.
+
 ### Money is never trusted from the client
 
 `/api/checkout` ignores the prices in the submitted cart. It re-reads every
@@ -167,3 +185,10 @@ keeps the live dashboard safe for a non-developer to use.
 - Newsletter capture stores addresses in `newsletter_subscribers`; nothing
   sends to them yet.
 - Biteship live rates (spec's v2 shipping upgrade).
+- The POS is online-only. It is a web app against Supabase, so it needs a
+  working connection at the counter; there is no offline queue. Barcode
+  scanning, cash-drawer hardware and thermal receipt printing are also not
+  wired up — receipts are on-screen.
+- Online orders reserve stock at payment, not at checkout. With a shop selling
+  the same stock, a pending online order can be undercut at the counter. The
+  counter refuses to oversell, but the online customer would then be refunded.

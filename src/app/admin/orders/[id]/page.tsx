@@ -50,7 +50,11 @@ export default async function AdminOrderDetailPage({
 
       <PageHeader
         title={order.human_ref}
-        description={`Placed ${formatDateTime(order.created_at)}`}
+        description={
+          order.channel === "pos"
+            ? `Sold at the counter, ${formatDateTime(order.created_at)}`
+            : `Placed online, ${formatDateTime(order.created_at)}`
+        }
         action={<OrderStatusBadge status={order.status} />}
       />
 
@@ -103,8 +107,13 @@ export default async function AdminOrderDetailPage({
             </Panel>
           )}
 
-          <Panel title="Shipping">
-            {address ? (
+          <Panel title={order.channel === "pos" ? "Counter sale" : "Shipping"}>
+            {order.channel === "pos" ? (
+              <p className="text-sm text-bark-600">
+                Sold in the shop — nothing to pack or ship. The customer took it
+                with them.
+              </p>
+            ) : address ? (
               <address className="text-sm not-italic leading-relaxed text-bark-700">
                 <strong className="text-ink">{address.recipient_name}</strong>
                 <br />
@@ -133,6 +142,7 @@ export default async function AdminOrderDetailPage({
               <p className="text-sm text-bark-500">No address recorded.</p>
             )}
 
+            {order.channel === "online" && (
             <form action={updateOrderFulfilment} className="mt-5 space-y-4 border-t border-bark-200 pt-5">
               <input type="hidden" name="id" value={order.id} />
               <Field
@@ -157,6 +167,7 @@ export default async function AdminOrderDetailPage({
                 Save shipping details
               </button>
             </form>
+            )}
           </Panel>
         </div>
 
@@ -194,6 +205,15 @@ export default async function AdminOrderDetailPage({
                 value={order.paid_at ? formatDateTime(order.paid_at) : "Not yet"}
               />
               <Row label="Points awarded" value={String(order.points_awarded)} />
+              {order.cash_received_idr !== null && (
+                <>
+                  <Row label="Cash received" value={formatIDR(order.cash_received_idr)} />
+                  <Row
+                    label="Change given"
+                    value={formatIDR(order.cash_received_idr - order.total_idr)}
+                  />
+                </>
+              )}
             </dl>
 
             {order.payment_url && !order.paid_at && (
@@ -224,8 +244,9 @@ export default async function AdminOrderDetailPage({
               </div>
             ) : (
               <p className="text-sm text-bark-600">
-                Guest checkout{order.guest_email ? ` — ${order.guest_email}` : ""}.
-                No points awarded on guest orders.
+                {order.channel === "pos"
+                  ? "Walk-in customer. Attach an account at the till next time to award points."
+                  : `Guest checkout${order.guest_email ? ` — ${order.guest_email}` : ""}. No points awarded on guest orders.`}
               </p>
             )}
           </Panel>

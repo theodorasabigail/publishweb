@@ -15,9 +15,9 @@ const FILTERS: { value: string; label: string }[] = [
 export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; channel?: string }>;
 }) {
-  const { status } = await searchParams;
+  const { status, channel } = await searchParams;
   const active = status && ORDER_STATUSES.includes(status as OrderStatus) ? status : "all";
 
   const supabase = createAdminClient();
@@ -28,6 +28,8 @@ export default async function AdminOrdersPage({
     .limit(200);
 
   if (active !== "all") query = query.eq("status", active);
+  const activeChannel = channel === "pos" || channel === "online" ? channel : "all";
+  if (activeChannel !== "all") query = query.eq("channel", activeChannel);
 
   const { data } = await query;
   const orders = (data ?? []) as Order[];
@@ -38,6 +40,31 @@ export default async function AdminOrdersPage({
         title="Orders"
         description="Move an order along as you roast, pack and ship it."
       />
+
+      <nav className="mb-3 flex flex-wrap gap-2" aria-label="Sales channel">
+        {[
+          { value: "all", label: "Everywhere" },
+          { value: "online", label: "Website" },
+          { value: "pos", label: "Shop counter" },
+        ].map((option) => (
+          <Link
+            key={option.value}
+            href={
+              option.value === "all"
+                ? "/admin/orders"
+                : `/admin/orders?channel=${option.value}`
+            }
+            className={cn(
+              "badge",
+              activeChannel === option.value
+                ? "bg-bark-700 text-cream"
+                : "border border-bark-200 bg-white text-bark-700 hover:border-bark-400",
+            )}
+          >
+            {option.label}
+          </Link>
+        ))}
+      </nav>
 
       <nav className="mb-5 flex flex-wrap gap-2">
         {FILTERS.map((filter) => (
@@ -64,6 +91,7 @@ export default async function AdminOrdersPage({
                 <th className="px-4 py-3 font-medium">Order</th>
                 <th className="px-4 py-3 font-medium">Placed</th>
                 <th className="px-4 py-3 font-medium">Customer</th>
+                <th className="px-4 py-3 font-medium">Where</th>
                 <th className="px-4 py-3 font-medium">Ships to</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 text-right font-medium">Total</th>
@@ -84,14 +112,28 @@ export default async function AdminOrdersPage({
                     {formatDateTime(order.created_at)}
                   </td>
                   <td className="px-4 py-3 text-bark-600">
-                    {order.shipping_address?.recipient_name ?? "—"}
-                    {!order.user_id && (
+                    {order.shipping_address?.recipient_name ??
+                      (order.channel === "pos" ? "Walk-in" : "—")}
+                    {!order.user_id && order.channel === "online" && (
                       <span className="ml-1.5 text-xs text-bark-400">(guest)</span>
                     )}
                   </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={
+                        order.channel === "pos"
+                          ? "badge bg-bark-100 text-bark-800"
+                          : "badge bg-sky-100 text-sky-800"
+                      }
+                    >
+                      {order.channel === "pos" ? "Shop" : "Website"}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-bark-600">
-                    {order.shipping_address?.city ?? "—"}
-                    {order.shipping_address?.country
+                    {order.channel === "pos"
+                      ? "—"
+                      : order.shipping_address?.city ?? "—"}
+                    {order.channel === "online" && order.shipping_address?.country
                       ? `, ${order.shipping_address.country}`
                       : ""}
                   </td>
