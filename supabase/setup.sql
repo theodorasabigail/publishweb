@@ -1,0 +1,1269 @@
+-- ===========================================================================
+-- Publish Coffee Roasters -- complete database setup
+-- PT Aroma Pulau Arunika
+--
+-- THIS FILE IS GENERATED. Do not edit it by hand.
+-- Edit supabase/migrations/*.sql instead, then run: npm run build:sql
+--
+-- ---------------------------------------------------------------------------
+-- HOW TO USE THIS
+--
+-- Setting up a brand new Supabase project:
+--   Copy this entire file, paste it into Supabase -> SQL Editor, click Run.
+--   That is the whole database. You should see "Success. No rows returned."
+--
+-- Already have the site running:
+--   Do NOT use this file. Run only the new numbered files from
+--   supabase/migrations/ that you have not run before.
+--
+-- Running this twice is safe: tables, functions and policies are replaced
+-- rather than duplicated, the example content is skipped if it already exists,
+-- and your own settings are never overwritten.
+--
+-- Generated from 5 migrations:
+--   0001_init.sql
+--   0002_functions_rls.sql
+--   0003_seed.sql
+--   0004_media_usage.sql
+--   0005_pos.sql
+-- ===========================================================================
+
+
+-- ###########################################################################
+-- ## 0001_init.sql
+-- ###########################################################################
+
+-- ===========================================================================
+-- Publish Coffee Roasters -- initial schema
+-- PT Aroma Pulau Arunika
+--
+-- Run this in Supabase -> SQL Editor. It is idempotent enough to re-run on a
+-- fresh project, but it is meant to be applied once, in order, with 0002.
+-- ===========================================================================
+
+create extension if not exists "pgcrypto";
+
+-- --------------------------------------------------------------------------
+-- Enums
+-- --------------------------------------------------------------------------
+do $$ begin
+  create type loyalty_tier as enum ('bronze', 'silver', 'gold');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create type variant_size as enum ('100g', '200g', '1kg');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create type order_status as enum ('pending', 'paid', 'roasting', 'shipped', 'completed', 'cancelled');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create type roasting_status as enum ('new', 'quoted', 'accepted', 'declined', 'done');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create type post_status as enum ('draft', 'scheduled', 'published');
+exception when duplicate_object then null; end $$;
+
+-- --------------------------------------------------------------------------
+-- profiles -- extends auth.users
+-- --------------------------------------------------------------------------
+create table if not exists public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  display_name text,
+  email text,
+  phone text,
+  loyalty_points integer not null default 0,
+  lifetime_points integer not null default 0,
+  tier loyalty_tier not null default 'bronze',
+  is_admin boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+-- --------------------------------------------------------------------------
+-- addresses
+-- --------------------------------------------------------------------------
+create table if not exists public.addresses (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  recipient_name text not null,
+  phone text not null,
+  line1 text not null,
+  line2 text,
+  city text not null,
+  province text,
+  postal_code text,
+  country text not null default 'ID',
+  is_default boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index if not exists addresses_user_id_idx on public.addresses(user_id);
+
+-- --------------------------------------------------------------------------
+-- categories
+-- --------------------------------------------------------------------------
+create table if not exists public.categories (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
+  name text not null,
+  description text,
+  image_url text,
+  show_on_homepage boolean not null default true,
+  sort_order integer not null default 0,
+  seo_title text,
+  seo_description text,
+  created_at timestamptz not null default now()
+);
+
+-- --------------------------------------------------------------------------
+-- products
+-- --------------------------------------------------------------------------
+create table if not exists public.products (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
+  name text not null,
+  description text,
+  origin text,
+  process text,
+  roast_level text,
+  varietal text,
+  masl text,
+  tasting_notes text,
+  category_id uuid references public.categories(id) on delete set null,
+  image_url text,
+  image_alt text,
+  accent_color text not null default '#8c6144',
+  is_active boolean not null default true,
+  is_featured boolean not null default false,
+  sort_order integer not null default 0,
+  seo_title text,
+  seo_description text,
+  og_image_url text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists products_category_id_idx on public.products(category_id);
+create index if not exists products_active_sort_idx on public.products(is_active, sort_order);
+
+-- --------------------------------------------------------------------------
+-- product_variants
+-- --------------------------------------------------------------------------
+create table if not exists public.product_variants (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references public.products(id) on delete cascade,
+  size variant_size not null,
+  price_idr integer not null check (price_idr >= 0),
+  stock integer not null default 0 check (stock >= 0),
+  weight_grams integer not null default 0,
+  is_active boolean not null default true,
+  unique (product_id, size)
+);
+create index if not exists product_variants_product_id_idx on public.product_variants(product_id);
+
+-- --------------------------------------------------------------------------
+-- orders
+-- --------------------------------------------------------------------------
+create sequence if not exists public.order_ref_seq start 148;
+
+create table if not exists public.orders (
+  id uuid primary key default gen_random_uuid(),
+  human_ref text not null unique default 'PUB-' || lpad(nextval('public.order_ref_seq')::text, 6, '0'),
+  user_id uuid references public.profiles(id) on delete set null,
+  guest_email text,
+  status order_status not null default 'pending',
+  subtotal_idr integer not null default 0,
+  shipping_idr integer not null default 0,
+  unique_code integer not null default 0,
+  total_idr integer not null default 0,
+  payment_method text,
+  payment_ref text,
+  payment_url text,
+  payment_expires_at timestamptz,
+  shipping_address jsonb,
+  shipping_zone text,
+  courier_note text,
+  tracking_number text,
+  customer_note text,
+  points_awarded integer not null default 0,
+  created_at timestamptz not null default now(),
+  paid_at timestamptz
+);
+create index if not exists orders_user_id_idx on public.orders(user_id);
+create index if not exists orders_status_idx on public.orders(status);
+create index if not exists orders_created_at_idx on public.orders(created_at desc);
+create index if not exists orders_total_pending_idx on public.orders(total_idr) where status = 'pending';
+
+-- --------------------------------------------------------------------------
+-- order_items
+-- --------------------------------------------------------------------------
+create table if not exists public.order_items (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references public.orders(id) on delete cascade,
+  product_id uuid references public.products(id) on delete set null,
+  variant_id uuid references public.product_variants(id) on delete set null,
+  name_snapshot text not null,
+  size_snapshot text not null,
+  slug_snapshot text,
+  unit_price_idr integer not null,
+  quantity integer not null check (quantity > 0)
+);
+create index if not exists order_items_order_id_idx on public.order_items(order_id);
+
+-- --------------------------------------------------------------------------
+-- roasting_requests
+-- --------------------------------------------------------------------------
+create sequence if not exists public.roasting_ref_seq start 1;
+
+create table if not exists public.roasting_requests (
+  id uuid primary key default gen_random_uuid(),
+  human_ref text not null unique default 'JR-' || lpad(nextval('public.roasting_ref_seq')::text, 5, '0'),
+  user_id uuid references public.profiles(id) on delete set null,
+  contact_name text not null,
+  contact_phone text not null,
+  email text,
+  green_bean_origin text not null,
+  quantity_kg numeric(10, 2) not null check (quantity_kg > 0),
+  desired_roast_level text,
+  notes text,
+  status roasting_status not null default 'new',
+  quoted_price_idr integer,
+  admin_note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists roasting_requests_status_idx on public.roasting_requests(status);
+
+-- --------------------------------------------------------------------------
+-- blog
+-- --------------------------------------------------------------------------
+create table if not exists public.blog_categories (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
+  name text not null,
+  description text,
+  accent_color text not null default '#714c39',
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.blog_posts (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique,
+  title text not null,
+  excerpt text,
+  body text,
+  cover_image text,
+  cover_alt text,
+  author_name text not null default 'Publish Coffee Roasters',
+  blog_category_id uuid references public.blog_categories(id) on delete set null,
+  tags text[] not null default '{}',
+  status post_status not null default 'draft',
+  is_featured boolean not null default false,
+  reading_minutes integer,
+  seo_title text,
+  seo_description text,
+  og_image_url text,
+  published_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists blog_posts_status_published_idx on public.blog_posts(status, published_at desc);
+create index if not exists blog_posts_category_idx on public.blog_posts(blog_category_id);
+create index if not exists blog_posts_tags_idx on public.blog_posts using gin (tags);
+
+-- --------------------------------------------------------------------------
+-- shipping_zones -- flat-rate zones (v1). Swappable for Biteship later.
+-- --------------------------------------------------------------------------
+create table if not exists public.shipping_zones (
+  id uuid primary key default gen_random_uuid(),
+  code text not null unique,
+  name text not null,
+  country_codes text[] not null default '{}',
+  is_domestic boolean not null default false,
+  base_rate_idr integer not null default 0,
+  -- second tier kicks in above threshold_grams
+  threshold_grams integer not null default 1000,
+  heavy_rate_idr integer not null default 0,
+  free_shipping_over_idr integer,
+  delivery_estimate text,
+  is_active boolean not null default true,
+  sort_order integer not null default 0
+);
+
+-- --------------------------------------------------------------------------
+-- site_settings -- single row, powers the bounded presentation controls
+-- --------------------------------------------------------------------------
+create table if not exists public.site_settings (
+  id boolean primary key default true check (id),
+  hero_image text,
+  hero_title text not null default 'Coffee, published.',
+  hero_subtitle text,
+  hero_cta_label text default 'Shop the roast list',
+  hero_cta_href text default '/shop',
+  banner_enabled boolean not null default false,
+  banner_image text,
+  banner_text text,
+  banner_link text,
+  homepage_category_ids uuid[] not null default '{}',
+  featured_post_id uuid references public.blog_posts(id) on delete set null,
+  announcement_note text,
+  loyalty_rupiah_per_point integer not null default 10000,
+  tier_silver_threshold integer not null default 100,
+  tier_gold_threshold integer not null default 500,
+  whatsapp_number text,
+  instagram_url text,
+  contact_email text,
+  seo_title text not null default 'Publish Coffee Roasters',
+  seo_description text,
+  og_image_url text,
+  updated_at timestamptz not null default now()
+);
+insert into public.site_settings (id) values (true) on conflict (id) do nothing;
+
+-- --------------------------------------------------------------------------
+-- payment_events -- raw webhook log + unmatched-payment queue (Path B)
+-- --------------------------------------------------------------------------
+create table if not exists public.payment_events (
+  id uuid primary key default gen_random_uuid(),
+  provider text not null,
+  external_id text,
+  amount_idr integer,
+  status text,
+  matched_order_id uuid references public.orders(id) on delete set null,
+  is_matched boolean not null default false,
+  is_resolved boolean not null default false,
+  payload jsonb,
+  created_at timestamptz not null default now()
+);
+create index if not exists payment_events_unmatched_idx on public.payment_events(is_matched, is_resolved);
+-- Non-partial on purpose: the webhook upsert targets ON CONFLICT
+-- (provider, external_id), which cannot be inferred from a partial index.
+-- Null external_ids stay distinct, so unidentified events are never merged.
+create unique index if not exists payment_events_provider_external_idx
+  on public.payment_events(provider, external_id);
+
+-- --------------------------------------------------------------------------
+-- loyalty_ledger -- every point movement, for auditability
+-- --------------------------------------------------------------------------
+create table if not exists public.loyalty_ledger (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  order_id uuid references public.orders(id) on delete set null,
+  points integer not null,
+  reason text not null,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists loyalty_ledger_user_idx on public.loyalty_ledger(user_id, created_at desc);
+
+-- --------------------------------------------------------------------------
+-- newsletter_subscribers
+-- --------------------------------------------------------------------------
+create table if not exists public.newsletter_subscribers (
+  id uuid primary key default gen_random_uuid(),
+  email text not null unique,
+  source text,
+  created_at timestamptz not null default now()
+);
+
+
+-- ###########################################################################
+-- ## 0002_functions_rls.sql
+-- ###########################################################################
+
+-- ===========================================================================
+-- Publish Coffee Roasters -- triggers, helper functions, Row Level Security
+-- Run this AFTER 0001_init.sql.
+-- ===========================================================================
+
+-- --------------------------------------------------------------------------
+-- updated_at maintenance
+-- --------------------------------------------------------------------------
+create or replace function public.touch_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists products_touch_updated_at on public.products;
+create trigger products_touch_updated_at
+  before update on public.products
+  for each row execute function public.touch_updated_at();
+
+drop trigger if exists blog_posts_touch_updated_at on public.blog_posts;
+create trigger blog_posts_touch_updated_at
+  before update on public.blog_posts
+  for each row execute function public.touch_updated_at();
+
+drop trigger if exists roasting_requests_touch_updated_at on public.roasting_requests;
+create trigger roasting_requests_touch_updated_at
+  before update on public.roasting_requests
+  for each row execute function public.touch_updated_at();
+
+-- --------------------------------------------------------------------------
+-- Auto-create a profile row whenever someone signs up
+-- --------------------------------------------------------------------------
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.profiles (id, email, display_name)
+  values (
+    new.id,
+    new.email,
+    coalesce(
+      new.raw_user_meta_data ->> 'full_name',
+      new.raw_user_meta_data ->> 'name',
+      split_part(coalesce(new.email, ''), '@', 1)
+    )
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- --------------------------------------------------------------------------
+-- Admin check. SECURITY DEFINER so it can read profiles without tripping the
+-- policies that call it (which would otherwise recurse).
+-- --------------------------------------------------------------------------
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    (select p.is_admin from public.profiles p where p.id = auth.uid()),
+    false
+  );
+$$;
+
+-- --------------------------------------------------------------------------
+-- Only one default address per user
+-- --------------------------------------------------------------------------
+create or replace function public.enforce_single_default_address()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.is_default then
+    update public.addresses
+       set is_default = false
+     where user_id = new.user_id
+       and id <> new.id
+       and is_default;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists addresses_single_default on public.addresses;
+create trigger addresses_single_default
+  after insert or update of is_default on public.addresses
+  for each row when (new.is_default) execute function public.enforce_single_default_address();
+
+-- --------------------------------------------------------------------------
+-- Loyalty: recompute tier from lifetime points using admin-set thresholds
+-- --------------------------------------------------------------------------
+create or replace function public.recalculate_tier(p_user_id uuid)
+returns loyalty_tier
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_lifetime integer;
+  v_silver integer;
+  v_gold integer;
+  v_tier loyalty_tier;
+begin
+  select lifetime_points into v_lifetime from public.profiles where id = p_user_id;
+  if v_lifetime is null then
+    return null;
+  end if;
+
+  select tier_silver_threshold, tier_gold_threshold
+    into v_silver, v_gold
+    from public.site_settings where id = true;
+
+  v_tier := case
+    when v_lifetime >= coalesce(v_gold, 500) then 'gold'::loyalty_tier
+    when v_lifetime >= coalesce(v_silver, 100) then 'silver'::loyalty_tier
+    else 'bronze'::loyalty_tier
+  end;
+
+  update public.profiles set tier = v_tier where id = p_user_id;
+  return v_tier;
+end;
+$$;
+
+-- --------------------------------------------------------------------------
+-- Loyalty: award/adjust points atomically and write the ledger.
+-- Positive points add to both balance and lifetime; negative points (spends,
+-- corrections) only reduce the balance so tier is never silently demoted.
+-- --------------------------------------------------------------------------
+create or replace function public.award_loyalty_points(
+  p_user_id uuid,
+  p_points integer,
+  p_reason text,
+  p_order_id uuid default null,
+  p_created_by uuid default null
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_balance integer;
+begin
+  if p_user_id is null or p_points = 0 then
+    return null;
+  end if;
+
+  update public.profiles
+     set loyalty_points = greatest(0, loyalty_points + p_points),
+         lifetime_points = case when p_points > 0 then lifetime_points + p_points else lifetime_points end
+   where id = p_user_id
+   returning loyalty_points into v_balance;
+
+  if v_balance is null then
+    return null;
+  end if;
+
+  insert into public.loyalty_ledger (user_id, order_id, points, reason, created_by)
+  values (p_user_id, p_order_id, p_points, p_reason, p_created_by);
+
+  perform public.recalculate_tier(p_user_id);
+  return v_balance;
+end;
+$$;
+
+-- --------------------------------------------------------------------------
+-- Mark an order paid. Idempotent: a webhook that fires twice awards points
+-- once. This is the single funnel every payment provider goes through.
+-- --------------------------------------------------------------------------
+create or replace function public.mark_order_paid(
+  p_order_id uuid,
+  p_payment_ref text default null,
+  p_payment_method text default null
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order public.orders;
+  v_rate integer;
+  v_points integer;
+begin
+  select * into v_order from public.orders where id = p_order_id for update;
+  if v_order is null then
+    raise exception 'order % not found', p_order_id;
+  end if;
+
+  -- Already settled: return as-is without re-awarding points.
+  if v_order.paid_at is not null then
+    return v_order;
+  end if;
+
+  select greatest(1, coalesce(loyalty_rupiah_per_point, 10000))
+    into v_rate from public.site_settings where id = true;
+
+  v_points := floor(v_order.total_idr::numeric / v_rate)::integer;
+
+  update public.orders
+     set status = 'paid',
+         paid_at = now(),
+         payment_ref = coalesce(p_payment_ref, payment_ref),
+         payment_method = coalesce(p_payment_method, payment_method),
+         points_awarded = case when v_order.user_id is null then 0 else v_points end
+   where id = p_order_id
+   returning * into v_order;
+
+  -- Decrement stock once, at the moment money is confirmed.
+  update public.product_variants v
+     set stock = greatest(0, v.stock - i.qty)
+    from (
+      select variant_id, sum(quantity)::integer as qty
+        from public.order_items
+       where order_id = p_order_id and variant_id is not null
+       group by variant_id
+    ) i
+   where v.id = i.variant_id;
+
+  if v_order.user_id is not null and v_points > 0 then
+    perform public.award_loyalty_points(
+      v_order.user_id, v_points, 'Order ' || v_order.human_ref, p_order_id, null
+    );
+  end if;
+
+  return v_order;
+end;
+$$;
+
+-- ===========================================================================
+-- Row Level Security
+--
+-- Shape of the rules:
+--   * Anonymous/public traffic can read published storefront content only.
+--   * A signed-in user can read and write only their own rows.
+--   * Admins (profiles.is_admin) get full access through the dashboard.
+--   * Order/payment writes happen server-side with the service-role key,
+--     which bypasses RLS entirely -- so no client-side insert policy exists
+--     for orders, order_items, payment_events or loyalty_ledger.
+-- ===========================================================================
+
+alter table public.profiles              enable row level security;
+alter table public.addresses             enable row level security;
+alter table public.categories            enable row level security;
+alter table public.products              enable row level security;
+alter table public.product_variants      enable row level security;
+alter table public.orders                enable row level security;
+alter table public.order_items           enable row level security;
+alter table public.roasting_requests     enable row level security;
+alter table public.blog_categories       enable row level security;
+alter table public.blog_posts            enable row level security;
+alter table public.shipping_zones        enable row level security;
+alter table public.site_settings         enable row level security;
+alter table public.payment_events        enable row level security;
+alter table public.loyalty_ledger        enable row level security;
+alter table public.newsletter_subscribers enable row level security;
+
+-- ---- profiles -------------------------------------------------------------
+drop policy if exists "profiles: read own" on public.profiles;
+create policy "profiles: read own" on public.profiles
+  for select using (id = auth.uid() or public.is_admin());
+
+drop policy if exists "profiles: update own" on public.profiles;
+create policy "profiles: update own" on public.profiles
+  for update using (id = auth.uid()) with check (id = auth.uid());
+
+drop policy if exists "profiles: admin write" on public.profiles;
+create policy "profiles: admin write" on public.profiles
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- ---- addresses ------------------------------------------------------------
+drop policy if exists "addresses: own" on public.addresses;
+create policy "addresses: own" on public.addresses
+  for all using (user_id = auth.uid() or public.is_admin())
+  with check (user_id = auth.uid() or public.is_admin());
+
+-- ---- catalogue (public read of active rows, admin write) ------------------
+drop policy if exists "categories: public read" on public.categories;
+create policy "categories: public read" on public.categories for select using (true);
+
+drop policy if exists "categories: admin write" on public.categories;
+create policy "categories: admin write" on public.categories
+  for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "products: public read active" on public.products;
+create policy "products: public read active" on public.products
+  for select using (is_active or public.is_admin());
+
+drop policy if exists "products: admin write" on public.products;
+create policy "products: admin write" on public.products
+  for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "variants: public read" on public.product_variants;
+create policy "variants: public read" on public.product_variants
+  for select using (
+    public.is_admin() or exists (
+      select 1 from public.products p where p.id = product_id and p.is_active
+    )
+  );
+
+drop policy if exists "variants: admin write" on public.product_variants;
+create policy "variants: admin write" on public.product_variants
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- ---- orders ---------------------------------------------------------------
+drop policy if exists "orders: read own" on public.orders;
+create policy "orders: read own" on public.orders
+  for select using (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists "orders: admin write" on public.orders;
+create policy "orders: admin write" on public.orders
+  for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "order_items: read own" on public.order_items;
+create policy "order_items: read own" on public.order_items
+  for select using (
+    public.is_admin() or exists (
+      select 1 from public.orders o where o.id = order_id and o.user_id = auth.uid()
+    )
+  );
+
+drop policy if exists "order_items: admin write" on public.order_items;
+create policy "order_items: admin write" on public.order_items
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- ---- roasting requests ----------------------------------------------------
+drop policy if exists "roasting: read own" on public.roasting_requests;
+create policy "roasting: read own" on public.roasting_requests
+  for select using (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists "roasting: admin write" on public.roasting_requests;
+create policy "roasting: admin write" on public.roasting_requests
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- ---- blog -----------------------------------------------------------------
+drop policy if exists "blog_categories: public read" on public.blog_categories;
+create policy "blog_categories: public read" on public.blog_categories for select using (true);
+
+drop policy if exists "blog_categories: admin write" on public.blog_categories;
+create policy "blog_categories: admin write" on public.blog_categories
+  for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "blog_posts: public read published" on public.blog_posts;
+create policy "blog_posts: public read published" on public.blog_posts
+  for select using (
+    public.is_admin()
+    or (status = 'published' and (published_at is null or published_at <= now()))
+  );
+
+drop policy if exists "blog_posts: admin write" on public.blog_posts;
+create policy "blog_posts: admin write" on public.blog_posts
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- ---- shipping + settings --------------------------------------------------
+drop policy if exists "shipping_zones: public read" on public.shipping_zones;
+create policy "shipping_zones: public read" on public.shipping_zones for select using (true);
+
+drop policy if exists "shipping_zones: admin write" on public.shipping_zones;
+create policy "shipping_zones: admin write" on public.shipping_zones
+  for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "site_settings: public read" on public.site_settings;
+create policy "site_settings: public read" on public.site_settings for select using (true);
+
+drop policy if exists "site_settings: admin write" on public.site_settings;
+create policy "site_settings: admin write" on public.site_settings
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- ---- payments + loyalty ledger (admin-visible only) -----------------------
+drop policy if exists "payment_events: admin only" on public.payment_events;
+create policy "payment_events: admin only" on public.payment_events
+  for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "loyalty_ledger: read own" on public.loyalty_ledger;
+create policy "loyalty_ledger: read own" on public.loyalty_ledger
+  for select using (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists "loyalty_ledger: admin write" on public.loyalty_ledger;
+create policy "loyalty_ledger: admin write" on public.loyalty_ledger
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- ---- newsletter -----------------------------------------------------------
+drop policy if exists "newsletter: anyone subscribe" on public.newsletter_subscribers;
+create policy "newsletter: anyone subscribe" on public.newsletter_subscribers
+  for insert with check (true);
+
+drop policy if exists "newsletter: admin read" on public.newsletter_subscribers;
+create policy "newsletter: admin read" on public.newsletter_subscribers
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- ===========================================================================
+-- Storage: one public bucket for product + blog imagery.
+-- Reads are public (images on the storefront); writes are admin-only.
+-- ===========================================================================
+insert into storage.buckets (id, name, public)
+values ('media', 'media', true)
+on conflict (id) do nothing;
+
+drop policy if exists "media: public read" on storage.objects;
+create policy "media: public read" on storage.objects
+  for select using (bucket_id = 'media');
+
+drop policy if exists "media: admin write" on storage.objects;
+create policy "media: admin write" on storage.objects
+  for all using (bucket_id = 'media' and public.is_admin())
+  with check (bucket_id = 'media' and public.is_admin());
+
+
+-- ###########################################################################
+-- ## 0003_seed.sql
+-- ###########################################################################
+
+-- ===========================================================================
+-- Publish Coffee Roasters -- starter data
+--
+-- Safe to run on a fresh project. Everything here is editable later from the
+-- Admin Dashboard; none of it needs to be changed in SQL.
+-- ===========================================================================
+
+-- --------------------------------------------------------------------------
+-- Shipping zones (flat rate, v1). Rates are padded on purpose -- see docs.
+-- --------------------------------------------------------------------------
+insert into public.shipping_zones
+  (code, name, country_codes, is_domestic, base_rate_idr, threshold_grams, heavy_rate_idr, free_shipping_over_idr, delivery_estimate, sort_order)
+values
+  ('id-jawa',    'Indonesia — Jawa',        array['ID'], true,   18000, 1000,  30000, 500000, '1–3 hari kerja',  1),
+  ('id-luar',    'Indonesia — luar Jawa',   array['ID'], true,   32000, 1000,  55000, 750000, '2–6 hari kerja',  2),
+  ('sea',        'Southeast Asia',          array['SG','MY','TH','VN','PH','BN','KH','LA','MM'], false, 180000, 1000, 300000, null, '5–10 business days', 3),
+  ('apac',       'Asia-Pacific',            array['AU','NZ','JP','KR','TW','HK','CN','IN'],      false, 260000, 1000, 420000, null, '7–14 business days', 4),
+  ('europe',     'Europe & UK',             array['GB','IE','DE','FR','NL','BE','ES','IT','PT','SE','NO','DK','FI','PL','CH','AT','CZ'], false, 340000, 1000, 540000, null, '8–16 business days', 5),
+  ('north-america', 'North America',        array['US','CA','MX'], false, 360000, 1000, 570000, null, '8–16 business days', 6),
+  ('rest',       'Rest of world',           array[]::text[],       false, 420000, 1000, 660000, null, '10–21 business days', 7)
+on conflict (code) do nothing;
+
+-- --------------------------------------------------------------------------
+-- Product categories
+-- --------------------------------------------------------------------------
+insert into public.categories (slug, name, description, show_on_homepage, sort_order)
+values
+  ('single-origin', 'Single Origin', 'One farm, one lot, one story. Rotating micro-lots from across the archipelago.', true, 1),
+  ('house-blend', 'House Blends', 'Built for milk, built for repeatability. The bags we drink every morning.', true, 2),
+  ('filter', 'Filter Roast', 'Lighter, brighter, developed for pourover and immersion.', true, 3),
+  ('espresso', 'Espresso Roast', 'Sweet, dense, forgiving under pressure.', true, 4)
+on conflict (slug) do nothing;
+
+-- --------------------------------------------------------------------------
+-- Products + variants
+-- --------------------------------------------------------------------------
+with c as (select slug, id from public.categories)
+insert into public.products
+  (slug, name, description, origin, process, roast_level, varietal, masl, tasting_notes,
+   category_id, accent_color, is_featured, sort_order)
+values
+  ('gayo-arunika', 'Gayo Arunika',
+   'Our anchor lot from the Gayo highlands. Wet-hulled in the traditional Sumatran way, then roasted a touch past first crack to keep the body heavy and the finish clean.',
+   'Aceh Tengah, Sumatra', 'Wet Hulled', 'Medium', 'Ateng, Timtim', '1400–1600',
+   'Dark chocolate, cedar, brown sugar',
+   (select id from c where slug = 'single-origin'), '#5d4033', true, 1),
+
+  ('kintamani-lestari', 'Kintamani Lestari',
+   'Grown alongside citrus trees on the slopes of Mount Batur, which is exactly what it tastes like. Fully washed and dried on raised beds.',
+   'Kintamani, Bali', 'Fully Washed', 'Light-Medium', 'Kartika, S795', '1200–1500',
+   'Mandarin, jasmine, golden syrup',
+   (select id from c where slug = 'filter'), '#b69169', true, 2),
+
+  ('toraja-sapan', 'Toraja Sapan',
+   'A high-grown Sulawesi lot with the structure to hold up in a long brew. Quiet acidity, long sweet finish.',
+   'Tana Toraja, Sulawesi', 'Semi Washed', 'Medium', 'S795, Typica', '1500–1750',
+   'Baking spice, dried fig, dark cocoa',
+   (select id from c where slug = 'single-origin'), '#714c39', false, 3),
+
+  ('terbit-blend', 'Terbit Blend',
+   'Our everyday espresso. Sumatra for the body, Bali for the lift. Designed to taste like itself through a flat white.',
+   'Blend — Sumatra & Bali', 'Blend', 'Medium-Dark', 'Various', '1200–1600',
+   'Milk chocolate, toasted almond, red plum',
+   (select id from c where slug = 'espresso'), '#8c6144', true, 4),
+
+  ('malam-decaf', 'Malam Decaf',
+   'Sugarcane-process decaf from Java. For the second pot, the late shift, and everyone who wants the ritual without the rest of it.',
+   'Java Barat', 'Sugarcane EA Decaf', 'Medium', 'Lini S', '1300–1500',
+   'Cocoa nib, roasted hazelnut, raisin',
+   (select id from c where slug = 'house-blend'), '#4e372d', false, 5)
+on conflict (slug) do nothing;
+
+insert into public.product_variants (product_id, size, price_idr, stock, weight_grams)
+select p.id, v.size, v.price, v.stock, v.grams
+from public.products p
+cross join (values
+  ('100g'::variant_size, 68000,  40, 130),
+  ('200g'::variant_size, 125000, 30, 240),
+  ('1kg'::variant_size,  560000, 12, 1100)
+) as v(size, price, stock, grams)
+where p.slug in ('gayo-arunika','kintamani-lestari','toraja-sapan','terbit-blend','malam-decaf')
+on conflict (product_id, size) do nothing;
+
+-- --------------------------------------------------------------------------
+-- Blog
+-- --------------------------------------------------------------------------
+insert into public.blog_categories (slug, name, description, accent_color, sort_order)
+values
+  ('roasting-notes', 'Roasting Notes', 'What came off the drum this week, and why it tastes the way it does.', '#5d4033', 1),
+  ('origin', 'Origin', 'Farms, washing stations, and the people we buy from.', '#8c6144', 2),
+  ('brewing', 'Brewing', 'Recipes, ratios, and arguments about water.', '#b69169', 3),
+  ('shop-journal', 'Shop Journal', 'Everything else that happens in a roastery.', '#714c39', 4)
+on conflict (slug) do nothing;
+
+insert into public.blog_posts
+  (slug, title, excerpt, body, author_name, blog_category_id, tags, status, is_featured, published_at)
+values
+  ('why-we-wet-hull',
+   'Why we still wet-hull',
+   'Wet-hulling is the process most likely to get a Sumatran coffee disqualified from a cupping table. We keep buying it anyway.',
+   E'Wet-hulling — *giling basah* — is the process most likely to get a Sumatran coffee thrown out of a specialty cupping table. The parchment comes off at a much higher moisture content than anywhere else in the world, the beans go a strange jade colour, and the resulting cup rarely does the bright, clean, fruit-forward thing that scores well.\n\nWe keep buying it anyway.\n\n## What actually happens\n\nIn a washed process, coffee dries inside its parchment down to about 11% moisture before hulling. In Aceh, the parchment is stripped at somewhere between 30 and 50%. The bean is soft. It deforms. It picks up the character of everything around it while it finishes drying in the open.\n\nThat is the whole argument against it, and it is a fair one. It is also the entire reason the coffee tastes like cedar and dark chocolate and old bookshelves instead of like every other washed coffee on the shelf.\n\n## The roasting problem\n\nA wet-hulled lot arrives less dense and less uniform than a washed one. Push it the way you would push a Kenyan and you get scorched tips and a hollow middle. We take the charge temperature down, stretch the Maillard phase, and drop about forty seconds past first crack.\n\nThe goal is not to make it taste clean. The goal is to make it taste like the best possible version of what it already is.',
+   'Ebi', (select id from public.blog_categories where slug = 'roasting-notes'),
+   array['sumatra','process','roasting'], 'published', true, now() - interval '6 days'),
+
+  ('water-is-the-recipe',
+   'Water is the recipe',
+   'You can buy a better grinder or you can fix your water. One of those is Rp 8.000.',
+   E'Every brewing guide starts with the grind. We would like to make a case for starting one step earlier.\n\nCoffee is about 98.5% water by weight. The mineral content of that water decides how much of the coffee actually dissolves, and in what order. Jakarta tap water, run through a basic filter jug, is usually too hard — it pulls the bitter compounds forward and flattens everything above them.\n\n## A starting point\n\nAim for roughly 70–100 ppm total dissolved solids, with the hardness sitting a little below the alkalinity. In practice, in Indonesia, that means:\n\n- Start with a low-mineral bottled water as your base\n- Cut it with a small amount of harder mineral water until the cup opens up\n- Keep the ratio written down, because you will forget it\n\nThat is the whole trick. Same beans, same grinder, same hands — a different cup.',
+   'Ebi', (select id from public.blog_categories where slug = 'brewing'),
+   array['brewing','water','pourover'], 'published', false, now() - interval '3 days'),
+
+  ('kintamani-harvest-2026',
+   'Notes from the Kintamani harvest',
+   'Three days on the slopes of Batur with the growers behind the Lestari lot.',
+   E'The road up to Kintamani is a series of switchbacks through citrus groves, which turns out to be relevant.\n\nCoffee here is almost never planted alone. It grows under and beside tangerine trees, and the growers we buy from will tell you plainly that the fruit trees are the reliable income and the coffee is the one that pays attention.\n\n## The washing station\n\nThe Lestari lot is fully washed and dried on raised beds, which is not the regional default. It takes longer and it costs more, and it is the reason the cup is as clean as it is.\n\nWe committed to the same lot for a third year running. Consistency is worth more to us than chasing a novel micro-lot every season.',
+   'Ebi', (select id from public.blog_categories where slug = 'origin'),
+   array['bali','origin','harvest'], 'published', false, now() - interval '1 day')
+on conflict (slug) do nothing;
+
+-- --------------------------------------------------------------------------
+-- Homepage presentation defaults
+-- --------------------------------------------------------------------------
+update public.site_settings
+   set hero_title = 'Coffee, published.',
+       hero_subtitle = 'A small roastery in Indonesia. Rotating single origins, blends we actually drink, and a custom roasting service for your own green beans.',
+       homepage_category_ids = array(
+         select id from public.categories where show_on_homepage order by sort_order
+       ),
+       featured_post_id = (select id from public.blog_posts where slug = 'why-we-wet-hull'),
+       seo_description = 'Small-batch Indonesian coffee roasters. Single origin, blends, and custom roasting from PT Aroma Pulau Arunika.',
+       contact_email = 'halo@publishcoffee.com'
+ -- Only seed these on a fresh project. Without this guard, re-running the
+ -- setup file would reset a hero the operator had already rewritten.
+ where id = true
+   and hero_subtitle is null;
+
+
+-- ###########################################################################
+-- ## 0004_media_usage.sql
+-- ###########################################################################
+
+-- ===========================================================================
+-- Publish Coffee Roasters -- media storage reporting
+--
+-- The free Supabase plan allows 1 GB of file storage and 5 GB of egress a
+-- month. Two things quietly eat that: oversized originals (handled in the
+-- browser, before upload) and files that stay in the bucket after the row
+-- pointing at them has moved on. These functions make the second one visible
+-- and fixable from the admin dashboard.
+--
+-- Run this in Supabase -> SQL Editor, after 0003.
+-- ===========================================================================
+
+-- --------------------------------------------------------------------------
+-- Every image URL currently referenced by a row somewhere.
+-- --------------------------------------------------------------------------
+create or replace view public.referenced_media as
+  select image_url as url from public.products where image_url is not null
+  union
+  select og_image_url from public.products where og_image_url is not null
+  union
+  select image_url from public.categories where image_url is not null
+  union
+  select cover_image from public.blog_posts where cover_image is not null
+  union
+  select og_image_url from public.blog_posts where og_image_url is not null
+  union
+  select hero_image from public.site_settings where hero_image is not null
+  union
+  select banner_image from public.site_settings where banner_image is not null
+  union
+  select og_image_url from public.site_settings where og_image_url is not null;
+
+-- --------------------------------------------------------------------------
+-- How much of the storage allowance is in use.
+-- --------------------------------------------------------------------------
+create or replace function public.media_storage_usage()
+returns table (object_count bigint, total_bytes bigint)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    count(*)::bigint,
+    coalesce(sum(coalesce((metadata ->> 'size')::bigint, 0)), 0)::bigint
+  from storage.objects
+  where bucket_id = 'media';
+$$;
+
+-- --------------------------------------------------------------------------
+-- Files in the bucket that nothing points at any more -- usually a product
+-- photo that was replaced, since a replacement uploads to a new path.
+--
+-- Anything uploaded in the last 24 hours is excluded on purpose: a file sits
+-- in the bucket from the moment it uploads until the form around it is saved,
+-- and that gap must never look like garbage.
+-- --------------------------------------------------------------------------
+create or replace function public.unused_media()
+returns table (name text, size_bytes bigint, uploaded_at timestamptz)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    o.name,
+    coalesce((o.metadata ->> 'size')::bigint, 0)::bigint,
+    o.created_at
+  from storage.objects o
+  where o.bucket_id = 'media'
+    and o.created_at < now() - interval '24 hours'
+    -- position() rather than LIKE: object names are not escaped, and a stray
+    -- underscore or percent in a filename would otherwise match too broadly.
+    and not exists (
+      select 1 from public.referenced_media r
+      where position(o.name in r.url) > 0
+    )
+  order by o.created_at;
+$$;
+
+-- These read across every table and bypass RLS, so only the server-side
+-- service role may call them. The admin dashboard already runs as that role;
+-- nothing in the browser can reach them.
+revoke all on public.referenced_media from anon, authenticated;
+revoke all on function public.media_storage_usage() from anon, authenticated;
+revoke all on function public.unused_media() from anon, authenticated;
+
+
+-- ###########################################################################
+-- ## 0005_pos.sql
+-- ###########################################################################
+
+-- ===========================================================================
+-- Publish Coffee Roasters -- counter sales (POS)
+--
+-- The same coffee is sold online and over the counter, and both should draw
+-- down the same stock and land in the same books. Rather than model a counter
+-- sale as a new thing, it reuses `orders` with a channel marker: no shipping,
+-- settled the moment it is rung up.
+--
+-- Run this in Supabase -> SQL Editor, after 0004.
+-- ===========================================================================
+
+do $$ begin
+  create type sales_channel as enum ('online', 'pos');
+exception when duplicate_object then null; end $$;
+
+create sequence if not exists public.pos_ref_seq start 1;
+
+alter table public.orders
+  add column if not exists channel sales_channel not null default 'online',
+  -- What the customer handed over, for cash. Change is total minus this.
+  add column if not exists cash_received_idr integer,
+  -- Who rang it up, so a shop with two people behind the counter can tell.
+  add column if not exists staff_id uuid references public.profiles(id) on delete set null;
+
+create index if not exists orders_channel_created_idx
+  on public.orders(channel, created_at desc);
+
+-- Reporting reads "everything that actually took money, that day", so the
+-- partial index matches that shape.
+create index if not exists orders_paid_at_idx
+  on public.orders(paid_at desc) where paid_at is not null;
+
+-- --------------------------------------------------------------------------
+-- Ring up a counter sale.
+--
+-- One call, one transaction: prices come from the database (never from the
+-- till screen), stock is locked and checked before anything is written, and
+-- settlement goes through the same `mark_order_paid` every online payment
+-- uses -- so stock, loyalty points and the books cannot diverge between the
+-- two channels.
+--
+-- p_items: [{"variant_id": "<uuid>", "quantity": 2}, ...]
+-- --------------------------------------------------------------------------
+create or replace function public.record_pos_sale(
+  p_items jsonb,
+  p_payment_method text,
+  p_cash_received integer default null,
+  p_user_id uuid default null,
+  p_staff_id uuid default null,
+  p_note text default null
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order public.orders;
+  v_order_id uuid;
+  v_subtotal integer := 0;
+  v_item jsonb;
+  v_variant record;
+  v_quantity integer;
+begin
+  if p_items is null or jsonb_array_length(p_items) = 0 then
+    raise exception 'A sale needs at least one item.';
+  end if;
+
+  if p_payment_method not in ('cash', 'qris', 'card', 'transfer') then
+    raise exception 'Unknown payment method %', p_payment_method;
+  end if;
+
+  -- Pass one: lock every variant and confirm stock before writing anything,
+  -- so a sale can never half-commit and leave stock wrong.
+  for v_item in select * from jsonb_array_elements(p_items)
+  loop
+    v_quantity := (v_item ->> 'quantity')::integer;
+    if v_quantity is null or v_quantity <= 0 then
+      raise exception 'Every line needs a quantity of at least 1.';
+    end if;
+
+    select v.id, v.price_idr, v.stock, v.size, v.is_active,
+           p.id as product_id, p.name as product_name, p.slug as product_slug
+      into v_variant
+      from public.product_variants v
+      join public.products p on p.id = v.product_id
+     where v.id = (v_item ->> 'variant_id')::uuid
+     for update of v;
+
+    if v_variant.id is null then
+      raise exception 'That coffee is no longer on the list.';
+    end if;
+    if not v_variant.is_active then
+      raise exception '% (%) is not currently for sale.',
+        v_variant.product_name, v_variant.size;
+    end if;
+    if v_variant.stock < v_quantity then
+      raise exception 'Only % of % (%) left in stock.',
+        v_variant.stock, v_variant.product_name, v_variant.size;
+    end if;
+
+    v_subtotal := v_subtotal + (v_variant.price_idr * v_quantity);
+  end loop;
+
+  if p_payment_method = 'cash'
+     and p_cash_received is not null
+     and p_cash_received < v_subtotal then
+    raise exception 'Cash received is less than the total.';
+  end if;
+
+  insert into public.orders (
+    human_ref, channel, user_id, status,
+    subtotal_idr, shipping_idr, unique_code, total_idr,
+    payment_method, cash_received_idr, staff_id, customer_note
+  )
+  values (
+    'POS-' || lpad(nextval('public.pos_ref_seq')::text, 5, '0'),
+    'pos', p_user_id, 'pending',
+    v_subtotal, 0, 0, v_subtotal,
+    p_payment_method,
+    case when p_payment_method = 'cash' then p_cash_received else null end,
+    p_staff_id, p_note
+  )
+  returning id into v_order_id;
+
+  -- Pass two: write the lines, snapshotting name, size and price as the
+  -- online path does, so a later price change never rewrites history.
+  for v_item in select * from jsonb_array_elements(p_items)
+  loop
+    v_quantity := (v_item ->> 'quantity')::integer;
+
+    insert into public.order_items (
+      order_id, product_id, variant_id,
+      name_snapshot, size_snapshot, slug_snapshot,
+      unit_price_idr, quantity
+    )
+    select v_order_id, p.id, v.id, p.name, v.size::text, p.slug,
+           v.price_idr, v_quantity
+      from public.product_variants v
+      join public.products p on p.id = v.product_id
+     where v.id = (v_item ->> 'variant_id')::uuid;
+  end loop;
+
+  -- Same settlement path as every online payment: decrements stock, awards
+  -- loyalty points if a customer was attached, exactly once.
+  perform public.mark_order_paid(v_order_id, null, p_payment_method);
+
+  -- Nothing to roast or ship -- the customer is holding it.
+  update public.orders
+     set status = 'completed'
+   where id = v_order_id
+  returning * into v_order;
+
+  return v_order;
+end;
+$$;
+
+-- --------------------------------------------------------------------------
+-- Daily takings, split the way a shop actually counts up: by channel, and by
+-- how the money arrived, so the cash drawer can be reconciled against it.
+-- --------------------------------------------------------------------------
+create or replace function public.sales_summary(
+  p_from timestamptz,
+  p_to timestamptz
+)
+returns table (
+  channel sales_channel,
+  payment_method text,
+  order_count bigint,
+  gross_idr bigint
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    o.channel,
+    coalesce(o.payment_method, 'unknown'),
+    count(*)::bigint,
+    coalesce(sum(o.total_idr), 0)::bigint
+  from public.orders o
+  where o.paid_at >= p_from
+    and o.paid_at < p_to
+    and o.status <> 'cancelled'
+  group by o.channel, coalesce(o.payment_method, 'unknown')
+  order by o.channel, coalesce(o.payment_method, 'unknown');
+$$;
+
+-- --------------------------------------------------------------------------
+-- What sold, over a period, across both channels. Answers "what should I
+-- roast next" rather than "what did I take".
+-- --------------------------------------------------------------------------
+create or replace function public.product_sales_report(
+  p_from timestamptz,
+  p_to timestamptz
+)
+returns table (
+  product_name text,
+  size text,
+  units_sold bigint,
+  gross_idr bigint,
+  online_units bigint,
+  pos_units bigint
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    i.name_snapshot,
+    i.size_snapshot,
+    sum(i.quantity)::bigint,
+    sum(i.quantity * i.unit_price_idr)::bigint,
+    -- coalesce: a product that only sold in one channel must report 0 for
+    -- the other, not a blank.
+    coalesce(sum(i.quantity) filter (where o.channel = 'online'), 0)::bigint,
+    coalesce(sum(i.quantity) filter (where o.channel = 'pos'), 0)::bigint
+  from public.order_items i
+  join public.orders o on o.id = i.order_id
+  where o.paid_at >= p_from
+    and o.paid_at < p_to
+    and o.status <> 'cancelled'
+  group by i.name_snapshot, i.size_snapshot
+  order by sum(i.quantity) desc;
+$$;
+
+-- These read across all orders and bypass RLS, so only the server-side
+-- service role may call them. The admin dashboard already runs as that role.
+revoke all on function public.record_pos_sale(jsonb, text, integer, uuid, uuid, text) from anon, authenticated;
+revoke all on function public.sales_summary(timestamptz, timestamptz) from anon, authenticated;
+revoke all on function public.product_sales_report(timestamptz, timestamptz) from anon, authenticated;
+

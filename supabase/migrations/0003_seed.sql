@@ -129,4 +129,7 @@ update public.site_settings
        featured_post_id = (select id from public.blog_posts where slug = 'why-we-wet-hull'),
        seo_description = 'Small-batch Indonesian coffee roasters. Single origin, blends, and custom roasting from PT Aroma Pulau Arunika.',
        contact_email = 'halo@publishcoffee.com'
- where id = true;
+ -- Only seed these on a fresh project. Without this guard, re-running the
+ -- setup file would reset a hero the operator had already rewritten.
+ where id = true
+   and hero_subtitle is null;

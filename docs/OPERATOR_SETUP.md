@@ -29,25 +29,22 @@ Supabase stores your products, orders, customers and blog posts.
    - **Region:** Southeast Asia (Singapore) — closest to Indonesia.
 3. Wait for the project to finish setting up (a minute or two).
 4. In the left sidebar, click **SQL Editor**, then **New query**.
-5. Open the file `supabase/migrations/0001_init.sql` from this project. Copy
-   **all** of it, paste it into the query box, and click **Run**.
-   You should see "Success. No rows returned."
-6. Do the same for `supabase/migrations/0002_functions_rls.sql`.
-7. Do the same for `supabase/migrations/0003_seed.sql`. This adds example
-   coffees, categories, shipping zones and three blog posts, so the site has
-   something in it on day one. You can delete or edit all of it later from the
-   admin dashboard.
-8. Do the same for `supabase/migrations/0004_media_usage.sql`. This powers the
-   **Images & storage** page in the admin, which shows how much of your image
-   allowance is used and lets you clear out photos nothing points at any more.
-9. Do the same for `supabase/migrations/0005_pos.sql`. This adds **Counter
-   sales** — ringing up sales in the physical shop — and the **Sales** report
-   that puts shop and website takings side by side.
+5. Open the file `supabase/setup.sql` from this project. Copy **all** of it —
+   it is long, so use Ctrl+A / Cmd+A inside the file rather than scrolling —
+   paste it into the query box, and click **Run**.
+
+   You should see **"Success. No rows returned."** That one file is your whole
+   database: every table, every security rule, the counter-sales till, and some
+   example coffees and blog posts so the site is not empty on day one. You can
+   edit or delete all the examples later from the admin dashboard.
+
+   If you are unsure whether it ran, it is safe to run again — it will not
+   duplicate anything or overwrite settings you have changed.
 
 ### Get your three keys
 
-10. In the sidebar, click **Project Settings** (the gear), then **API**.
-11. You need three values. Copy each into a note for now:
+6. In the sidebar, click **Project Settings** (the gear), then **API**.
+7. You need three values. Copy each into a note for now:
 
    | On the Supabase page | Call it |
    |---|---|
@@ -61,7 +58,7 @@ Supabase stores your products, orders, customers and blog posts.
 
 ### Turn on Google sign-in (optional, do it now if you want it)
 
-12. Sidebar → **Authentication** → **Providers** → **Google** → toggle on.
+8. Sidebar → **Authentication** → **Providers** → **Google** → toggle on.
     Supabase shows you what to do; it involves creating a free Google Cloud
     project. If you would rather skip this, customers can still sign up with
     email and password — everything works without it.

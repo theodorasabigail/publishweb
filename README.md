@@ -35,8 +35,13 @@ cp .env.example .env.local     # fill in the Supabase values
 npm run dev
 ```
 
-Apply `supabase/migrations/*.sql` in order via the Supabase SQL editor, then
-make yourself an admin (see Step 4 of the operator setup).
+Paste `supabase/setup.sql` into the Supabase SQL editor and run it — that is
+the whole database in one file. Then make yourself an admin (Step 4 of the
+operator setup).
+
+`setup.sql` is **generated** from `supabase/migrations/*.sql`. Add a numbered
+migration, then run `npm run build:sql` to regenerate it, and commit both. An
+existing deployment upgrades by running the new numbered file only.
 
 ```bash
 npm run build       # production build
@@ -61,7 +66,9 @@ src/
     payments/        provider adapter — see below
     shipping/        flat-rate zones, isolated for the Biteship swap
     supabase/        browser / server / service-role clients
-supabase/migrations/ schema, RLS, seed data
+supabase/
+  migrations/        schema, RLS, seed data — source of truth
+  setup.sql          generated: all migrations in one paste-able file
 ```
 
 ### Three Supabase clients, on purpose
