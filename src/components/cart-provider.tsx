@@ -37,7 +37,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [ready, setReady] = useState(false);
 
+  // Hydration: the server renders an empty cart because it cannot see
+  // localStorage, so the real contents are read after mount.
+  //
+  // The rule is not wrong — localStorage is an external store, and
+  // useSyncExternalStore is the sanctioned way to read one. It would also
+  // subsume the cross-tab listener below. Deliberately not doing that rewrite
+  // here: this commit is a security upgrade, and a cart bug costs real money,
+  // so it should land as its own reviewable change.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLines(parseStoredCart(window.localStorage.getItem(CART_STORAGE_KEY)));
     setReady(true);
   }, []);

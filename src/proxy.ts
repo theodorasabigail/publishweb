@@ -5,8 +5,13 @@ import { NextResponse, type NextRequest } from "next/server";
  * Refreshes the Supabase auth session on every request so server components
  * always see a valid token. Without this, a session silently expires mid-visit
  * and the customer gets bounced out of their dashboard.
+ *
+ * This is Next's `proxy` convention (called `middleware` before Next 16). It
+ * only refreshes tokens -- it is deliberately not where access is decided.
+ * Admin and account authorisation lives in `requireAdmin` / `requireUser`,
+ * which run server-side per page, so a proxy bypass cannot expose anything.
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

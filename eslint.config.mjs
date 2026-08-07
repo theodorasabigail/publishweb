@@ -1,9 +1,11 @@
-import { FlatCompat } from "@eslint/eslintrc";
+// eslint-config-next ships native flat configs from v16, so these are spread
+// directly. The FlatCompat wrapper this used before Next 16 now throws.
+import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
+import nextTypescript from "eslint-config-next/typescript";
 
-const compat = new FlatCompat({ baseDirectory: import.meta.dirname });
-
-export default [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+const config = [
+  ...nextCoreWebVitals,
+  ...nextTypescript,
   {
     rules: {
       // Destructuring alongside a rest element is how we omit columns when
@@ -17,3 +19,5 @@ export default [
   },
   { ignores: [".next/**", "node_modules/**"] },
 ];
+
+export default config;

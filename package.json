@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "build:sql": "node scripts/build-setup-sql.mjs"
   },
@@ -16,22 +16,21 @@
     "clsx": "^2.1.1",
     "lucide-react": "^0.544.0",
     "marked": "^15.0.12",
-    "next": "^15.5.4",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1",
+    "next": "^16.3.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "tailwind-merge": "^3.3.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.1",
     "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^22.18.1",
-    "@types/react": "^19.1.13",
-    "@types/react-dom": "^19.1.9",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
     "autoprefixer": "^10.4.21",
     "eslint": "^9.35.0",
-    "eslint-config-next": "^15.5.4",
-    "postcss": "^8.5.6",
+    "eslint-config-next": "^16.3.0",
+    "postcss": "^8.5.26",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.9.2"
   }

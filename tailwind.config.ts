@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import typography from "@tailwindcss/typography";
 
 export default {
   content: ["./src/**/*.{ts,tsx}"],
@@ -34,5 +35,5 @@ export default {
       animation: { "fade-up": "fade-up 0.35s ease-out both" },
     },
   },
-  plugins: [require("@tailwindcss/typography")],
+  plugins: [typography],
 } satisfies Config;

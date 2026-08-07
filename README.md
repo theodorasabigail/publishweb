@@ -18,7 +18,7 @@ run the shop rather than the code:
 
 | Layer | Choice |
 |---|---|
-| Framework | Next.js 15 (App Router) |
+| Framework | Next.js 16 (App Router) |
 | Database | Supabase / Postgres, with Row Level Security |
 | Auth | Supabase Auth — email/password + Google |
 | Storage | Supabase Storage (`media` bucket) |
@@ -46,7 +46,8 @@ existing deployment upgrades by running the new numbered file only.
 ```bash
 npm run build       # production build
 npm run typecheck   # tsc --noEmit
-npm run lint
+npm run lint        # eslint (Next 16 removed `next lint`)
+npm audit           # should stay at 0 vulnerabilities
 ```
 
 ## How it fits together
@@ -192,6 +193,10 @@ keeps the live dashboard safe for a non-developer to use.
 - Newsletter capture stores addresses in `newsletter_subscribers`; nothing
   sends to them yet.
 - Biteship live rates (spec's v2 shipping upgrade).
+- `CartProvider` reads localStorage in an effect. `useSyncExternalStore` is the
+  correct API for an external store and would also subsume the cross-tab
+  listener; the Next 16 lint rules flag it. Suppressed with a note rather than
+  rewritten inside a security upgrade — worth doing as its own change.
 - The POS is online-only. It is a web app against Supabase, so it needs a
   working connection at the counter; there is no offline queue. Barcode
   scanning, cash-drawer hardware and thermal receipt printing are also not

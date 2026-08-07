@@ -15,6 +15,10 @@ export default async function AdminOverviewPage() {
   if (!isSupabaseConfigured()) return null;
 
   const supabase = createAdminClient();
+  // react-hooks/purity assumes a client component that may re-render. This is
+  // an async Server Component marked force-dynamic: it runs once per request,
+  // and reading the clock is exactly what "last 30 days" means.
+  // eslint-disable-next-line react-hooks/purity
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
   const [
