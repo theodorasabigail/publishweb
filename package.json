@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "build:sql": "node scripts/build-setup-sql.mjs"
+    "build:sql": "node scripts/build-setup-sql.mjs",
+    "fonts:convert": "node scripts/convert-fonts.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",

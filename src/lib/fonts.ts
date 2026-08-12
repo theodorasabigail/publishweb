@@ -1,54 +1,52 @@
 /**
- * Site typography.
+ * Site typography — the only file that names a typeface.
  *
- * Two roles, exposed to CSS as variables that `tailwind.config.ts` maps onto
- * `font-sans` and `font-serif`:
- *
- *   --font-sans   body text, buttons, labels, the admin
- *   --font-serif  headings and display text
- *
- * Nothing else in the codebase names a typeface. Changing the site's fonts
- * means changing this file only.
+ * Tailwind maps `font-sans` and `font-serif` onto the CSS variables
+ * `--font-sans` / `--font-serif`, and `globals.css` resolves both from
+ * `--font-brand`. So switching the site's font is this file and nothing else.
  *
  * ---------------------------------------------------------------------------
- * TO USE YOUR OWN FONT
+ * TO ADD THE BRAND FONT
  *
- * 1. Put the font file in `src/fonts/` (see the README in that folder).
- * 2. Uncomment the `localFont` block below and point `src` at your file.
- * 3. Swap the export at the bottom so it uses your font.
+ * 1. Put the font files in `src/fonts/` (see the README there).
+ * 2. If they are .otf or .ttf, run `npm run fonts:convert` to make .woff2.
+ * 3. Uncomment the block below and list the weights you actually have.
+ * 4. Change `fontClassNames` at the bottom to `brandFont.variable`.
  *
- * The file must actually exist before the build will succeed — next/font
- * resolves it at build time. That is why this ships with system fonts: the
- * site works today, and adding the real font is a small, contained change.
+ * Step 3 must come after step 1 — next/font resolves the files at build time,
+ * so pointing at a font that is not in the repo fails every deploy.
  * ---------------------------------------------------------------------------
  */
 
 // import localFont from "next/font/local";
 //
 // export const brandFont = localFont({
-//   // One entry per weight you own. A single variable font needs only one
-//   // entry — add `weight: "300 900"` to declare the range it covers.
+//   // One entry per weight you own. Drop any you do not have rather than
+//   // pointing two weights at the same file — the browser can synthesise a
+//   // bold, and a fake bold looks better than a wrong one.
+//   //
+//   // A variable font needs a single entry with a range instead:
+//   //   { path: "../fonts/YourFont-VF.woff2", weight: "400 700", style: "normal" }
 //   src: [
 //     { path: "../fonts/YourFont-Regular.woff2", weight: "400", style: "normal" },
 //     { path: "../fonts/YourFont-Medium.woff2",  weight: "500", style: "normal" },
 //     { path: "../fonts/YourFont-Bold.woff2",    weight: "700", style: "normal" },
 //   ],
-//   variable: "--font-sans",
+//   variable: "--font-brand",
+//   // Show fallback text immediately rather than invisible text while loading.
 //   display: "swap",
-//   // Text stays visible in a near-identical fallback while the font loads,
-//   // so headings do not visibly jump when it arrives.
+//   // Next matches the fallback's metrics to the real font, so headings do not
+//   // visibly reflow when it arrives. Set this to whichever of Arial or
+//   // "Times New Roman" is closer in proportion to your font.
 //   adjustFontFallback: "Arial",
 // });
 
 /**
- * Until a font file is added, both roles fall back to the system stack. This
- * is deliberate and honest: previously the CSS *named* Inter and Fraunces
- * without loading them, so the site silently rendered in whatever the visitor
- * happened to have. Naming nothing is better than naming a lie.
+ * Applied to <html> in the root layout.
+ *
+ * Empty until a font is wired up, which is deliberate: `globals.css` resolves
+ * `--font-brand` with an inline fallback, so the site renders correct system
+ * typography today and switches over the moment this becomes
+ * `brandFont.variable`.
  */
 export const fontClassNames = "";
-
-export const FONT_STACKS = {
-  sans: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-  serif: 'ui-serif, Georgia, Cambria, "Times New Roman", serif',
-} as const;

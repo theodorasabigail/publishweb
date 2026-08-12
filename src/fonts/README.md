@@ -13,8 +13,23 @@ as `.otf` or `.ttf`, and every browser in use today supports it. Given the site
 already runs on a metered Supabase/Vercel plan, that difference is worth having.
 
 If your font came as `.otf` or `.ttf` (the formats you install on a computer),
-it will still work, but convert it first — <https://transfonter.org> does this
-in the browser, for free, without uploading anywhere.
+drop the files in here and run:
+
+```bash
+npm run fonts:convert
+```
+
+That writes a `.woff2` next to each one and leaves the originals alone. In
+testing it cut a 92 KB `.ttf` to 35 KB — 62% smaller, identical rendering.
+
+It needs Python with two packages, once:
+
+```bash
+pip install fonttools brotli
+```
+
+If you would rather not touch a terminal, <https://transfonter.org> does the
+same job in a browser without uploading anywhere.
 
 **Check your licence before converting.** Most retail font licences cover
 webfont use, but some sell desktop and web as separate licences, and a few
@@ -25,9 +40,11 @@ forbid conversion. Worth two minutes now rather than a letter later.
 Only the weights the site actually uses. Every extra weight is another file
 every visitor downloads.
 
-This site uses **regular (400)**, **medium (500)** and **bold (700)**. If your
-font has a different set, that is fine — tell whoever wires it up and the site
-can be adjusted to what you own.
+This site uses **regular (400)**, **medium (500)** and **bold (700)**. If you
+only own regular and bold, that is fine — say so and the site will be set to
+what you have. Do not point two weights at the same file: the browser
+synthesises a passable bold on its own, and a fake bold looks better than a
+wrong one.
 
 If you have a **variable font** (one file, usually named something like
 `YourFont-VF.woff2` or `YourFont[wght].woff2`), that single file covers every

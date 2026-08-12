@@ -11,9 +11,16 @@
    * makes the design depend on what happens to be installed on the visitor's
    * machine.
    */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
-  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+  /*
+   * Both roles resolve from --font-brand, which src/lib/fonts.ts defines once
+   * a font file is wired up. The inline fallback inside var() means this is
+   * valid either way: system fonts until the brand font exists, brand font
+   * everywhere afterwards, with no change needed in this file.
+   */
+  --font-sans: var(--font-brand, ui-sans-serif), system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-serif: var(--font-brand, ui-serif), Georgia, Cambria,
+    "Times New Roman", serif;
 }
 
 @layer base {
