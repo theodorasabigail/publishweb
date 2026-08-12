@@ -160,6 +160,50 @@ it can reach free but never discounts the product. What was absorbed is stored
 on the order rather than recomputed, so a later rate change cannot rewrite what
 past orders cost. See docs/SHIPPING.md.
 
+### Staying inside the free tier
+
+Supabase's free plan allows 1 GB of file storage and 5 GB of monthly egress,
+and **database egress counts against the same 5 GB as images** — which is the
+part that is easy to miss.
+
+Measured against a request-logging stand-in for Supabase, an anonymous
+storefront page view originally cost **3-5 database round-trips, on every
+view**, because `(site)/layout.tsx` read the session to decide whether the
+header said "Sign in" or "Account". A layout that reads cookies opts every page
+beneath it out of static rendering, so `export const revalidate` was doing
+nothing at all. The same measurement after the fix: **21 page views, 0 database
+calls.**
+
+What keeps it there:
+
+- **The site layout never reads cookies.** `AccountLink` works out sign-in
+  state on the client from cookie presence — no network call — so the whole
+  storefront renders statically. Getting it wrong is harmless: `/account`
+  redirects anonymous visitors to `/login`.
+- **`getSiteSettings` is wrapped in React `cache()`**, since the root layout's
+  `generateMetadata` and the site layout both need it — two identical queries
+  per render otherwise.
+- **Revalidation windows are long** (30 min to 24 h). Every admin action calls
+  `revalidatePath`, so edits appear immediately; the timer is only a backstop
+  for changes made outside the admin and scheduled posts going live.
+- **Images are shrunk before upload** and served from Vercel's optimiser cache,
+  so Supabase serves each image roughly four times per cache cycle rather than
+  once per visitor.
+- **Uploads are refused past 95% of the storage allowance**, with a warning
+  from 80%, pointing at the cleanup page. Reporting usage is not the same as
+  preventing overrun.
+
+Rough monthly budget at small-shop traffic: images tens of MB, revalidation
+tens of MB (bounded by traffic, not by the timer — no request, no
+revalidation), page views themselves nothing. Against 5 GB there is a lot of
+headroom. The figure to watch is Supabase's own usage dashboard; the caveat is
+that Vercel's cache is regional and can evict, so treat these as the right
+order of magnitude rather than a guarantee.
+
+The storefront ships ~188 KB of gzipped JavaScript, essentially all React and
+the Next runtime. The Supabase client is **not** in the storefront bundle — it
+only loads on the auth pages and in the admin.
+
 ### Money is never trusted from the client
 
 `/api/checkout` ignores the prices in the submitted cart. It re-reads every

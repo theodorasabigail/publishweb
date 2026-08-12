@@ -4,7 +4,13 @@ import { createStaticClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
 import { formatIDR } from "@/lib/utils";
 
-export const revalidate = 3600;
+/*
+ * Revalidation is a backstop, not the update mechanism: every admin action
+ * calls revalidatePath, so edits appear immediately. This timer only catches
+ * changes made outside the admin and scheduled posts going live — so it is set
+ * long, because each expiry costs a fresh set of database queries.
+ */
+export const revalidate = 86400;
 
 export const metadata: Metadata = {
   title: "Shipping",

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createStaticClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
@@ -50,13 +51,35 @@ export const FALLBACK_SETTINGS: SiteSettings = {
   updated_at: new Date().toISOString(),
 };
 
+/**
+ * Site settings, deduped per render pass.
+ *
+ * Both the root layout's generateMetadata and the site layout need these, and
+ * without React's cache() that is two identical queries for every single page
+ * render. Wrapped, it is one.
+ */
+const fetchSiteSettings = cache(async (): Promise<SiteSettings> => {
+  const { data } = await createStaticClient()
+    .from("site_settings")
+    .select("*")
+    .eq("id", true)
+    .maybeSingle();
+  return (data as SiteSettings | null) ?? FALLBACK_SETTINGS;
+});
+
 export async function getSiteSettings(
   client?: SupabaseClient,
 ): Promise<SiteSettings> {
   if (!isSupabaseConfigured()) return FALLBACK_SETTINGS;
-  const supabase = client ?? createStaticClient();
-  const { data } = await supabase.from("site_settings").select("*").eq("id", true).maybeSingle();
-  return (data as SiteSettings | null) ?? FALLBACK_SETTINGS;
+
+  // A caller passing its own client (the admin, on the service role) needs that
+  // client used, so it bypasses the shared per-request cache.
+  if (client) {
+    const { data } = await client.from("site_settings").select("*").eq("id", true).maybeSingle();
+    return (data as SiteSettings | null) ?? FALLBACK_SETTINGS;
+  }
+
+  return fetchSiteSettings();
 }
 
 export async function getCategories(client?: SupabaseClient): Promise<Category[]> {

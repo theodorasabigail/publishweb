@@ -189,8 +189,25 @@ not overwrite the old one — it uploads a new file and leaves the old one behin
 more and deletes them in one click. Anything uploaded in the last day is left
 alone, so a half-finished product you have not saved yet is never touched.
 
+**If storage does get full**, uploads stop with a message rather than failing
+strangely — a warning from 80% and a hard stop at 95%, both pointing at the
+cleanup page.
+
 The one thing to avoid: uploading images you do not intend to use, over and
 over. Everything else is handled.
+
+### Will this stay inside the free plan?
+
+At the scale of a small roastery, comfortably. Shop and journal pages are
+served from a cache rather than the database, so ordinary browsing costs you
+nothing at all — a hundred people reading the blog does not touch Supabase.
+Images are shrunk on upload and then cached, so each one is fetched from
+Supabase a handful of times a month rather than once per visitor.
+
+What would change that is real scale — thousands of visitors a day — and at
+that point the paid plan is a rounding error against the orders that brought
+them. Check Supabase's usage page every month or two; you should see the bars
+barely moving.
 
 ## Shipping rates
 

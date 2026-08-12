@@ -198,3 +198,68 @@ export async function deleteUnusedMedia(): Promise<void> {
 
   revalidatePath("/admin/settings/media");
 }
+
+/** Supabase's free plan allowance for file storage. */
+const STORAGE_LIMIT_BYTES = 1024 * 1024 * 1024;
+const STORAGE_BLOCK_RATIO = 0.95;
+const STORAGE_WARN_RATIO = 0.8;
+
+export interface MediaBudget {
+  usedBytes: number;
+  limitBytes: number;
+  percent: number;
+  /** Refuse further uploads — the plan is effectively full. */
+  blocked: boolean;
+  message: string | null;
+}
+
+/**
+ * Checked before every upload.
+ *
+ * The Images & storage page reports usage, but reporting is not protection:
+ * without this, the only signal that storage ran out would be uploads failing
+ * with whatever error Supabase happens to return. This turns that into a clear
+ * refusal with a way out, one step before the wall.
+ */
+export async function checkMediaBudget(): Promise<MediaBudget> {
+  const { supabase } = await adminClient();
+
+  const { data, error } = await supabase.rpc("media_storage_usage");
+  if (error) {
+    // Never block an upload because the check itself failed.
+    return {
+      usedBytes: 0,
+      limitBytes: STORAGE_LIMIT_BYTES,
+      percent: 0,
+      blocked: false,
+      message: null,
+    };
+  }
+
+  const row = ((data ?? []) as { total_bytes: number }[])[0];
+  const usedBytes = Number(row?.total_bytes ?? 0);
+  const percent = (usedBytes / STORAGE_LIMIT_BYTES) * 100;
+
+  if (percent >= STORAGE_BLOCK_RATIO * 100) {
+    return {
+      usedBytes,
+      limitBytes: STORAGE_LIMIT_BYTES,
+      percent,
+      blocked: true,
+      message:
+        "Image storage is full. Clear unused images in Site settings → Images & storage, then try again.",
+    };
+  }
+
+  if (percent >= STORAGE_WARN_RATIO * 100) {
+    return {
+      usedBytes,
+      limitBytes: STORAGE_LIMIT_BYTES,
+      percent,
+      blocked: false,
+      message: `Image storage is ${Math.round(percent)}% full. Worth clearing unused images soon.`,
+    };
+  }
+
+  return { usedBytes, limitBytes: STORAGE_LIMIT_BYTES, percent, blocked: false, message: null };
+}

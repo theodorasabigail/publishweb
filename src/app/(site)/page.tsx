@@ -7,7 +7,13 @@ import { ProductCard } from "@/components/shop/product-card";
 import { isSupabaseConfigured } from "@/lib/env";
 import { getCategories, getProducts, getPublishedPosts, getSiteSettings } from "@/lib/queries";
 
-export const revalidate = 300;
+/*
+ * Revalidation is a backstop, not the update mechanism: every admin action
+ * calls revalidatePath, so edits appear immediately. This timer only catches
+ * changes made outside the admin and scheduled posts going live — so it is set
+ * long, because each expiry costs a fresh set of database queries.
+ */
+export const revalidate = 3600;
 
 export default async function HomePage() {
   if (!isSupabaseConfigured()) return <NotConnectedYet />;

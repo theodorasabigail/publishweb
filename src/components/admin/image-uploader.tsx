@@ -8,6 +8,7 @@ import {
   presetFor,
   type CompressionResult,
 } from "@/lib/image-compression";
+import { checkMediaBudget } from "@/app/admin/_actions/settings";
 import { createClient } from "@/lib/supabase/client";
 
 /**
@@ -43,6 +44,7 @@ export function ImageUploader({
   const [status, setStatus] = useState<string | null>(null);
   const [result, setResult] = useState<CompressionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function onPick(event: React.ChangeEvent<HTMLInputElement>) {
@@ -63,6 +65,15 @@ export function ImageUploader({
     setBusy(true);
 
     try {
+      // One step before the wall: refuse rather than let Supabase fail with
+      // whatever error it returns when the plan is full.
+      const budget = await checkMediaBudget();
+      if (budget.blocked) {
+        setError(budget.message);
+        return;
+      }
+      if (budget.message) setWarning(budget.message);
+
       setStatus("Resizing…");
       const compressed = await compressImage(picked, presetFor(folder));
 
@@ -164,6 +175,7 @@ export function ImageUploader({
         </p>
       )}
 
+      {warning && <p className="mt-1.5 text-xs text-amber-700">{warning}</p>}
       {hint && <p className="mt-1.5 text-xs text-bark-500">{hint}</p>}
       {error && <p className="mt-1.5 text-xs text-red-700">{error}</p>}
     </div>

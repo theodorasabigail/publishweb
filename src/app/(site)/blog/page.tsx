@@ -9,7 +9,13 @@ import {
   getSiteSettings,
 } from "@/lib/queries";
 
-export const revalidate = 300;
+/*
+ * Revalidation is a backstop, not the update mechanism: every admin action
+ * calls revalidatePath, so edits appear immediately. This timer only catches
+ * changes made outside the admin and scheduled posts going live — so it is set
+ * long, because each expiry costs a fresh set of database queries.
+ */
+export const revalidate = 1800;
 
 export const metadata: Metadata = {
   title: "The Journal",

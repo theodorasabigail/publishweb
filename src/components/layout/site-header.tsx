@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Menu, ShoppingBag, User, X } from "lucide-react";
+import { Menu, ShoppingBag, X } from "lucide-react";
+import { AccountLink } from "@/components/layout/account-link";
 import { useCart } from "@/components/cart-provider";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +15,7 @@ const NAV = [
   { href: "/about", label: "About" },
 ];
 
-export function SiteHeader({ isSignedIn }: { isSignedIn: boolean }) {
+export function SiteHeader() {
   const pathname = usePathname();
   const { count, ready } = useCart();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -44,16 +45,7 @@ export function SiteHeader({ isSignedIn }: { isSignedIn: boolean }) {
         </nav>
 
         <div className="flex items-center gap-1">
-          <Link
-            href={isSignedIn ? "/account" : "/login"}
-            className="btn-ghost px-3"
-            aria-label={isSignedIn ? "Your account" : "Sign in"}
-          >
-            <User className="h-4 w-4" />
-            <span className="hidden text-sm sm:inline">
-              {isSignedIn ? "Account" : "Sign in"}
-            </span>
-          </Link>
+          <AccountLink />
 
           <Link href="/cart" className="btn-ghost relative px-3" aria-label="Cart">
             <ShoppingBag className="h-4 w-4" />

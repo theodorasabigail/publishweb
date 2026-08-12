@@ -8,7 +8,13 @@ import { siteUrl } from "@/lib/env";
 import { getProductBySlug, getProducts, lowestPrice, totalStock } from "@/lib/queries";
 import { contrastText } from "@/lib/utils";
 
-export const revalidate = 120;
+/*
+ * Revalidation is a backstop, not the update mechanism: every admin action
+ * calls revalidatePath, so edits appear immediately. This timer only catches
+ * changes made outside the admin and scheduled posts going live — so it is set
+ * long, because each expiry costs a fresh set of database queries.
+ */
+export const revalidate = 1800;
 
 export async function generateStaticParams() {
   const products = await getProducts();
