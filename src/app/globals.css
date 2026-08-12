@@ -3,8 +3,17 @@
 @tailwind utilities;
 
 :root {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Fraunces", ui-serif, Georgia, serif;
+  /*
+   * Fallback stacks. When a font is wired up in src/lib/fonts.ts, next/font
+   * sets --font-sans (and/or --font-serif) on <html> and overrides these.
+   *
+   * These deliberately do not name a font the site has not loaded — doing so
+   * makes the design depend on what happens to be installed on the visitor's
+   * machine.
+   */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
 }
 
 @layer base {

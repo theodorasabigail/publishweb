@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { CartProvider } from "@/components/cart-provider";
+import { fontClassNames } from "@/lib/fonts";
 import { getSiteSettings } from "@/lib/queries";
 import { siteUrl } from "@/lib/env";
 import "./globals.css";
@@ -33,7 +34,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    // fontClassNames carries the next/font CSS variables once a font is
+    // added; it is an empty string until then.
+    <html lang="en" className={fontClassNames}>
       <body>
         <CartProvider>{children}</CartProvider>
       </body>
