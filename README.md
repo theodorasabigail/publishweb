@@ -23,7 +23,7 @@ run the shop rather than the code:
 | Auth | Supabase Auth — email/password + Google |
 | Storage | Supabase Storage (`media` bucket) |
 | Payments | Xendit (default) or bank transfer + kode unik + Moota, behind one adapter |
-| Shipping | Flat-rate zones from the database |
+| Shipping | Flat-rate zones from the database, behind a provider adapter |
 | Hosting | Vercel |
 | Styling | Tailwind CSS |
 
@@ -65,7 +65,7 @@ src/
   components/        UI, split site / admin
   lib/
     payments/        provider adapter — see below
-    shipping/        flat-rate zones, isolated for the Biteship swap
+    shipping/        provider adapter; flat-rate zones today
     supabase/        browser / server / service-role clients
 supabase/
   migrations/        schema, RLS, seed data — source of truth
@@ -143,6 +143,22 @@ counter makes it unavailable online in the same instant, because it is one
 `product_variants.stock` column and one settlement path. `sales_summary()` and
 `product_sales_report()` then read across both channels, with day boundaries in
 WIB rather than UTC.
+
+### Shipping is a provider adapter too
+
+`lib/shipping/types.ts` defines `ShippingProvider`; `flat-zones.ts` is the only
+implementation today, selected by `SHIPPING_PROVIDER`. Three decisions were
+made for the live-rate case rather than the flat-rate one: quoting is async,
+the browser never prices shipping (checkout calls `POST /api/shipping/quote`,
+debounced), and weight and subtotal are recomputed server-side from variant ids
+so a tampered cart cannot buy cheaper shipping. That last one is also why a
+carrier API key can ever be used — it can only live server-side.
+
+Zones support two discount tiers: free over a spend, and an optional fixed
+amount off over a lower spend. The discount is capped at the shipping rate, so
+it can reach free but never discounts the product. What was absorbed is stored
+on the order rather than recomputed, so a later rate change cannot rewrite what
+past orders cost. See docs/SHIPPING.md.
 
 ### Money is never trusted from the client
 

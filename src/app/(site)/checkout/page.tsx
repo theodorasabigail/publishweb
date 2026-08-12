@@ -3,8 +3,7 @@ import { CheckoutForm } from "@/components/shop/checkout-form";
 import { getSession } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import { getPaymentProvider } from "@/lib/payments";
-import { listZones } from "@/lib/shipping";
-import { createClient, createStaticClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import type { Address } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +24,6 @@ export default async function CheckoutPage() {
     );
   }
 
-  const zones = await listZones(createStaticClient());
   const session = await getSession();
 
   let addresses: Address[] = [];
@@ -53,7 +51,6 @@ export default async function CheckoutPage() {
 
       <div className="mt-10">
         <CheckoutForm
-          zones={zones}
           savedAddresses={addresses}
           defaultEmail={session?.email ?? ""}
           defaultName={session?.profile?.display_name ?? ""}

@@ -88,6 +88,12 @@ export default async function AdminOrderDetailPage({
                 </dt>
                 <dd>{formatIDR(order.shipping_idr)}</dd>
               </div>
+              {order.shipping_discount_idr > 0 && (
+                <div className="flex justify-between text-emerald-700">
+                  <dt>Shipping you covered</dt>
+                  <dd>{formatIDR(order.shipping_discount_idr)}</dd>
+                </div>
+              )}
               {order.unique_code > 0 && (
                 <div className="flex justify-between">
                   <dt className="text-bark-600">Kode unik</dt>

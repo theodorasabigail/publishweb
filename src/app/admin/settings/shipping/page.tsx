@@ -132,6 +132,37 @@ function ZoneForm({ zone }: { zone?: ShippingZone }) {
         </Field>
       </div>
 
+      <div className="rounded-lg border border-bark-200 bg-bark-50 p-4">
+        <p className="text-sm font-medium">Partial discount (optional)</p>
+        <p className="mt-1 text-xs text-bark-600">
+          A step below free shipping — knock a fixed amount off for orders over
+          a smaller spend. Leave blank to skip straight from full price to free.
+        </p>
+
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          <Field label="Discount applies over (Rp)" hint="Must be lower than the free-shipping figure above.">
+            <input
+              type="number"
+              min="0"
+              step="1000"
+              name="subsidy_over_idr"
+              className="input"
+              defaultValue={zone?.subsidy_over_idr ?? ""}
+            />
+          </Field>
+          <Field label="Amount off shipping (Rp)" hint="Capped at the shipping rate, so it can reach free but never discounts the coffee.">
+            <input
+              type="number"
+              min="0"
+              step="1000"
+              name="subsidy_idr"
+              className="input"
+              defaultValue={zone?.subsidy_idr ?? 0}
+            />
+          </Field>
+        </div>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label="Delivery estimate">
           <input

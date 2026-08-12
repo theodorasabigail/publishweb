@@ -34,7 +34,8 @@ Supabase stores your products, orders, customers and blog posts.
    paste it into the query box, and click **Run**.
 
    You should see **"Success. No rows returned."** That one file is your whole
-   database: every table, every security rule, the counter-sales till, and some
+   database: every table, every security rule, the counter-sales till, the
+   shipping discounts, and some
    example coffees and blog posts so the site is not empty on day one. You can
    edit or delete all the examples later from the admin dashboard.
 

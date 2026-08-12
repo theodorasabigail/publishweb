@@ -93,12 +93,29 @@ export async function saveShippingZone(formData: FormData) {
       const value = Number(raw);
       return Number.isFinite(value) && value > 0 ? Math.round(value) : null;
     })(),
+    subsidy_over_idr: (() => {
+      const raw = text(formData, "subsidy_over_idr");
+      if (!raw) return null;
+      const value = Number(raw);
+      return Number.isFinite(value) && value > 0 ? Math.round(value) : null;
+    })(),
+    subsidy_idr: Math.max(0, integer(formData, "subsidy_idr")),
     delivery_estimate: optionalText(formData, "delivery_estimate"),
     is_active: boolean(formData, "is_active"),
     sort_order: integer(formData, "sort_order"),
   };
 
   if (!fields.code || !fields.name) throw new Error("A zone needs a code and a name.");
+
+  if (
+    fields.free_shipping_over_idr !== null &&
+    fields.subsidy_over_idr !== null &&
+    fields.subsidy_over_idr >= fields.free_shipping_over_idr
+  ) {
+    throw new Error(
+      "The partial discount has to start below the free-shipping figure, otherwise nobody ever gets it.",
+    );
+  }
 
   const { error } = id
     ? await supabase.from("shipping_zones").update(fields).eq("id", id)

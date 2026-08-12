@@ -38,13 +38,18 @@ export default async function ReportsPage({
   const from = new Date(startOfWibDay - (RANGES[key].days - 1) * 24 * 60 * 60 * 1000);
 
   const supabase = createAdminClient();
-  const [{ data: summaryRows }, { data: productRows }] = await Promise.all([
-    supabase.rpc("sales_summary", { p_from: from.toISOString(), p_to: to.toISOString() }),
-    supabase.rpc("product_sales_report", {
-      p_from: from.toISOString(),
-      p_to: to.toISOString(),
-    }),
-  ]);
+  const [{ data: summaryRows }, { data: productRows }, { data: shippingRows }] =
+    await Promise.all([
+      supabase.rpc("sales_summary", { p_from: from.toISOString(), p_to: to.toISOString() }),
+      supabase.rpc("product_sales_report", {
+        p_from: from.toISOString(),
+        p_to: to.toISOString(),
+      }),
+      supabase.rpc("shipping_summary", {
+        p_from: from.toISOString(),
+        p_to: to.toISOString(),
+      }),
+    ]);
 
   const summary = (summaryRows ?? []) as {
     channel: "online" | "pos";
@@ -60,6 +65,17 @@ export default async function ReportsPage({
     online_units: number;
     pos_units: number;
   }[];
+
+  const shippingRowsTyped = (shippingRows ?? []) as {
+    shipping_zone: string;
+    order_count: number;
+    charged_idr: number;
+    absorbed_idr: number;
+  }[];
+  const shippingAbsorbed = shippingRowsTyped.reduce(
+    (sum, row) => sum + Number(row.absorbed_idr),
+    0,
+  );
 
   const total = summary.reduce((sum, row) => sum + Number(row.gross_idr), 0);
   const posTotal = summary
@@ -106,6 +122,47 @@ export default async function ReportsPage({
           tone={cashTotal > 0 ? "good" : "default"}
         />
       </div>
+
+      {shippingAbsorbed > 0 && (
+        <div className="mt-4 rounded-xl border border-bark-200 bg-white p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <div>
+              <p className="text-sm text-bark-600">Shipping you covered</p>
+              <p className="mt-1 font-serif text-2xl">{formatIDR(shippingAbsorbed)}</p>
+            </div>
+            <p className="max-w-md text-xs text-bark-500">
+              Free and discounted shipping given away in this period. Worth
+              comparing against the extra orders it brought in before deciding
+              whether the threshold is set right.
+            </p>
+          </div>
+
+          <table className="mt-4 w-full text-sm">
+            <thead className="text-left text-xs uppercase tracking-wider text-bark-500">
+              <tr>
+                <th className="pb-2 font-medium">Zone</th>
+                <th className="pb-2 text-right font-medium">Orders</th>
+                <th className="pb-2 text-right font-medium">Charged</th>
+                <th className="pb-2 text-right font-medium">You covered</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-bark-200">
+              {shippingRowsTyped.map((row) => (
+                <tr key={row.shipping_zone}>
+                  <td className="py-2">{row.shipping_zone}</td>
+                  <td className="py-2 text-right text-bark-600">{row.order_count}</td>
+                  <td className="py-2 text-right text-bark-600">
+                    {formatIDR(row.charged_idr)}
+                  </td>
+                  <td className="py-2 text-right font-medium text-emerald-700">
+                    {formatIDR(row.absorbed_idr)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Panel title="How the money came in">

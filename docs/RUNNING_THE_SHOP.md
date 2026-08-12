@@ -201,5 +201,13 @@ free-shipping threshold. Indonesian orders pick between the two domestic zones
 automatically based on the province. Everywhere else matches on country, with
 "Rest of world" catching anything not listed.
 
+You can also set **discounts**: free shipping above a spend, and optionally a
+smaller fixed discount above a lower spend. **Admin → Sales** then shows
+"Shipping you covered" so you can see what that is costing before deciding the
+thresholds are right.
+
 If you raise a rate, it applies to new orders only. Orders already placed keep
 the price they were quoted.
+
+Full detail, including what it would take to switch to live courier rates
+later, is in [SHIPPING.md](SHIPPING.md).

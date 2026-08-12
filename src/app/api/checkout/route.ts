@@ -3,9 +3,9 @@ import { z } from "zod";
 import { getSession } from "@/lib/auth";
 import { siteUrl } from "@/lib/env";
 import { getPaymentProvider } from "@/lib/payments";
-import { parcelWeight, quoteShipping, resolveZone } from "@/lib/shipping";
+import { getShippingProvider, parcelWeight } from "@/lib/shipping";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { ProductVariant, ShippingZone } from "@/lib/types";
+import type { ProductVariant } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -107,28 +107,31 @@ export async function POST(request: Request) {
   // -----------------------------------------------------------------------
   // Shipping
   // -----------------------------------------------------------------------
-  const { data: zoneRows } = await supabase
-    .from("shipping_zones")
-    .select("*")
-    .eq("is_active", true)
-    .order("sort_order");
-
-  const zones = (zoneRows ?? []) as ShippingZone[];
-  const zone = resolveZone(zones, address.country, address.province);
-  if (!zone) {
-    return NextResponse.json(
-      { error: "We do not have a shipping rate for that destination yet. Message us and we will sort it out." },
-      { status: 400 },
-    );
-  }
-
+  // Same provider the quote endpoint uses, so the price shown at checkout and
+  // the price charged come from one implementation.
   const weight = parcelWeight(
     lines.map((line) => ({
       weightGrams: line.variant.weight_grams,
       quantity: line.quantity,
     })),
   );
-  const shippingQuote = quoteShipping(zone, weight, subtotalIdr);
+
+  const shippingQuote = await getShippingProvider(supabase).quote(
+    {
+      country: address.country,
+      province: address.province,
+      city: address.city,
+      postalCode: address.postal_code,
+    },
+    { weightGrams: weight, subtotalIdr },
+  );
+
+  if (!shippingQuote) {
+    return NextResponse.json(
+      { error: "We do not have a shipping rate for that destination yet. Message us and we will sort it out." },
+      { status: 400 },
+    );
+  }
 
   // -----------------------------------------------------------------------
   // Payment total. A unique-code provider needs an amount no other pending
@@ -170,10 +173,11 @@ export async function POST(request: Request) {
       status: "pending",
       subtotal_idr: subtotalIdr,
       shipping_idr: shippingQuote.amountIdr,
+      shipping_discount_idr: shippingQuote.discountIdr,
       unique_code: resolvedTotal.uniqueCode,
       total_idr: resolvedTotal.totalIdr,
       payment_method: provider.id,
-      shipping_zone: zone.code,
+      shipping_zone: shippingQuote.zoneCode,
       shipping_address: { ...address, email },
       customer_note: note ?? null,
     })

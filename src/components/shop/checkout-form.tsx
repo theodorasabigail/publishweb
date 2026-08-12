@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/cart-provider";
-import { parcelWeight, quoteShipping, resolveZone } from "@/lib/shipping";
-import type { Address, ShippingZone } from "@/lib/types";
+import type { ShippingQuote } from "@/lib/shipping";
+import type { Address } from "@/lib/types";
 import { formatIDR } from "@/lib/utils";
 
 const COUNTRIES = [
@@ -42,14 +42,12 @@ const ID_PROVINCES = [
 ];
 
 export function CheckoutForm({
-  zones,
   savedAddresses,
   defaultEmail,
   defaultName,
   isSignedIn,
   providerIsManual,
 }: {
-  zones: ShippingZone[];
   savedAddresses: Address[];
   defaultEmail: string;
   defaultName: string;
@@ -78,21 +76,79 @@ export function CheckoutForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const weight = useMemo(
+  const [fetchedQuote, setFetchedQuote] = useState<ShippingQuote | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+
+  // Shipping is priced by the server, not here. That costs a round-trip and
+  // buys two things: this is the same code that prices the real order, and a
+  // live-rate carrier API — which needs a secret key — can replace flat zones
+  // without touching this form.
+  const quoteKey = useMemo(
     () =>
-      parcelWeight(
-        lines.map((line) => ({ weightGrams: line.weightGrams, quantity: line.quantity })),
-      ),
-    [lines],
+      JSON.stringify({
+        country: form.country,
+        province: form.province,
+        postalCode: form.postal_code,
+        items: lines.map((line) => [line.variantId, line.quantity]),
+      }),
+    [form.country, form.province, form.postal_code, lines],
   );
 
-  // Same pure functions the checkout API uses server-side, so the number shown
-  // here is the number that gets charged.
-  const quote = useMemo(() => {
-    const zone = resolveZone(zones, form.country, form.province);
-    return zone ? quoteShipping(zone, weight, subtotal) : null;
-  }, [zones, form.country, form.province, weight, subtotal]);
+  const requestRef = useRef(0);
 
+  useEffect(() => {
+    // No setState here: whether a quote is meaningful is derived below, so
+    // an empty cart cannot leave a stale figure on screen.
+    if (!lines.length || !form.country) return;
+
+    // Debounced: the postcode field fires this on every keystroke otherwise.
+    const timer = window.setTimeout(async () => {
+      const requestId = ++requestRef.current;
+      setQuoteLoading(true);
+      setQuoteError(null);
+
+      try {
+        const response = await fetch("/api/shipping/quote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            country: form.country,
+            province: form.province || null,
+            city: form.city || null,
+            postalCode: form.postal_code || null,
+            items: lines.map((line) => ({
+              variantId: line.variantId,
+              quantity: line.quantity,
+            })),
+          }),
+        });
+        const payload = await response.json();
+
+        // A slower earlier request must not overwrite a newer answer.
+        if (requestId !== requestRef.current) return;
+
+        if (!response.ok) {
+          setFetchedQuote(null);
+          setQuoteError(payload.error ?? "Could not work out shipping.");
+        } else {
+          setFetchedQuote(payload.quote as ShippingQuote);
+        }
+      } catch {
+        if (requestId === requestRef.current) {
+          setFetchedQuote(null);
+          setQuoteError("Could not reach us to price shipping. Check your connection.");
+        }
+      } finally {
+        if (requestId === requestRef.current) setQuoteLoading(false);
+      }
+    }, 400);
+
+    return () => window.clearTimeout(timer);
+  }, [quoteKey, form.country, form.province, form.city, form.postal_code, lines]);
+
+  // A quote only counts while there is something to ship it to.
+  const quote = lines.length && form.country ? fetchedQuote : null;
   const shipping = quote?.amountIdr ?? 0;
   const total = subtotal + shipping;
 
@@ -378,10 +434,33 @@ export function CheckoutForm({
             <dt className="text-bark-600">
               Shipping{quote ? ` — ${quote.zoneName}` : ""}
             </dt>
-            <dd>{quote?.isFree ? "Free" : formatIDR(shipping)}</dd>
+            <dd>
+              {quoteLoading && !quote ? (
+                <span className="text-bark-400">…</span>
+              ) : quote?.isFree ? (
+                "Free"
+              ) : quote ? (
+                formatIDR(shipping)
+              ) : (
+                <span className="text-bark-400">—</span>
+              )}
+            </dd>
           </div>
+
+          {quote && quote.discountIdr > 0 && (
+            <div className="flex justify-between text-emerald-700">
+              <dt>{quote.discountLabel ?? "Shipping discount"}</dt>
+              <dd>−{formatIDR(quote.discountIdr)}</dd>
+            </div>
+          )}
+
           {quote?.estimate && (
             <p className="text-xs text-bark-500">Estimated {quote.estimate}</p>
+          )}
+          {quoteError && (
+            <p className="text-xs text-red-700" role="status">
+              {quoteError}
+            </p>
           )}
           <div className="flex justify-between border-t border-bark-200/70 pt-3 text-base font-medium">
             <dt>Total</dt>
@@ -402,8 +481,18 @@ export function CheckoutForm({
           </p>
         )}
 
-        <button type="submit" disabled={submitting} className="btn-primary mt-5 w-full">
-          {submitting ? "Placing order…" : "Place order"}
+        <button
+          type="submit"
+          disabled={submitting || quoteLoading || !quote}
+          className="btn-primary mt-5 w-full"
+        >
+          {submitting
+            ? "Placing order…"
+            : quoteLoading
+              ? "Working out shipping…"
+              : !quote
+                ? "Enter a delivery address"
+                : "Place order"}
         </button>
 
         <p className="mt-3 text-center text-xs text-bark-500">

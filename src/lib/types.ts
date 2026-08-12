@@ -144,7 +144,10 @@ export interface Order {
   guest_email: string | null;
   status: OrderStatus;
   subtotal_idr: number;
+  /** What the customer was charged for shipping. */
   shipping_idr: number;
+  /** What the roastery absorbed on this order's shipping. */
+  shipping_discount_idr: number;
   unique_code: number;
   total_idr: number;
   payment_method: string | null;
@@ -228,6 +231,10 @@ export interface ShippingZone {
   threshold_grams: number;
   heavy_rate_idr: number;
   free_shipping_over_idr: number | null;
+  /** Spend at or above this for a partial subsidy. Null disables it. */
+  subsidy_over_idr: number | null;
+  /** Flat rupiah off the shipping rate, capped at the rate itself. */
+  subsidy_idr: number;
   delivery_estimate: string | null;
   is_active: boolean;
   sort_order: number;
