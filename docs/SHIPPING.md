@@ -178,18 +178,105 @@ specifically test what happens when their API is unreachable.
 `SHIPPING_PROVIDER=biteship`. Rolling back is setting it to `flat_zones` again,
 which is worth knowing before launch rather than during an incident.
 
-### Two decisions to make before writing any code
+### Confirmed API details
 
-**What happens when the API is slow or down.** This matters more than the
-integration itself. A courier outage must never stop people checking out. The
-sane behaviour is to fall back to the flat zone for that destination and carry
-on: a slightly wrong shipping price is enormously better than a checkout that
-does not work. The flat zones stay in the database precisely as that safety
-net, which is also why they should not be deleted after switching.
+From Biteship's own documentation. These are the facts the provider file will
+be built on.
 
-**What a rate query costs, and how often one fires.** See the request-volume
-arithmetic above. If the numbers get uncomfortable, caching in
-`/api/shipping/quote` is the first lever and the only place it needs to happen.
+**Rates endpoint**
+
+```
+POST https://api.biteship.com/v1/rates/couriers
+```
+
+One endpoint, five request styles: by coordinates, postal code, area id, mixed,
+or by type. Postal code is the obvious starting point — checkout already
+collects one, and it needs no extra lookup call. Area id is more accurate but
+means resolving an address to a Biteship area first, which is a second request
+and therefore a second charge.
+
+**Authentication — their docs contradict themselves here.** The prose says HTTP
+Basic auth with the token as the password, which would mean:
+
+```
+Authorization: Basic <base64 of ":" + token>
+```
+
+Their curl example shows the raw token instead, with no scheme:
+
+```
+authorization: <<YOUR_API_KEY>>
+```
+
+Those are not the same request. Concrete examples usually survive doc rot
+better than prose, so the raw header is the one to try first — but this is the
+first thing to check in sandbox, because getting it wrong returns a generic
+auth failure rather than anything that points at the cause.
+
+Tokens are prefixed `biteship_test.` or `biteship_live.`, which is worth
+asserting on at startup: a live key in a staging deploy is a real mistake and
+the prefix makes it catchable.
+
+**Auth error codes** — `40000001`, `40101001`, `40101002`, `40101003`,
+`40301001`, `40301002`.
+
+These matter for the fallback design. An auth error is **not** a transient
+failure: retrying will not fix a wrong key. It should fall back to flat zones
+*and* surface loudly to the operator, because it means shipping quotes are
+silently no longer live. A timeout or a 5xx is different — fall back quietly
+and carry on. Treating both the same would either spam the operator or hide a
+broken key for weeks.
+
+### The webhook that changes a business rule
+
+Biteship fires three webhooks: `order.status`, `order.waybill_id`, and —
+the important one — **`order.price`**:
+
+> Price changes when the actual weight is different from the weight used to
+> calculate the price.
+
+So the courier can charge a different amount **after** the customer has already
+paid. That is not a technical detail, it is a policy question, and it needs an
+answer before order booking goes live:
+
+- **Absorb it.** Simplest, and invisible to the customer. The order already has
+  `shipping_discount_idr` for recording what the roastery covers, so an
+  unexpected overage can be recorded the same way and show up in
+  Admin → Sales under "Shipping you covered".
+- **Chase the customer for the difference.** Almost never worth it on a bag of
+  coffee, and it makes for a bad email.
+- **Absorb it, but get told when it is large.** Probably the right answer: a
+  flag in the admin when the courier's figure exceeds the quote by more than
+  some threshold, so a systematically wrong parcel weight gets noticed rather
+  than quietly eating margin.
+
+This is a strong argument for **quoting generously** on live rates rather than
+to the rupiah, and for keeping product `weight_grams` accurate — that field is
+currently only used for flat-rate weight tiers, but it becomes the basis of
+every quote once rates are live.
+
+### Realistic timeline
+
+Biteship estimates 1 week to 2 months overall, with core integration at 2-4
+weeks. That is for the full scope: rates, order creation, webhooks, tracking,
+labels.
+
+**Rates only is far smaller** — one provider file against an interface that
+already exists, and the fallback behaviour. The long poles in their timeline
+are order booking, webhook handling and the activation review, none of which
+rates needs. Which is the case for doing rates first and deciding about
+booking afterwards, once live quotes have been running long enough to know
+whether they are actually better than the flat zones.
+
+Note that the activation request sits in their Testing phase, and testing-mode
+keys have the Order API active by default while live keys do not. So sandbox
+work is not blocked on the review, but going live with order booking is.
+
+### Still needed before writing the provider
+
+The request and response bodies for `POST /v1/rates/couriers`. The endpoint,
+auth and error codes are known; the payload shape is not, and guessing it
+produces code that looks right and fails on first contact.
 
 ### Other options
 
