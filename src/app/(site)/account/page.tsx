@@ -10,7 +10,12 @@ import { cn, formatDate, formatIDR } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-export default async function AccountOverviewPage() {
+export default async function AccountOverviewPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ admin?: string }>;
+}) {
+  const { admin } = await searchParams;
   const session = await requireUser();
   const supabase = await createClient();
 
@@ -38,6 +43,21 @@ export default async function AccountOverviewPage() {
 
   return (
     <div className="space-y-10">
+      {admin === "denied" && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-5">
+          <p className="font-medium text-amber-900">
+            This account does not have dashboard access.
+          </p>
+          <p className="mt-2 text-sm text-amber-900">
+            You are signed in as{" "}
+            <strong>{session.email}</strong>, but that account has not been made
+            an admin. If you are the owner and this is your first time, the very
+            first admin has to be granted once in Supabase — every one after
+            that is a button in Admin → Customers.
+          </p>
+        </div>
+      )}
+
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Orders" value={String(paidOrders.length)} />
         <Stat label="Lifetime spend" value={formatIDR(lifetimeSpend)} />

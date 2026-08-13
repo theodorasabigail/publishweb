@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { ORDER_STATUSES, type OrderStatus } from "@/lib/types";
+import { sendOrderConfirmation, sendOrderShipped } from "@/lib/email/notify";
 import { adminClient, optionalText, text } from "./guard";
 
 export async function updateOrderStatus(formData: FormData) {
@@ -22,9 +23,15 @@ export async function updateOrderStatus(formData: FormData) {
       p_payment_method: "manual_admin",
     });
     if (error) throw new Error("Could not mark the order paid.");
+    await sendOrderConfirmation(id);
   } else {
     const { error } = await supabase.from("orders").update({ status }).eq("id", id);
     if (error) throw new Error("Could not update the order.");
+
+    // Covers marking an order shipped after the tracking number was already
+    // saved. Guarded on the tracking number, so doing both in either order
+    // still sends exactly one email.
+    if (status === "shipped") await sendOrderShipped(id);
   }
 
   revalidatePath("/admin/orders");
@@ -43,6 +50,8 @@ export async function updateOrderFulfilment(formData: FormData) {
       courier_note: optionalText(formData, "courier_note"),
     })
     .eq("id", id);
+
+  await sendOrderShipped(id);
 
   revalidatePath(`/admin/orders/${id}`);
   revalidatePath(`/order/${id}`);

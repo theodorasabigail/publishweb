@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendOrderConfirmation } from "@/lib/email/notify";
 import type { Order } from "@/lib/types";
 
 /**
@@ -89,6 +90,12 @@ export async function settleOrder(
     console.error("mark_order_paid failed", { orderId, error });
     return { ok: false, error: error.message };
   }
+
+  // After the settlement, never as part of it. sendOrderConfirmation swallows
+  // its own failures, so a mail outage cannot turn a successful payment into a
+  // webhook error and a redelivery.
+  await sendOrderConfirmation(orderId);
+
   return { ok: true };
 }
 

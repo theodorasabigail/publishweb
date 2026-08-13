@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { sendOrderConfirmation } from "@/lib/email/notify";
 import { adminClient, boolean, integer, optionalText, text } from "./guard";
 
 /**
@@ -178,6 +179,7 @@ export async function resolvePaymentEvent(formData: FormData) {
       p_payment_method: "bank_transfer",
     });
     if (error) throw new Error("Could not settle that order.");
+    await sendOrderConfirmation(orderId);
   }
 
   await supabase
@@ -285,6 +287,72 @@ export async function checkMediaBudget(): Promise<MediaBudget> {
   }
 
   return { usedBytes, limitBytes: STORAGE_LIMIT_BYTES, percent, blocked: false, message: null };
+}
+
+/**
+ * Send a real email to an address the operator types, and say what happened.
+ *
+ * Every other path deliberately swallows email failures so a mail outage can
+ * never break an order. That makes "is email working?" unanswerable without
+ * this: it is the one place a failure is reported rather than logged.
+ */
+export async function testEmailDelivery(
+  formData: FormData,
+): Promise<{ ok: boolean; summary: string; advice?: string }> {
+  await adminClient();
+
+  const { getEmailProvider, sendEmail } = await import("@/lib/email");
+  const { testEmail } = await import("@/lib/email/templates");
+
+  const to = text(formData, "to");
+  if (!to.includes("@")) {
+    return { ok: false, summary: "That does not look like an email address." };
+  }
+
+  const provider = getEmailProvider();
+  if (provider.id === "none") {
+    return {
+      ok: false,
+      summary: "No email service is connected yet.",
+      advice:
+        "Add RESEND_API_KEY and EMAIL_FROM in Vercel → Settings → Environment Variables, then redeploy. Until then the shop works exactly as it does now, just without receipts.",
+    };
+  }
+
+  const result = await sendEmail(testEmail(to));
+
+  if (result.ok) {
+    return {
+      ok: true,
+      summary: `Sent to ${to}. It should arrive within a minute.`,
+      advice: "If it does not appear, check the spam folder before changing anything.",
+    };
+  }
+
+  return {
+    ok: false,
+    summary: `${provider.label} refused to send it.`,
+    advice: adviceFor(result.error),
+  };
+}
+
+/** Turn the provider's error into something actionable. */
+function adviceFor(error: string | undefined): string {
+  const message = (error ?? "").toLowerCase();
+
+  if (message.includes("resend_api_key") || message.includes("email_from")) {
+    return "RESEND_API_KEY or EMAIL_FROM is missing in Vercel. Add both, then redeploy.";
+  }
+  if (message.includes("api key") || message.includes("unauthorized") || message.includes("401")) {
+    return "Resend did not accept the key. Check RESEND_API_KEY in Vercel matches the one in your Resend dashboard, then redeploy.";
+  }
+  if (message.includes("domain") || message.includes("not verified") || message.includes("403")) {
+    return "Your sending domain is not verified yet. In Resend → Domains, add the DNS records it lists to wherever your domain is managed, and wait for it to go green. Until then Resend only lets you email your own account address.";
+  }
+  if (message.includes("timeout") || message.includes("reach")) {
+    return "Could not reach Resend. Almost certainly temporary — try again shortly.";
+  }
+  return error ?? "No reason given.";
 }
 
 /** Ask Biteship for a real quote and report back in plain words. */

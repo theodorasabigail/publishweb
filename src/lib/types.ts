@@ -172,6 +172,11 @@ export interface Order {
   /** What the courier actually charged, which can exceed what the customer
    *  paid when real weight differs from quoted weight. */
   courier_charged_idr: number | null;
+  /** Set once the receipt has been sent, so a redelivered payment webhook
+   *  cannot send a second one. */
+  confirmation_email_sent_at: string | null;
+  /** The tracking number the customer was last emailed. */
+  shipped_email_tracking: string | null;
   created_at: string;
   paid_at: string | null;
 }

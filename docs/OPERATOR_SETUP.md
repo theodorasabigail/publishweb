@@ -250,6 +250,8 @@ look like meaningless strings of characters. This is the map.
 | `XENDIT_WEBHOOK_TOKEN` | Xendit → Settings → Webhooks | Proves a payment message really came from Xendit | Moderate. Regenerate it |
 | `BITESHIP_API_KEY` | Biteship → Integrations → Pengaturan | Asks couriers for prices | Depends which kind — see below |
 | `BITESHIP_WEBHOOK_SECRET` | **You invent this one** | Proves a delivery update really came from Biteship | Change it and update the URL in Biteship |
+| `RESEND_API_KEY` | Resend → API Keys | Sends order receipts and tracking emails | Moderate. Delete it in Resend and make a new one |
+| `EMAIL_FROM` | **You choose it** | The address customers see the email from | Harmless — it is on every email you send |
 | `COMING_SOON_PREVIEW_SECRET` | **You invent this one** | The pre-launch preview link | Harmless. Change it |
 
 Two of these you make up yourself rather than copy from anywhere — any long

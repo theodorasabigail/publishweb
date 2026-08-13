@@ -162,6 +162,26 @@ it can reach free but never discounts the product. What was absorbed is stored
 on the order rather than recomputed, so a later rate change cannot rewrite what
 past orders cost. See docs/SHIPPING.md.
 
+### Email is the third adapter
+
+`lib/email/types.ts` defines `EmailProvider`, `resend.ts` implements it, and the
+default is a no-op that logs and returns — a shop with no email configured
+sells exactly as one with it. `sendEmail` never throws, and every caller sits
+*after* a successful settlement, so a mail outage can never turn a paid order
+into a failed webhook and a redelivery.
+
+Sending once is the interesting part, because payment webhooks retry by design.
+The receipt is *claimed* before it is sent: an update that only matches while
+`orders.confirmation_email_sent_at` is null, so concurrent deliveries race on a
+row rather than on an inbox, and a crash mid-send loses a receipt instead of
+duplicating one. The shipped notification is guarded on
+`orders.shipped_email_tracking` rather than a timestamp, so re-saving the
+fulfilment form is silent but *correcting* a mistyped tracking number re-sends.
+
+Because every failure is deliberately swallowed, a broken configuration looks
+identical to a working one — hence `/admin/settings/email`, which reads the
+environment at request time and can send a real test message.
+
 ### Staying inside the free tier
 
 Supabase's free plan allows 1 GB of file storage and 5 GB of monthly egress,

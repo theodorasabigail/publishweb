@@ -51,7 +51,12 @@ export async function requireAdmin(returnTo = "/admin"): Promise<SessionContext>
     redirect(`/login?next=${encodeURIComponent(returnTo)}`);
   }
   if (!session.profile?.is_admin) {
-    redirect("/");
+    // Signed in, but this account has no dashboard access. Previously this
+    // bounced silently to the homepage, which is indistinguishable from the
+    // site being broken — and the person most likely to hit it is the owner,
+    // who has simply not been granted access yet. Someone already holding a
+    // valid account learns nothing they could not learn by trying.
+    redirect("/account?admin=denied");
   }
   return session;
 }

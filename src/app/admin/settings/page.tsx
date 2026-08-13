@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ImageIcon, Truck } from "lucide-react";
+import { ImageIcon, Mail, Truck } from "lucide-react";
 import { HomepageCategoryPicker } from "@/components/admin/homepage-categories";
 import { VisibilityStatus } from "@/components/admin/visibility-status";
 import { ImageUploader } from "@/components/admin/image-uploader";
@@ -32,6 +32,9 @@ export default async function AdminSettingsPage() {
             </Link>
             <Link href="/admin/settings/shipping" className="btn-secondary">
               <Truck className="h-4 w-4" /> Shipping rates
+            </Link>
+            <Link href="/admin/settings/email" className="btn-secondary">
+              <Mail className="h-4 w-4" /> Emails
             </Link>
           </div>
         }
