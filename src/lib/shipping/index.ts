@@ -1,10 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env";
+import { createBiteshipProvider } from "./biteship-provider";
 import { createFlatZoneProvider } from "./flat-zones";
 import type { ShippingProvider } from "./types";
 
 export * from "./types";
 export { applySpendDiscount, type AppliedDiscount } from "./discounts";
+export { createBiteshipProvider } from "./biteship-provider";
 export {
   createFlatZoneProvider,
   isJavaProvince,
@@ -28,9 +30,11 @@ export function getShippingProvider(supabase: SupabaseClient): ShippingProvider 
   switch (id) {
     case "flat_zones":
       return createFlatZoneProvider(supabase);
+    case "biteship":
+      return createBiteshipProvider(supabase);
     default:
       throw new Error(
-        `Unknown SHIPPING_PROVIDER "${id}". Set it to "flat_zones", or leave it unset.`,
+        `Unknown SHIPPING_PROVIDER "${id}". Set it to "flat_zones" or "biteship", or leave it unset.`,
       );
   }
 }

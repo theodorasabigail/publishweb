@@ -35,7 +35,6 @@ Your entire job, start to finish:
 - flip one toggle (Testing Mode)
 - click three buttons to make a key
 - copy that key into Vercel, next to the ones already there
-- copy one documentation page into the chat
 
 Everything else — the code, the testing, the switching over — is mine.
 
@@ -139,39 +138,47 @@ you have not accidentally used a real one while testing.
 
 ---
 
-## The one thing blocking us
+## The code is written
 
-To ask Biteship for a shipping price, the website has to send the question in
-exactly the format they expect, and understand exactly the format they answer
-in.
+The part that talks to Biteship is done and tested against a stand-in for their
+service. It handles the four things that actually happen in practice:
 
-**I cannot open biteship.com from where I work** — the network here blocks it.
-So I need you to fetch that one page for me.
+- **They answer normally** — the cheapest courier's price is shown to the
+  customer, with their delivery estimate.
+- **They are down or slow** — the website quietly uses your own price list
+  instead. The customer notices nothing.
+- **The key is wrong** — same fallback, but it also shouts in the logs, because
+  that will not fix itself.
+- **They answer in a format we did not expect** — same fallback again.
 
-In the Biteship documentation, find the page about **Rates API** — the one that
-covers `/v1/rates/couriers`, probably called something like "Retrieve Rates",
-"Rates by postal code", or similar. It will show a block of example code with
-curly braces `{ }` — a sample question, and a sample answer.
+In every failure case the shop keeps selling. That was the point.
 
-**Copy that whole page and paste it into the chat.** All of it, including the
-code blocks. That is genuinely everything I need to finish Stage 1.
-
-Guessing that format is not an option — it produces something that looks
-correct and fails the moment it is used for real, which is the worst kind of
-broken.
+Your free-shipping and discount thresholds work exactly the same either way, and
+international orders never touch Biteship at all — they stay on your own zone
+prices, which is cheaper and simpler.
 
 ---
 
 ## What happens after that
 
-1. I write the part that talks to Biteship, and test it against your sandbox.
-2. You paste the test key into Vercel.
-3. We check prices on the website against what the courier actually charges,
-   for real addresses, across a few different zones.
-4. If the numbers look right, you make a **live** key and we switch over.
-5. Your own price list stays in the database as a safety net. If Biteship is
-   ever slow or down, the website quietly falls back to it and customers can
-   still check out. Nothing to do on your end.
+1. **You paste the test key into Vercel** as `BITESHIP_API_KEY`, and add
+   `SHIPPING_PROVIDER=biteship` next to it. Then redeploy.
+2. **Fill in your pickup address** in Admin → Site settings → Shipping rates.
+   Biteship needs to know where parcels come from — the postcode especially.
+   Without it the site just keeps using your own price list.
+3. **Try a checkout** with a real Indonesian address and see what price comes
+   up. Compare it against what that delivery actually costs you.
+4. Try a few different destinations — somewhere in Java, somewhere far away.
+5. If the numbers look right, make a **live** key and swap it in.
+
+Two things I will want to hear from you at step 3, because they are the two
+things I could not verify without a real account:
+
+- **Does a price come back at all?** If it always shows your own flat price,
+  something is not connecting and I will need the error from the Vercel logs.
+- **Is the price sensible?** Roughly what that courier would charge for a bag
+  of coffee. If it is wildly out — ten times too much or too little — that
+  points at the parcel weight being misread, which is a one-line fix.
 
 You can stop at any of those steps and nothing breaks — the site keeps using
 your own price list until we deliberately switch it over.

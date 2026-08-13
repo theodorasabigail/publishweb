@@ -10,7 +10,8 @@ import { env } from "@/lib/env";
  * the endpoint, the auth scheme, the error codes and the webhook payloads.
  */
 
-export const BITESHIP_API = "https://api.biteship.com";
+export const BITESHIP_API =
+  process.env.BITESHIP_API_BASE ?? "https://api.biteship.com";
 
 // ---------------------------------------------------------------------------
 // Authentication
@@ -231,4 +232,111 @@ export function orderStatusFor(courierStatus: string | null): "shipped" | "compl
   if (DELIVERED_STATUSES.has(normalised)) return "completed";
   if (SHIPPED_STATUSES.has(normalised)) return "shipped";
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Rates
+// ---------------------------------------------------------------------------
+
+/**
+ * Request shape, corroborated from two independent community integrations
+ * (the `biteship-wrapper` npm package and an n8n community node) since the
+ * official docs page is not reachable from this environment:
+ *
+ *   {
+ *     origin_postal_code: 12410,
+ *     destination_postal_code: 12430,
+ *     couriers: "jne,sicepat,anteraja",   // comma-separated, not an array
+ *     items: [{ name, description, value, length, width, height, weight, quantity }]
+ *   }
+ *
+ * `weight` is in **grams**, which the n8n node labels explicitly and which
+ * matches our own `weight_grams` column — so no conversion, and nothing to get
+ * silently wrong by a factor of a thousand.
+ *
+ * Origin and destination can instead be given as `*_area_id` or as
+ * `*_latitude`/`*_longitude`. Postal code is used here because checkout
+ * already collects one and it needs no extra lookup call — which would be a
+ * second request and therefore a second charge.
+ */
+export interface BiteshipRateRequest {
+  origin_postal_code?: number;
+  origin_area_id?: string;
+  destination_postal_code?: number;
+  destination_area_id?: string;
+  couriers: string;
+  items: {
+    name: string;
+    description?: string;
+    value: number;
+    length?: number;
+    width?: number;
+    height?: number;
+    weight: number;
+    quantity: number;
+  }[];
+}
+
+export interface BiteshipOption {
+  priceIdr: number;
+  courierName: string | null;
+  serviceName: string | null;
+  durationText: string | null;
+}
+
+/**
+ * Read the rate options out of a response.
+ *
+ * Deliberately tolerant. The response shape is the one part of this that could
+ * not be confirmed from a reachable source, so rather than assume one layout
+ * this looks for a list of priced options under any of the plausible keys and
+ * ignores anything it cannot understand. If the shape turns out to be
+ * different, the result is no options — which falls back to the flat rate,
+ * rather than a wrong price or a broken checkout.
+ */
+export function parseRateOptions(body: unknown): BiteshipOption[] {
+  const payload = body as Record<string, unknown> | null;
+  if (!payload || typeof payload !== "object") return [];
+
+  const candidate =
+    (Array.isArray(payload.pricing) && payload.pricing) ||
+    (Array.isArray(payload.rates) && payload.rates) ||
+    (Array.isArray(payload.couriers) && payload.couriers) ||
+    (Array.isArray(payload.data) && payload.data) ||
+    null;
+
+  if (!candidate) return [];
+
+  const options: BiteshipOption[] = [];
+
+  for (const entry of candidate) {
+    const row = entry as Record<string, unknown>;
+    if (!row || typeof row !== "object") continue;
+
+    // Biteship's own field is `price`; the others are defensive.
+    const price = int(row.price ?? row.total_price ?? row.shipment_fee);
+    if (price === null || price < 0) continue;
+
+    const duration =
+      str(row.duration) ??
+      str(row.shipment_duration_range) ??
+      (row.shipment_duration_range && row.shipment_duration_unit
+        ? `${String(row.shipment_duration_range)} ${String(row.shipment_duration_unit)}`
+        : null);
+
+    options.push({
+      priceIdr: price,
+      courierName: str(row.courier_name) ?? str(row.company) ?? str(row.courier_code),
+      serviceName: str(row.courier_service_name) ?? str(row.courier_service_code) ?? str(row.type),
+      durationText: duration,
+    });
+  }
+
+  return options;
+}
+
+/** Which couriers to ask for. Comma-separated, set in the environment so it
+ *  can be tuned without a deploy-time code change. */
+export function courierList(): string {
+  return env.optional("BITESHIP_COURIERS") ?? "jne,sicepat,anteraja,jnt,pos";
 }

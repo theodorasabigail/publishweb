@@ -313,14 +313,52 @@ probably has the wrong `weight_grams`.
 Verified against the exact payloads in Biteship's documentation, plus null,
 arrays, missing fields and unknown event types.
 
-### Still needed before writing the rates provider
+### The rates provider
 
-The request and response bodies for `POST /v1/rates/couriers`. The endpoint,
-auth and error codes are known; the payload shape is not, and guessing it
-produces code that looks right and fails on first contact.
+`src/lib/shipping/biteship-provider.ts`, selected with
+`SHIPPING_PROVIDER=biteship`.
+
+The request shape was corroborated from two independent community integrations
+— the `biteship-wrapper` npm package and an n8n community node — because
+biteship.com is unreachable from this environment. Both agree, and both also
+settle the auth question the official docs muddle: the raw token in an
+`Authorization` header, no `Basic`, no base64. The n8n node additionally labels
+the weight field **"Weight (grams)"**, which matches our `weight_grams` column,
+so nothing is converted and nothing can be silently wrong by a factor of 1000.
+
+The **response** shape could not be confirmed from any reachable source, so
+`parseRateOptions` is deliberately tolerant: it looks for a list of priced
+options under any of several plausible keys, skips entries it cannot read, and
+returns nothing if the shape is unfamiliar. Returning nothing means falling
+back to the flat rate — so an unconfirmed guess degrades to a slightly wrong
+price rather than a broken checkout.
+
+Behaviour, all tested against a stand-in service:
+
+| Biteship says | Result |
+|---|---|
+| Normal response | Cheapest option, with its courier name and delivery estimate |
+| 5xx / timeout | Flat-rate fallback, logged quietly |
+| Auth failure | Flat-rate fallback, logged **loudly** — it will not self-heal |
+| Unrecognised shape | Flat-rate fallback, logged |
+| Non-Indonesian address | Flat rate, **no API call made** — no request, no charge |
+
+Zone discounts apply on top of live rates through the shared
+`applySpendDiscount`, so free-shipping thresholds behave identically either
+way.
+
+### Still unverified
+
+Two things need a real account, and both are in the operator guide as things to
+report back:
+
+1. **The response shape.** Tolerant parsing covers being wrong, but the mapping
+   should be tightened once a real response has been seen.
+2. **Whether prices come back sensible.** A wildly wrong figure would most
+   likely mean the weight field is being read in a different unit than assumed.
 
 Also worth asking Biteship support: **is there a webhook signature?** Their
-docs do not mention one, so the shared secret above is a workaround. If signing
+docs do not mention one, so the shared secret is a workaround. If signing
 exists it should replace it.
 
 ### Other options
