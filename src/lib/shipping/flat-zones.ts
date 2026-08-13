@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ShippingZone } from "@/lib/types";
-import { formatIDR } from "@/lib/utils";
+import { applySpendDiscount } from "./discounts";
 import type {
   ShippingDestination,
   ShippingParcel,
@@ -82,25 +82,13 @@ export function priceZone(
       ? zone.heavy_rate_idr
       : zone.base_rate_idr;
 
-  let discountIdr = 0;
-  let discountLabel: string | null = null;
-
-  if (
-    zone.free_shipping_over_idr !== null &&
-    subtotalIdr >= zone.free_shipping_over_idr
-  ) {
-    discountIdr = fullRateIdr;
-    discountLabel = `Free shipping over ${formatIDR(zone.free_shipping_over_idr)}`;
-  } else if (
-    zone.subsidy_over_idr !== null &&
-    zone.subsidy_idr > 0 &&
-    subtotalIdr >= zone.subsidy_over_idr
-  ) {
-    // Capped at the rate: a subsidy may zero shipping out, never turn into a
-    // discount on the coffee itself.
-    discountIdr = Math.min(zone.subsidy_idr, fullRateIdr);
-    discountLabel = `${formatIDR(discountIdr)} off shipping over ${formatIDR(zone.subsidy_over_idr)}`;
-  }
+  // Discount policy comes from the zone and is shared with every provider, so
+  // a live-rate integration inherits it for free.
+  const { discountIdr, discountLabel } = applySpendDiscount(
+    fullRateIdr,
+    subtotalIdr,
+    zone,
+  );
 
   const amountIdr = Math.max(0, fullRateIdr - discountIdr);
 

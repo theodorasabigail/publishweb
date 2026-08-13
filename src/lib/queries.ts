@@ -48,6 +48,14 @@ export const FALLBACK_SETTINGS: SiteSettings = {
   seo_description:
     "Small-batch Indonesian coffee roasters. Single origin, blends, and custom roasting.",
   og_image_url: null,
+  origin_contact_name: null,
+  origin_phone: null,
+  origin_address: null,
+  origin_city: null,
+  origin_province: null,
+  origin_postal_code: null,
+  origin_area_code: null,
+  origin_note: null,
   updated_at: new Date().toISOString(),
 };
 

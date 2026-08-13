@@ -1,16 +1,20 @@
 import Link from "next/link";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { EmptyRow, Field, PageHeader, Panel } from "@/components/admin/ui";
-import { deleteShippingZone, saveShippingZone } from "@/app/admin/_actions/settings";
+import { deleteShippingZone, saveShippingZone, updateShippingOrigin } from "@/app/admin/_actions/settings";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { ShippingZone } from "@/lib/types";
+import type { ShippingZone, SiteSettings } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminShippingPage() {
   const supabase = createAdminClient();
-  const { data } = await supabase.from("shipping_zones").select("*").order("sort_order");
+  const [{ data }, { data: settingsRow }] = await Promise.all([
+    supabase.from("shipping_zones").select("*").order("sort_order"),
+    supabase.from("site_settings").select("*").eq("id", true).maybeSingle(),
+  ]);
   const zones = (data ?? []) as ShippingZone[];
+  const settings = settingsRow as SiteSettings | null;
 
   return (
     <div>
@@ -31,6 +35,48 @@ export default async function AdminShippingPage() {
         chosen automatically from the province. Everywhere else matches on
         country code, falling back to the zone coded <code>rest</code>.
       </p>
+
+      <Panel
+        title="Where you ship from"
+        description="Only used if you switch to live courier rates — a rate depends on origin as well as destination. Harmless to fill in now."
+        className="mb-6"
+      >
+        <form action={updateShippingOrigin} className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Contact name">
+              <input name="origin_contact_name" className="input" defaultValue={settings?.origin_contact_name ?? ""} />
+            </Field>
+            <Field label="Phone">
+              <input name="origin_phone" className="input" defaultValue={settings?.origin_phone ?? ""} />
+            </Field>
+          </div>
+          <Field label="Address">
+            <input name="origin_address" className="input" defaultValue={settings?.origin_address ?? ""} />
+          </Field>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field label="City">
+              <input name="origin_city" className="input" defaultValue={settings?.origin_city ?? ""} />
+            </Field>
+            <Field label="Province">
+              <input name="origin_province" className="input" defaultValue={settings?.origin_province ?? ""} />
+            </Field>
+            <Field label="Postal code">
+              <input name="origin_postal_code" className="input" defaultValue={settings?.origin_postal_code ?? ""} />
+            </Field>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Courier area code" hint="Only if your courier gives you one. Leave blank otherwise.">
+              <input name="origin_area_code" className="input" defaultValue={settings?.origin_area_code ?? ""} />
+            </Field>
+            <Field label="Pickup note" hint="Anything the driver needs to know.">
+              <input name="origin_note" className="input" defaultValue={settings?.origin_note ?? ""} />
+            </Field>
+          </div>
+          <button type="submit" className="btn-primary py-2 text-xs">
+            Save pickup address
+          </button>
+        </form>
+      </Panel>
 
       <div className="space-y-4">
         {zones.length ? (

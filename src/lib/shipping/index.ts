@@ -4,6 +4,7 @@ import { createFlatZoneProvider } from "./flat-zones";
 import type { ShippingProvider } from "./types";
 
 export * from "./types";
+export { applySpendDiscount, type AppliedDiscount } from "./discounts";
 export {
   createFlatZoneProvider,
   isJavaProvince,

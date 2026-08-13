@@ -133,6 +133,29 @@ export async function saveShippingZone(formData: FormData) {
   revalidatePath("/admin/settings/shipping");
 }
 
+/** Where parcels ship from. Unused by flat zones; required by any live-rate
+ *  courier API, which prices origin-to-destination. */
+export async function updateShippingOrigin(formData: FormData) {
+  const { supabase } = await adminClient();
+
+  await supabase
+    .from("site_settings")
+    .update({
+      origin_contact_name: optionalText(formData, "origin_contact_name"),
+      origin_phone: optionalText(formData, "origin_phone"),
+      origin_address: optionalText(formData, "origin_address"),
+      origin_city: optionalText(formData, "origin_city"),
+      origin_province: optionalText(formData, "origin_province"),
+      origin_postal_code: optionalText(formData, "origin_postal_code"),
+      origin_area_code: optionalText(formData, "origin_area_code"),
+      origin_note: optionalText(formData, "origin_note"),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", true);
+
+  revalidatePath("/admin/settings/shipping");
+}
+
 export async function deleteShippingZone(formData: FormData) {
   const { supabase } = await adminClient();
   await supabase.from("shipping_zones").delete().eq("id", text(formData, "id"));

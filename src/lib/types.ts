@@ -263,6 +263,15 @@ export interface SiteSettings {
   seo_title: string;
   seo_description: string | null;
   og_image_url: string | null;
+  /** Where parcels ship from. Only needed by live-rate couriers. */
+  origin_contact_name: string | null;
+  origin_phone: string | null;
+  origin_address: string | null;
+  origin_city: string | null;
+  origin_province: string | null;
+  origin_postal_code: string | null;
+  origin_area_code: string | null;
+  origin_note: string | null;
   updated_at: string;
 }
 

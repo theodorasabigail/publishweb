@@ -142,39 +142,54 @@ If you do go pay-as-you-go, these are the levers, in order of effect:
 
 None of this is worth doing before you actually integrate — but it is why the
 quote endpoint exists as one chokepoint rather than being scattered.
-### Adding Biteship
+### Biteship's five phases, mapped to this project
 
-[Biteship](https://biteship.com) aggregates 30+ couriers and covers
-international and postal-code-level domestic rates.
+Biteship publishes a five-phase integration timeline. Here is what each phase
+actually means here, and who does it.
 
-1. **Get an account and a key.** Sign up, complete verification, and take the
-   API key from the dashboard. Add it in Vercel as `BITESHIP_API_KEY`, and set
-   `SHIPPING_PROVIDER=biteship`.
+**1 — Planning and preparation.** *You:* create the Biteship account, enable
+sandbox mode, and get the test API key. *Already done here:* the provider
+interface, the server-side quote endpoint, and the pickup address in
+Admin → Site settings → Shipping rates. *Still needed from Biteship:* the API
+reference for the rates endpoint — the exact URL, the auth header format, the
+request body shape, and the response shape.
 
-2. **Write `src/lib/shipping/biteship.ts`** implementing `ShippingProvider`.
-   It posts origin, destination and parcel details to Biteship's rates
-   endpoint and maps the response onto `ShippingQuote`. The origin address —
-   the roastery — needs to come from somewhere; add it to `site_settings` so it
-   is editable in the admin rather than hard-coded.
+**2 — Core integration.** Authentication and rate calculation are one file,
+`src/lib/shipping/biteship.ts`, implementing `ShippingProvider`, plus one line
+registering it in `getShippingProvider`. Nothing else changes: checkout, the
+quote endpoint and the order record all already talk to the interface.
 
-3. **Register it** in `getShippingProvider` in `src/lib/shipping/index.ts`.
-   That is the only existing file that changes.
+Order creation and webhooks are a **separate decision from rates**, and worth
+separating in time too. Live *rates* only affect what the customer is quoted.
+Booking a pickup and receiving tracking webhooks changes how orders are
+fulfilled, and touches the admin. Doing rates first is lower risk and delivers
+most of the value.
 
-4. **Decide what happens when the API is slow or down.** This matters more
-   than the integration itself: a courier API outage must not stop people
-   checking out. The sane behaviour is to fall back to the flat zone for that
-   destination and carry on, because a slightly wrong shipping price is
-   enormously better than a checkout that does not work. The flat zones stay in
-   the database as that safety net.
+**3 — Advanced features.** Tracking updates would populate `tracking_number` on
+the order automatically instead of the operator pasting it in. Error handling
+is the important half: see the fallback note below.
 
-5. **Decide about the discounts.** The subsidy logic in `priceZone` is part of
-   the flat-zone implementation. If you want discounts to apply on top of live
-   rates too — and you probably do — that logic should move somewhere both
-   providers share before the second one is written.
+**4 — Testing and refinement.** Biteship requires an activation form before
+live keys are issued. Budget time for that — it is a human review step, not a
+button. Test in sandbox against real addresses across several zones, and
+specifically test what happens when their API is unreachable.
 
-6. **Watch the cost.** A rate query per keystroke would be expensive; the
-   checkout form already debounces at 400ms, and the quote endpoint is the
-   single place to add caching if it turns out to matter.
+**5 — Go live.** Swap the sandbox key for the live one and set
+`SHIPPING_PROVIDER=biteship`. Rolling back is setting it to `flat_zones` again,
+which is worth knowing before launch rather than during an incident.
+
+### Two decisions to make before writing any code
+
+**What happens when the API is slow or down.** This matters more than the
+integration itself. A courier outage must never stop people checking out. The
+sane behaviour is to fall back to the flat zone for that destination and carry
+on: a slightly wrong shipping price is enormously better than a checkout that
+does not work. The flat zones stay in the database precisely as that safety
+net, which is also why they should not be deleted after switching.
+
+**What a rate query costs, and how often one fires.** See the request-volume
+arithmetic above. If the numbers get uncomfortable, caching in
+`/api/shipping/quote` is the first lever and the only place it needs to happen.
 
 ### Other options
 
