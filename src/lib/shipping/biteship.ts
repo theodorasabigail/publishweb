@@ -278,30 +278,38 @@ export interface BiteshipRateRequest {
 }
 
 export interface BiteshipOption {
+  /** The final price, after any Custom Rate discount or surcharge configured
+   *  in the Biteship dashboard, and after insurance/COD if those were asked
+   *  for. Their docs are explicit that this is the field to charge on — using
+   *  `shipping_fee` instead would silently ignore Custom Rates. */
   priceIdr: number;
   courierName: string | null;
   serviceName: string | null;
   durationText: string | null;
+  /** "pickup" means the courier collects from the roastery; "drop_off" means
+   *  someone has to take the parcel to a depot. Quoting a drop-off price for a
+   *  service you assumed would collect is a nasty operational surprise. */
+  collectionMethods: string[];
+  courierCode: string | null;
+  serviceCode: string | null;
 }
 
 /**
  * Read the rate options out of a response.
  *
- * Deliberately tolerant. The response shape is the one part of this that could
- * not be confirmed from a reachable source, so rather than assume one layout
- * this looks for a list of priced options under any of the plausible keys and
- * ignores anything it cannot understand. If the shape turns out to be
- * different, the result is no options — which falls back to the flat rate,
- * rather than a wrong price or a broken checkout.
+ * Shape confirmed against Biteship's published example: a `pricing` array of
+ * objects carrying `price`, `courier_name`, `courier_service_name`,
+ * `duration` and `available_collection_method`. The alternative keys below are
+ * kept as cheap insurance — if the shape ever moves, this returns nothing and
+ * the caller falls back to flat rates rather than guessing a price.
  */
 export function parseRateOptions(body: unknown): BiteshipOption[] {
   const payload = body as Record<string, unknown> | null;
-  if (!payload || typeof payload !== "object") return [];
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return [];
 
   const candidate =
     (Array.isArray(payload.pricing) && payload.pricing) ||
     (Array.isArray(payload.rates) && payload.rates) ||
-    (Array.isArray(payload.couriers) && payload.couriers) ||
     (Array.isArray(payload.data) && payload.data) ||
     null;
 
@@ -313,13 +321,11 @@ export function parseRateOptions(body: unknown): BiteshipOption[] {
     const row = entry as Record<string, unknown>;
     if (!row || typeof row !== "object") continue;
 
-    // Biteship's own field is `price`; the others are defensive.
-    const price = int(row.price ?? row.total_price ?? row.shipment_fee);
+    const price = int(row.price ?? row.shipping_fee);
     if (price === null || price < 0) continue;
 
     const duration =
       str(row.duration) ??
-      str(row.shipment_duration_range) ??
       (row.shipment_duration_range && row.shipment_duration_unit
         ? `${String(row.shipment_duration_range)} ${String(row.shipment_duration_unit)}`
         : null);
@@ -327,12 +333,36 @@ export function parseRateOptions(body: unknown): BiteshipOption[] {
     options.push({
       priceIdr: price,
       courierName: str(row.courier_name) ?? str(row.company) ?? str(row.courier_code),
-      serviceName: str(row.courier_service_name) ?? str(row.courier_service_code) ?? str(row.type),
+      serviceName: str(row.courier_service_name) ?? str(row.courier_service_code),
       durationText: duration,
+      collectionMethods: Array.isArray(row.available_collection_method)
+        ? row.available_collection_method.filter((m): m is string => typeof m === "string")
+        : [],
+      courierCode: str(row.courier_code),
+      serviceCode: str(row.courier_service_code),
     });
   }
 
   return options;
+}
+
+/**
+ * Whether a service will collect from the roastery.
+ *
+ * Biteship's own example includes a Wahana service at Rp 1.000 that is
+ * `drop_off` only — by far the cheapest option, and useless if you expected a
+ * driver to arrive. An option with no stated method is treated as acceptable
+ * rather than filtered out, since absence is not the same as "no".
+ */
+export function offersPickup(option: BiteshipOption): boolean {
+  if (!option.collectionMethods.length) return true;
+  return option.collectionMethods.includes("pickup");
+}
+
+/** Set BITESHIP_ALLOW_DROP_OFF=true if someone is happy to drive parcels to a
+ *  depot in exchange for a cheaper rate. */
+export function dropOffAllowed(): boolean {
+  return (env.optional("BITESHIP_ALLOW_DROP_OFF") ?? "").toLowerCase() === "true";
 }
 
 /** Which couriers to ask for. Comma-separated, set in the environment so it

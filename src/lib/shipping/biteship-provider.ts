@@ -7,6 +7,8 @@ import {
   authHeader,
   classifyFailure,
   courierList,
+  dropOffAllowed,
+  offersPickup,
   parseRateOptions,
   type BiteshipRateRequest,
 } from "./biteship";
@@ -138,7 +140,24 @@ export function createBiteshipProvider(supabase: SupabaseClient): ShippingProvid
         return fallback();
       }
 
-      const options = parseRateOptions(payload);
+      const allOptions = parseRateOptions(payload);
+
+      // Drop services that will not collect from the roastery. Biteship's own
+      // example has a drop-off-only courier as the cheapest option by a wide
+      // margin, so picking on price alone would routinely quote a rate that
+      // commits someone to a trip to a depot.
+      const options = dropOffAllowed()
+        ? allOptions
+        : allOptions.filter(offersPickup);
+
+      if (!options.length && allOptions.length) {
+        console.warn(
+          "biteship: every option was drop-off only, using flat rate. " +
+            "Set BITESHIP_ALLOW_DROP_OFF=true to accept them.",
+        );
+        return fallback();
+      }
+
       if (!options.length) {
         // Either no courier serves this route, or the response shape is not
         // what we expect. Either way the flat rate is the safe answer.

@@ -326,12 +326,26 @@ settle the auth question the official docs muddle: the raw token in an
 the weight field **"Weight (grams)"**, which matches our `weight_grams` column,
 so nothing is converted and nothing can be silently wrong by a factor of 1000.
 
-The **response** shape could not be confirmed from any reachable source, so
-`parseRateOptions` is deliberately tolerant: it looks for a list of priced
-options under any of several plausible keys, skips entries it cannot read, and
-returns nothing if the shape is unfamiliar. Returning nothing means falling
-back to the flat rate — so an unconfirmed guess degrades to a slightly wrong
-price rather than a broken checkout.
+The **response** shape is now confirmed against Biteship's published example: a
+`pricing` array whose entries carry `price`, `courier_name`,
+`courier_service_name`, `duration` and `available_collection_method`. The
+parser still tolerates missing fields — their own example has an entry without
+`currency` — and still returns nothing on an unfamiliar shape, which falls back
+to the flat rate.
+
+Two details from their docs that change what the code does:
+
+**Charge on `price`, not `shipping_fee`.** Their documentation is explicit that
+`price` is the final figure after any Custom Rate discount or surcharge
+configured in the dashboard. Using `shipping_fee` would silently ignore Custom
+Rates, so a negotiated rate would never reach the customer.
+
+**Not every service collects from you.** Entries carry
+`available_collection_method`, which is `["pickup"]` or `["drop_off"]`. In
+Biteship's own example the cheapest option by a wide margin — Wahana at
+Rp 1.000 against JNE at Rp 11.000 — is drop-off only. Picking on price alone
+would routinely quote a rate that commits someone to a trip to a depot, so
+drop-off-only services are excluded unless `BITESHIP_ALLOW_DROP_OFF=true`.
 
 Behaviour, all tested against a stand-in service:
 
@@ -349,13 +363,17 @@ way.
 
 ### Still unverified
 
-Two things need a real account, and both are in the operator guide as things to
-report back:
+One thing needs a real account: **whether the prices that come back are
+sensible** for an actual parcel of coffee to an actual address. A wildly wrong
+figure would most likely mean the weight field is being read in a different
+unit than assumed, which is a one-line fix.
 
-1. **The response shape.** Tolerant parsing covers being wrong, but the mapping
-   should be tightened once a real response has been seen.
-2. **Whether prices come back sensible.** A wildly wrong figure would most
-   likely mean the weight field is being read in a different unit than assumed.
+Worth knowing for that test: postal-code accuracy is **medium** by Biteship's
+own rating, because one postal code can span two districts and couriers price
+by district. Area ID is their high-accuracy option but needs a second call to
+their Maps API to resolve an address — a second request, and a second charge,
+per quote. Postal code is the right starting point; if quotes turn out to be
+consistently off for particular destinations, area ID is the upgrade.
 
 Also worth asking Biteship support: **is there a webhook signature?** Their
 docs do not mention one, so the shared secret is a workaround. If signing
