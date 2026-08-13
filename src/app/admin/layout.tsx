@@ -12,6 +12,7 @@ import {
   Tags,
   Users,
 } from "lucide-react";
+import { PrelaunchBanner } from "@/components/admin/prelaunch-banner";
 import { requireAdmin } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 
@@ -84,7 +85,10 @@ export default async function AdminLayout({
           </div>
         </aside>
 
-        <main className="min-w-0 flex-1 p-5 sm:p-8">{children}</main>
+        <main className="min-w-0 flex-1 p-5 sm:p-8">
+          <PrelaunchBanner />
+          {children}
+        </main>
       </div>
     </div>
   );
