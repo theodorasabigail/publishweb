@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ImageIcon, Truck } from "lucide-react";
 import { HomepageCategoryPicker } from "@/components/admin/homepage-categories";
+import { VisibilityStatus } from "@/components/admin/visibility-status";
 import { ImageUploader } from "@/components/admin/image-uploader";
 import { Field, PageHeader, Panel } from "@/components/admin/ui";
 import { updateSiteSettings } from "@/app/admin/_actions/settings";
@@ -37,6 +38,13 @@ export default async function AdminSettingsPage() {
       />
 
       <div className="space-y-6">
+        <Panel
+          title="Is your shop public?"
+          description="Whether visitors can see and buy, or only see a coming-soon page."
+        >
+          <VisibilityStatus />
+        </Panel>
+
         <Panel
           title="Homepage categories"
           description="Which groups of coffee are shown on the front page, and in what order."
