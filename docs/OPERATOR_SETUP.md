@@ -150,6 +150,53 @@ it.
 
 ---
 
+## Step 5b — Hiding the shop until you are ready
+
+Your domain is live the moment you connect it, which means whatever is deployed
+is public. If you are still setting up — no photos, placeholder coffees, prices
+not final — put a **coming soon** page up first.
+
+In Vercel → Settings → Environment Variables:
+
+```
+COMING_SOON = true
+```
+
+**Redeploy.** Visitors now see a coming-soon page with your name, a short
+description and a place to leave their email. Everything else about the site
+keeps working:
+
+- **/admin** still works, so you can add coffees and set prices
+- **signing in** still works
+- **payments and webhooks** still work, so you can test a real order
+- search engines are told not to index anything yet
+
+### Showing someone the real site before it opens
+
+Add a second variable with any hard-to-guess phrase:
+
+```
+COMING_SOON_PREVIEW_SECRET = kopi-rahasia-2026
+```
+
+Then send anyone this link:
+
+```
+https://publishcoffee.com/?preview=kopi-rahasia-2026
+```
+
+They see the real shop, and keep seeing it for a month. Everyone else still
+sees coming soon. Useful for showing a partner or a photographer before launch.
+
+### Opening
+
+Change `COMING_SOON` to `false` and redeploy. That is the launch.
+
+Collect the emails people left in the meantime from
+**Admin → Site settings** — they are the first people to tell.
+
+---
+
 ## Step 6 — Payments
 
 You have two options. **Do Path A if you possibly can** — it is the only one

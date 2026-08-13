@@ -1,5 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  COMING_SOON_COOKIE,
+  isAlwaysLive,
+  isComingSoon,
+  previewSecret,
+} from "@/lib/coming-soon";
 
 /**
  * Refreshes the Supabase auth session on every request so server components
@@ -12,6 +18,39 @@ import { NextResponse, type NextRequest } from "next/server";
  * which run server-side per page, so a proxy bypass cannot expose anything.
  */
 export async function proxy(request: NextRequest) {
+  const { pathname, searchParams } = request.nextUrl;
+
+  // ---------------------------------------------------------------------
+  // Pre-launch: hide the shop, keep the admin and everything machine-facing
+  // working. Checked before anything else so it costs one string comparison.
+  // ---------------------------------------------------------------------
+  if (isComingSoon() && !isAlwaysLive(pathname)) {
+    const secret = previewSecret();
+    const offered = searchParams.get("preview");
+
+    // Arriving with the right link opens the real site and remembers it.
+    if (secret && offered === secret) {
+      const cleaned = request.nextUrl.clone();
+      cleaned.searchParams.delete("preview");
+      const pass = NextResponse.redirect(cleaned);
+      pass.cookies.set(COMING_SOON_COOKIE, secret, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: true,
+        maxAge: 60 * 60 * 24 * 30,
+        path: "/",
+      });
+      return pass;
+    }
+
+    const holder = request.cookies.get(COMING_SOON_COOKIE)?.value;
+    if (!secret || holder !== secret) {
+      // Rewrite rather than redirect, so the visitor keeps the URL they typed
+      // and the real routes are simply not reachable yet.
+      return NextResponse.rewrite(new URL("/coming-soon", request.url));
+    }
+  }
+
   let response = NextResponse.next({ request });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
