@@ -11,6 +11,8 @@ run the shop rather than the code:
   click by click, written for a non-developer.
 - **[docs/RUNNING_THE_SHOP.md](docs/RUNNING_THE_SHOP.md)** — the day-to-day
   admin guide.
+- **[docs/BITESHIP_SETUP.md](docs/BITESHIP_SETUP.md)** — connecting a courier
+  API, in plain language, for the operator.
 
 ---
 

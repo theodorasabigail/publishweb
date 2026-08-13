@@ -226,5 +226,6 @@ thresholds are right.
 If you raise a rate, it applies to new orders only. Orders already placed keep
 the price they were quoted.
 
-Full detail, including what it would take to switch to live courier rates
-later, is in [SHIPPING.md](SHIPPING.md).
+Thinking about live courier rates instead of your own price list?
+[BITESHIP_SETUP.md](BITESHIP_SETUP.md) walks through it in plain language —
+including which parts are worth doing and which are not worth it yet.

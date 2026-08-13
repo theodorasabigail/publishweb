@@ -3,6 +3,11 @@
 Two things live here: how the discounts you can set today work, and what it
 takes to connect a real courier API later.
 
+> **Running the shop rather than the code?** This page is written for a
+> developer. [BITESHIP_SETUP.md](BITESHIP_SETUP.md) is the plain-language
+> version of the courier part — what to click, in what order, and what not to
+> bother with yet.
+
 ---
 
 ## Part 1 — discounts you can set now
