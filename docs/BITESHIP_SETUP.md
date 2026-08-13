@@ -166,13 +166,19 @@ You have made the test key and put it in Vercel. Three things left.
 ### 1. Add the second setting
 
 The key on its own does nothing — the site does not know it should use
-Biteship yet. In **Vercel → Settings → Environment Variables**, add:
+Biteship yet. It needs a second setting, added the same way and in the same
+place as the key:
 
 ```
-SHIPPING_PROVIDER = biteship
+Key:    SHIPPING_PROVIDER
+Value:  biteship
 ```
 
-Then **redeploy** (Deployments → the three dots on the newest one → Redeploy).
+Then **redeploy**. If you need the clicks, they are under
+["How to add or change a setting"](OPERATOR_SETUP.md#how-to-add-or-change-a-setting)
+in the setup guide.
+
+Until you redeploy, nothing changes — that catches everyone at least once.
 
 ### 2. Fill in where you ship from
 

@@ -197,6 +197,45 @@ Collect the emails people left in the meantime from
 
 ---
 
+## How to add or change a setting
+
+You will do this many times — for keys, for switching things on and off. It is
+the same six clicks every time.
+
+A "setting" here is a labelled box holding a value. The website reads them when
+it starts up, which is why nothing changes until you redeploy. Vercel calls
+them **Environment Variables**; they are the same thing.
+
+1. Go to **vercel.com** and click your project
+2. Click **Settings** along the top
+3. Click **Environment Variables** in the left-hand menu
+4. Type the name in the **Key** box — exactly as written, capitals and
+   underscores included
+5. Type the value in the **Value** box
+6. Make sure **Production** is ticked, then click **Save**
+
+Then the step everyone forgets:
+
+7. Click **Deployments** along the top, find the newest one, click the **⋯**
+   button on its right, and choose **Redeploy**
+
+**Nothing you change here takes effect until you redeploy.** If you have
+changed a setting and the site looks exactly the same, this is almost always
+why.
+
+### Changing one that already exists
+
+Same page. Hover the row, click the **⋯** at the end, choose **Edit**, change
+the value, save. Then redeploy.
+
+### If you make a mistake
+
+Nothing here can break the shop permanently. A wrong value either gets ignored
+or makes one feature stop working, and fixing it is editing the box and
+redeploying. Keys are free to regenerate. There is no step you cannot undo.
+
+---
+
 ## Which key is which
 
 By the end of setup you have keys from four different services, and they all
