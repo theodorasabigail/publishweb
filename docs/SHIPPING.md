@@ -88,33 +88,60 @@ rather than the way flat rates need:
 
 ### What it actually costs
 
-Checked August 2026. **Verify current pricing yourself before committing** —
-these change, and the figure in the original build spec (“about IDR 10 per rate
-query, no monthly fee”) turned out to be wrong, which is how this section came
-to exist.
+**Treat every figure here as needing confirmation.** The original build spec's
+estimate was wrong, and a first correction to this file was also incomplete.
+Get current numbers from the provider's own dashboard or sales team before
+committing to anything.
 
-| Option | Cost | Couriers |
+Biteship sells two ways, and the difference matters more than the headline
+price:
+
+| Model | Roughly | Notes |
 |---|---|---|
-| **Flat zones** (what you run now) | Free | n/a — you set the rates |
-| **RajaOngkir Starter** | Free | JNE, POS Indonesia, TIKI only |
-| **RajaOngkir** paid tiers | Paid — check their pricing page | All major couriers |
-| **Biteship Essential** | Rp 99.000/month | 30+ couriers |
-| **Biteship Standard** | Rp 149.000/month | 30+ couriers, more features |
-| **Biteship Premium** | Rp 249.000/month | 30+ couriers, more features |
+| **Pay as you go** | from ~Rp 5 per API request | No monthly commitment. Cost tracks usage. |
+| **Packages** | Rp 99.000 / 149.000 / 249.000 per month | Bundled request volume plus platform features. |
 
-So Biteship is a **subscription**, not pay-per-use. At Rp 99.000/month that is
-roughly Rp 1.2 juta a year before you have shipped anything — real money for a
-small roastery, and worth being sure it earns that back.
+RajaOngkir remains the other option, with a genuinely free Starter tier limited
+to JNE, POS Indonesia and TIKI.
 
-**The cheapest real option is RajaOngkir's free Starter tier**, if JNE, POS and
-TIKI cover the couriers you actually use. For a lot of Indonesian shops they
-do. The catch is fewer couriers and a more limited API than Biteship's.
+### The number that decides it: requests per month
 
-**The cheapest option overall is what you already have.** Flat zones cost
-nothing, never go down, and for coffee — light, uniform parcels — are rarely
-far off. Live rates are worth paying for when parcels vary a lot in weight or
-destination, which is not really true of bags of beans.
+The headline price is not the useful figure. What matters is how many rate
+requests this site actually makes, and that is a property of our code:
 
+- Checkout quotes from the server whenever country, province, city or postcode
+  changes, debounced at 400 ms. A customer filling in an address typically
+  triggers **around four requests**.
+- Placing the order re-quotes once more, authoritatively. Call it **five per
+  completed checkout**.
+- Abandoned checkouts still cost requests. Assume roughly two abandoned
+  sessions per completed order and the working figure is **~15 requests per
+  order**.
+
+At ~Rp 5 per request that is about **Rp 75 of API cost per order**. A hundred
+orders a month is somewhere around **Rp 7.500** — against Rp 99.000 for the
+entry package.
+
+Break-even is roughly **20.000 requests a month**, which at the ratios above is
+somewhere near **1.300 orders a month**. Well past that, a package starts
+making sense; below it, pay-as-you-go is substantially cheaper.
+
+### Keeping the request count down
+
+If you do go pay-as-you-go, these are the levers, in order of effect:
+
+1. **Cache quotes in `/api/shipping/quote`.** Rates for the same destination
+   and weight band do not change minute to minute. Caching on
+   (country, province, postcode, weight bucket) for even an hour would collapse
+   most of the repeat traffic, and the quote route is deliberately the single
+   place this has to be added.
+2. **Quote only once the address is complete**, rather than on every field
+   change. Fewer requests, at the cost of the customer seeing the shipping
+   figure slightly later.
+3. **Lengthen the debounce** beyond 400 ms.
+
+None of this is worth doing before you actually integrate — but it is why the
+quote endpoint exists as one chokepoint rather than being scattered.
 ### Adding Biteship
 
 [Biteship](https://biteship.com) aggregates 30+ couriers and covers

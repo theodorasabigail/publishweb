@@ -238,7 +238,7 @@ keeps the live dashboard safe for a non-developer to use.
 | Question | Decision |
 |---|---|
 | Payment path | Both built. Xendit is the default; the fallback is one env var away and needs no code change. |
-| Domestic courier | Flat zones for launch. Shipping is behind a provider interface, so live rates are an added implementation rather than a rewrite. The spec's Biteship cost estimate turned out to be wrong — see docs/SHIPPING.md for real pricing. |
+| Domestic courier | Flat zones for launch. Shipping is behind a provider interface, so live rates are an added implementation rather than a rewrite. Provider pricing has moved since the spec was written; docs/SHIPPING.md has the current picture and, more usefully, the request-volume arithmetic that actually decides it. |
 | International zones | Five flat zones seeded — SE Asia, Asia-Pacific, Europe, North America, rest of world — with padded rates, editable in the admin. |
 | Loyalty rate | 1 point per Rp 10.000; Silver at 100, Gold at 500. All three are admin settings, not constants. |
 | Bilingual copy | No i18n framework. Copy is English with Indonesian where it reads more naturally (*jasa roasting*, *kode unik*, province labels at checkout). |
