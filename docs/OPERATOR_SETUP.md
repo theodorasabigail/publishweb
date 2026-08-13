@@ -197,6 +197,50 @@ Collect the emails people left in the meantime from
 
 ---
 
+## Which key is which
+
+By the end of setup you have keys from four different services, and they all
+look like meaningless strings of characters. This is the map.
+
+| Name in Vercel | Comes from | What it does | If it leaks |
+|---|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → API | Your database's address | Harmless — it is in the website's code anyway |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Same page | Lets visitors read public things | Harmless — same reason |
+| `SUPABASE_SERVICE_ROLE_KEY` | Same page, click "Reveal" | **Full access to everything** | Serious. Reset it in Supabase immediately |
+| `XENDIT_SECRET_KEY` | Xendit → Settings → API Keys | Takes payments | Serious. Delete it in Xendit and make a new one |
+| `XENDIT_WEBHOOK_TOKEN` | Xendit → Settings → Webhooks | Proves a payment message really came from Xendit | Moderate. Regenerate it |
+| `BITESHIP_API_KEY` | Biteship → Integrations → Pengaturan | Asks couriers for prices | Depends which kind — see below |
+| `BITESHIP_WEBHOOK_SECRET` | **You invent this one** | Proves a delivery update really came from Biteship | Change it and update the URL in Biteship |
+| `COMING_SOON_PREVIEW_SECRET` | **You invent this one** | The pre-launch preview link | Harmless. Change it |
+
+Two of these you make up yourself rather than copy from anywhere — any long
+random phrase works.
+
+### Test keys and live keys
+
+Several of these services give you two versions of the same key, and it trips
+everyone up because the button is identical:
+
+| | Test / sandbox | Live |
+|---|---|---|
+| **Biteship** | starts `biteship_test.` | starts `biteship_live.` |
+| **Xendit** | starts `xnd_development_` | starts `xnd_production_` |
+
+**The prefix is how you tell them apart.** With Biteship, which one you get
+depends on whether the "Testing Mode" toggle was on when you created it — same
+button, different toggle.
+
+A test key does nothing real: fake couriers, fake payments, nothing ships and
+no money moves. That is what makes it safe to experiment with, and it is what
+we use while setting things up. The website checks the prefix, so a live key
+used somewhere it should not be gets refused rather than quietly spending your
+money.
+
+**Having both is normal.** Make a test key now, a live key later, and swap them
+over in Vercel when you are ready to open.
+
+---
+
 ## Step 6 — Payments
 
 You have two options. **Do Path A if you possibly can** — it is the only one
