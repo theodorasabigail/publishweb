@@ -86,10 +86,38 @@ rather than the way flat rates need:
 3. **Weight and subtotal are recomputed server-side** from variant ids, so a
    tampered cart cannot buy cheaper shipping.
 
+### What it actually costs
+
+Checked August 2026. **Verify current pricing yourself before committing** —
+these change, and the figure in the original build spec (“about IDR 10 per rate
+query, no monthly fee”) turned out to be wrong, which is how this section came
+to exist.
+
+| Option | Cost | Couriers |
+|---|---|---|
+| **Flat zones** (what you run now) | Free | n/a — you set the rates |
+| **RajaOngkir Starter** | Free | JNE, POS Indonesia, TIKI only |
+| **RajaOngkir** paid tiers | Paid — check their pricing page | All major couriers |
+| **Biteship Essential** | Rp 99.000/month | 30+ couriers |
+| **Biteship Standard** | Rp 149.000/month | 30+ couriers, more features |
+| **Biteship Premium** | Rp 249.000/month | 30+ couriers, more features |
+
+So Biteship is a **subscription**, not pay-per-use. At Rp 99.000/month that is
+roughly Rp 1.2 juta a year before you have shipped anything — real money for a
+small roastery, and worth being sure it earns that back.
+
+**The cheapest real option is RajaOngkir's free Starter tier**, if JNE, POS and
+TIKI cover the couriers you actually use. For a lot of Indonesian shops they
+do. The catch is fewer couriers and a more limited API than Biteship's.
+
+**The cheapest option overall is what you already have.** Flat zones cost
+nothing, never go down, and for coffee — light, uniform parcels — are rarely
+far off. Live rates are worth paying for when parcels vary a lot in weight or
+destination, which is not really true of bags of beans.
+
 ### Adding Biteship
 
-[Biteship](https://biteship.com) is the spec's suggested provider: roughly
-IDR 10 per rate query, pay-per-shipment, no monthly fee, and it covers
+[Biteship](https://biteship.com) aggregates 30+ couriers and covers
 international and postal-code-level domestic rates.
 
 1. **Get an account and a key.** Sign up, complete verification, and take the
@@ -123,7 +151,12 @@ international and postal-code-level domestic rates.
 
 ### Other options
 
-Biteship is not the only choice. RajaOngkir is the long-established Indonesian
-option and is cheaper for domestic-only. Shipping aggregators like Shippo or
-EasyPost are stronger internationally but priced in USD. All of them fit the
-same interface — the work above is the same whichever you pick.
+RajaOngkir is the long-established Indonesian option and has a free tier, which
+makes it the natural first thing to try if you want live rates at all.
+Aggregators like Shippo or EasyPost are stronger internationally but priced in
+USD, which for an Indonesian shop usually makes them the expensive choice.
+
+All of them fit the same `ShippingProvider` interface, so the integration work
+is the same whichever you pick, and switching later is one file plus one
+environment variable. That is the point of the seam: you are not locked into
+whichever you try first.
