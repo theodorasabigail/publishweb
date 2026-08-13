@@ -5,6 +5,57 @@ problem with the instructions, not with you — say so and it gets rewritten.
 
 ---
 
+## Never set up an API before?
+
+You have, actually — three times already in this project. Supabase, Vercel and
+Xendit were all the same job. It just was not called that.
+
+**Every one of these is the same three steps, always:**
+
+1. Log into someone's website and click a button that says *create key*
+2. Copy the long string of characters it gives you
+3. Paste it into Vercel's Environment Variables
+
+That is it. That is the whole skill. There is nothing to install, nothing to
+configure, no code to write. If you can copy and paste, you can do this.
+
+An **API key** is just a password that a website uses instead of a person. When
+our website asks Biteship "what does this parcel cost?", Biteship needs to know
+who is asking — the key is how it knows. Nothing more mysterious than that.
+
+**If your only experience is Google, you have done the hardest one.** Google
+Cloud makes you pick a project, enable specific services, choose between API
+keys and OAuth and service accounts, and fill in a consent screen. Biteship is
+one button that gives you one key.
+
+### What you will actually have to do here
+
+Your entire job, start to finish:
+
+- flip one toggle (Testing Mode)
+- click three buttons to make a key
+- copy that key into Vercel, next to the ones already there
+- copy one documentation page into the chat
+
+Everything else — the code, the testing, the switching over — is mine.
+
+### What happens if you get it wrong
+
+Very little, and all of it is undoable:
+
+- **Testing Mode means nothing is real.** No courier is booked, no money moves.
+- **Keys are free and disposable.** Made a mess, or pasted one somewhere you
+  should not have? Delete it in the Biteship portal, click the button again,
+  get a new one. There is no cost and no limit.
+- **The website does not depend on any of this.** It uses your own price list
+  today and keeps using it until we deliberately switch over. If Biteship is
+  down, or the key is wrong, or we never finish — the shop carries on selling
+  exactly as it does now.
+
+There is no step in this where you can break the live shop. That is deliberate.
+
+---
+
 ## What we are actually trying to do
 
 Right now the website works out shipping costs from a **price list you set
