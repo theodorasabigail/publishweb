@@ -272,11 +272,51 @@ Note that the activation request sits in their Testing phase, and testing-mode
 keys have the Order API active by default while live keys do not. So sandbox
 work is not blocked on the review, but going live with order booking is.
 
-### Still needed before writing the provider
+### What is built already
+
+`src/lib/shipping/biteship.ts` — auth header (with the raw/Basic switch in one
+place), token-prefix checking so a live key cannot run on a preview deploy,
+failure classification separating auth errors from transient ones, and webhook
+parsing for all three events.
+
+`POST /api/webhooks/biteship` — receives `order.status`, `order.price` and
+`order.waybill_id`. Configure the URL in the Biteship dashboard as:
+
+```
+https://your-domain.com/api/webhooks/biteship?token=<BITESHIP_WEBHOOK_SECRET>
+```
+
+Every event is written to `courier_events` before anything is acted on, so an
+unexpected payload can be inspected rather than lost, and events that do not
+match one of our orders are kept as unmatched rather than dropped.
+
+What it does with each:
+
+- **order.status** — records waybill, courier, service and driver; copies the
+  waybill into the customer-facing tracking number; and moves our order status
+  forward on `picked`/`in_transit`/`delivered`. Never backwards, never off a
+  cancelled order, and an unrecognised status changes nothing.
+- **order.waybill_id** — updates the tracking number, since a waybill can
+  change when a parcel switches courier mid-route.
+- **order.price** — records `courier_charged_idr` **alongside** `shipping_idr`,
+  never over it. What the customer paid is settled and stays settled.
+
+Overcharges above `courier_variance_alert_idr` (default Rp 10.000, in site
+settings) show on the order in the admin, with a note that a repeat offender
+probably has the wrong `weight_grams`.
+
+Verified against the exact payloads in Biteship's documentation, plus null,
+arrays, missing fields and unknown event types.
+
+### Still needed before writing the rates provider
 
 The request and response bodies for `POST /v1/rates/couriers`. The endpoint,
 auth and error codes are known; the payload shape is not, and guessing it
 produces code that looks right and fails on first contact.
+
+Also worth asking Biteship support: **is there a webhook signature?** Their
+docs do not mention one, so the shared secret above is a workaround. If signing
+exists it should replace it.
 
 ### Other options
 

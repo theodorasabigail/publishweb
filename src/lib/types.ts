@@ -160,6 +160,18 @@ export interface Order {
   tracking_number: string | null;
   customer_note: string | null;
   points_awarded: number;
+  /** Courier-side identifiers, populated by courier webhooks. */
+  courier_order_id: string | null;
+  courier_tracking_id: string | null;
+  courier_waybill_id: string | null;
+  courier_company: string | null;
+  courier_type: string | null;
+  courier_status: string | null;
+  courier_driver_name: string | null;
+  courier_driver_phone: string | null;
+  /** What the courier actually charged, which can exceed what the customer
+   *  paid when real weight differs from quoted weight. */
+  courier_charged_idr: number | null;
   created_at: string;
   paid_at: string | null;
 }
@@ -272,6 +284,8 @@ export interface SiteSettings {
   origin_postal_code: string | null;
   origin_area_code: string | null;
   origin_note: string | null;
+  /** How large a courier overcharge has to be before it is worth flagging. */
+  courier_variance_alert_idr: number;
   updated_at: string;
 }
 

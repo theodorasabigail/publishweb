@@ -56,6 +56,7 @@ export const FALLBACK_SETTINGS: SiteSettings = {
   origin_postal_code: null,
   origin_area_code: null,
   origin_note: null,
+  courier_variance_alert_idr: 10000,
   updated_at: new Date().toISOString(),
 };
 

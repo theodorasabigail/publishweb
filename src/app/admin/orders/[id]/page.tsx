@@ -234,6 +234,36 @@ export default async function AdminOrderDetailPage({
             )}
           </Panel>
 
+          {order.courier_order_id && (
+            <Panel title="Courier">
+              <dl className="space-y-2 text-sm">
+                <Row label="Company" value={order.courier_company ?? "—"} />
+                <Row label="Service" value={order.courier_type ?? "—"} />
+                <Row label="Waybill" value={order.courier_waybill_id ?? "—"} />
+                <Row label="Courier status" value={order.courier_status ?? "—"} />
+                {order.courier_driver_name && (
+                  <Row label="Driver" value={order.courier_driver_name} />
+                )}
+                {order.courier_driver_phone && (
+                  <Row label="Driver phone" value={order.courier_driver_phone} />
+                )}
+              </dl>
+
+              {order.courier_charged_idr !== null &&
+                order.courier_charged_idr > order.shipping_idr && (
+                  <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">
+                    The courier charged{" "}
+                    <strong>{formatIDR(order.courier_charged_idr)}</strong> against
+                    the {formatIDR(order.shipping_idr)} you quoted — a difference
+                    of {formatIDR(order.courier_charged_idr - order.shipping_idr)},
+                    usually because the parcel weighed more than expected. The
+                    customer has not been charged for it. If this keeps happening
+                    on the same coffee, its shipping weight is probably wrong.
+                  </p>
+                )}
+            </Panel>
+          )}
+
           <Panel title="Customer">
             {customer ? (
               <div className="space-y-2 text-sm">
