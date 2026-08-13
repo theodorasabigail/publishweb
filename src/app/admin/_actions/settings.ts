@@ -286,3 +286,10 @@ export async function checkMediaBudget(): Promise<MediaBudget> {
 
   return { usedBytes, limitBytes: STORAGE_LIMIT_BYTES, percent, blocked: false, message: null };
 }
+
+/** Ask Biteship for a real quote and report back in plain words. */
+export async function testCourierConnection(formData: FormData) {
+  const { supabase } = await adminClient();
+  const { diagnoseBiteship } = await import("@/lib/shipping/biteship-provider");
+  return diagnoseBiteship(supabase, text(formData, "destination_postal_code"));
+}

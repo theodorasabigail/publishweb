@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { EmptyRow, Field, PageHeader, Panel } from "@/components/admin/ui";
+import { CourierTest } from "@/components/admin/courier-test";
+import { getShippingProvider } from "@/lib/shipping";
 import { deleteShippingZone, saveShippingZone, updateShippingOrigin } from "@/app/admin/_actions/settings";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ShippingZone, SiteSettings } from "@/lib/types";
@@ -15,6 +17,13 @@ export default async function AdminShippingPage() {
   ]);
   const zones = (data ?? []) as ShippingZone[];
   const settings = settingsRow as SiteSettings | null;
+
+  let providerId = "flat_zones";
+  try {
+    providerId = getShippingProvider(supabase).id;
+  } catch {
+    // A bad SHIPPING_PROVIDER value must not take the settings page down.
+  }
 
   return (
     <div>
@@ -76,6 +85,14 @@ export default async function AdminShippingPage() {
             Save pickup address
           </button>
         </form>
+      </Panel>
+
+      <Panel
+        title="Live courier prices"
+        description="Check whether the connection to Biteship is working, without placing an order."
+        className="mb-6"
+      >
+        <CourierTest providerId={providerId} />
       </Panel>
 
       <div className="space-y-4">

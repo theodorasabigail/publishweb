@@ -192,3 +192,153 @@ export function createBiteshipProvider(supabase: SupabaseClient): ShippingProvid
     },
   };
 }
+
+// ---------------------------------------------------------------------------
+// Diagnostics
+// ---------------------------------------------------------------------------
+
+export interface BiteshipDiagnosis {
+  ok: boolean;
+  /** Short headline for the admin. */
+  summary: string;
+  /** What to actually do about it, when something is wrong. */
+  advice: string | null;
+  options: { label: string; priceIdr: number; duration: string | null; collects: boolean }[];
+  originPostalCode: string | null;
+}
+
+/**
+ * Try a real quote and report what happened, in words.
+ *
+ * The provider itself falls back silently on purpose — a customer must never
+ * see a courier problem. That silence makes "is this working?" impossible to
+ * answer from the shop, so this exists to answer it from the admin instead.
+ */
+export async function diagnoseBiteship(
+  supabase: SupabaseClient,
+  destinationPostalCode: string,
+): Promise<BiteshipDiagnosis> {
+  const { data: settingsRow } = await supabase
+    .from("site_settings")
+    .select("*")
+    .eq("id", true)
+    .maybeSingle();
+  const settings = settingsRow as SiteSettings | null;
+  const originPostalCode = settings?.origin_postal_code ?? null;
+
+  const base: Pick<BiteshipDiagnosis, "options" | "originPostalCode"> = {
+    options: [],
+    originPostalCode,
+  };
+
+  if (!process.env.BITESHIP_API_KEY) {
+    return {
+      ...base,
+      ok: false,
+      summary: "No Biteship key is set.",
+      advice:
+        "Add BITESHIP_API_KEY in Vercel → Settings → Environment Variables, then redeploy.",
+    };
+  }
+
+  if (!originPostalCode || !Number.isFinite(Number(originPostalCode))) {
+    return {
+      ...base,
+      ok: false,
+      summary: "Your pickup postcode is missing.",
+      advice:
+        "Fill in the postcode under “Where you ship from” above and save. Without it we cannot ask what a delivery costs, so every order quietly uses your own price list instead.",
+    };
+  }
+
+  if (!Number.isFinite(Number(destinationPostalCode))) {
+    return { ...base, ok: false, summary: "That destination postcode is not a number.", advice: null };
+  }
+
+  const body: BiteshipRateRequest = {
+    origin_postal_code: Number(originPostalCode),
+    destination_postal_code: Number(destinationPostalCode),
+    couriers: courierList(),
+    items: [
+      {
+        name: "Coffee",
+        description: "Test parcel",
+        value: 250_000,
+        weight: 500,
+        quantity: 1,
+        ...estimateDimensions(500),
+      },
+    ],
+  };
+
+  let response: Response;
+  try {
+    response = await fetch(`${BITESHIP_API}/v1/rates/couriers`, {
+      method: "POST",
+      headers: { authorization: authHeader(), "content-type": "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+  } catch {
+    return {
+      ...base,
+      ok: false,
+      summary: "Could not reach Biteship.",
+      advice:
+        "They may be down, or the request timed out. Customers are unaffected — the shop is using your own price list. Try again in a few minutes.",
+    };
+  }
+
+  let payload: unknown = null;
+  try {
+    payload = await response.json();
+  } catch {
+    return { ...base, ok: false, summary: "Biteship sent something we could not read.", advice: null };
+  }
+
+  if (!response.ok) {
+    const failure = classifyFailure(response.status, payload);
+    return {
+      ...base,
+      ok: false,
+      summary:
+        failure.kind === "auth"
+          ? "Biteship rejected the key."
+          : `Biteship returned an error: ${failure.message}`,
+      advice:
+        failure.kind === "auth"
+          ? "Check BITESHIP_API_KEY in Vercel. If you are testing, make sure it starts with biteship_test. and that Testing Mode was on when you created it."
+          : null,
+    };
+  }
+
+  const all = parseRateOptions(payload);
+  if (!all.length) {
+    return {
+      ...base,
+      ok: false,
+      summary: "Biteship answered, but offered no couriers for that route.",
+      advice:
+        "Try a different destination postcode. If every postcode does this, the couriers listed in BITESHIP_COURIERS may not serve your area.",
+    };
+  }
+
+  const usable = dropOffAllowed() ? all : all.filter(offersPickup);
+
+  return {
+    ok: usable.length > 0,
+    originPostalCode,
+    summary: usable.length
+      ? `Working — ${usable.length} courier option${usable.length === 1 ? "" : "s"} for a 500 g parcel.`
+      : "Couriers were offered, but none of them will collect from you.",
+    advice: usable.length
+      ? null
+      : "Only drop-off services are available on this route, which would mean taking parcels to a depot yourself. The shop is using your own price list instead.",
+    options: all.map((o) => ({
+      label: [o.courierName, o.serviceName].filter(Boolean).join(" ") || "Courier",
+      priceIdr: o.priceIdr,
+      duration: o.durationText,
+      collects: offersPickup(o),
+    })),
+  };
+}

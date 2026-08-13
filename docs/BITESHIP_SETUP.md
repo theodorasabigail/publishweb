@@ -161,27 +161,57 @@ prices, which is cheaper and simpler.
 
 ## What happens after that
 
-1. **You paste the test key into Vercel** as `BITESHIP_API_KEY`, and add
-   `SHIPPING_PROVIDER=biteship` next to it. Then redeploy.
-2. **Fill in your pickup address** in Admin → Site settings → Shipping rates.
-   Biteship needs to know where parcels come from — the postcode especially.
-   Without it the site just keeps using your own price list.
-3. **Try a checkout** with a real Indonesian address and see what price comes
-   up. Compare it against what that delivery actually costs you.
-4. Try a few different destinations — somewhere in Java, somewhere far away.
-5. If the numbers look right, make a **live** key and swap it in.
+You have made the test key and put it in Vercel. Three things left.
 
-Two things I will want to hear from you at step 3, because they are the two
-things I could not verify without a real account:
+### 1. Add the second setting
 
-- **Does a price come back at all?** If it always shows your own flat price,
-  something is not connecting and I will need the error from the Vercel logs.
-- **Is the price sensible?** Roughly what that courier would charge for a bag
-  of coffee. If it is wildly out — ten times too much or too little — that
-  points at the parcel weight being misread, which is a one-line fix.
+The key on its own does nothing — the site does not know it should use
+Biteship yet. In **Vercel → Settings → Environment Variables**, add:
 
-You can stop at any of those steps and nothing breaks — the site keeps using
-your own price list until we deliberately switch it over.
+```
+SHIPPING_PROVIDER = biteship
+```
+
+Then **redeploy** (Deployments → the three dots on the newest one → Redeploy).
+
+### 2. Fill in where you ship from
+
+**Admin → Site settings → Shipping rates → "Where you ship from".**
+
+The **postcode** is the one that matters. Biteship works out a price from where
+the parcel starts and where it is going, so without your postcode it cannot
+answer, and the site quietly falls back to your own price list. That silence is
+deliberate — a customer must never see a courier error — but it does mean a
+missing postcode looks like nothing happening.
+
+### 3. Press the test button
+
+On the same page there is **"Live courier prices"** with a box for a postcode
+and a **Test the connection** button. Put in any Indonesian postcode — say
+`12240` for South Jakarta — and press it.
+
+Nothing is booked and nothing is charged. It just asks the couriers what they
+would charge for a 500 g parcel and shows you the answer.
+
+**What you should see:** a green box saying it is working, and a list of
+couriers with prices and delivery times.
+
+**If it is not working**, the box tells you what to fix, in words. The most
+likely ones:
+
+| It says | What to do |
+|---|---|
+| Your pickup postcode is missing | Do step 2 |
+| Biteship rejected the key | Check the key in Vercel starts with `biteship_test.` |
+| No Biteship key is set | The key did not save in Vercel, or you have not redeployed |
+| Could not reach Biteship | Their end. Try again shortly — customers are unaffected |
+
+### Then tell me two things
+
+1. **Does it say working?**
+2. **Do the prices look sensible** for a bag of coffee to that postcode?
+
+That second one is the only thing I genuinely cannot check from here.
 
 ---
 
