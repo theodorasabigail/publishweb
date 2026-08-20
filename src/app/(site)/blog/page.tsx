@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { JournalMasthead } from "@/components/blog/journal-masthead";
+import { journalFontClassNames } from "@/lib/fonts";
 import { PostCard } from "@/components/blog/post-card";
 import { EmptyState } from "@/components/empty-state";
 import {
@@ -36,46 +38,29 @@ export default async function BlogIndexPage() {
   ]);
 
   // The operator pins one post from the admin; otherwise the newest leads.
-  const pinned =
+  const lead =
     posts.find((post) => post.id === settings.featured_post_id) ??
     posts.find((post) => post.is_featured) ??
     posts[0];
 
-  const rest = posts.filter((post) => post.id !== pinned?.id);
+  const rest = posts.filter((post) => post.id !== lead?.id);
+
+  // A front page runs a lead, a short run of stories with pictures, and then
+  // an index of everything else. Four is what fits two rows of two without
+  // leaving a gap.
+  const secondary = rest.slice(0, 4);
+  const archive = rest.slice(4);
 
   return (
-    <div className="container-page py-14">
-      <header className="max-w-2xl">
-        <h1 className="text-5xl sm:text-6xl">The Journal</h1>
-        <p className="mt-4 text-lg text-sea-800">
-          What we are roasting, where it came from, and what we got wrong last
-          week. Written by the people at the drum.
-        </p>
-      </header>
-
-      {categories.length > 0 && (
-        <nav className="mt-8 flex flex-wrap gap-2" aria-label="Post categories">
-          <span className="badge bg-sea-800 text-cream">All</span>
-          {categories.map((category) => (
-            <Link
-              key={category.id}
-              href={`/blog/category/${category.slug}`}
-              className="badge border border-sea-200 bg-white text-sea-700 hover:border-sea-400"
-            >
-              {category.name}
-            </Link>
-          ))}
-          <a
-            href="/rss.xml"
-            className="badge border border-sea-200 bg-white text-sea-800 hover:border-sea-400"
-          >
-            RSS
-          </a>
-        </nav>
-      )}
+    <div className={`journal ${journalFontClassNames} container-page py-10`}>
+      <JournalMasthead
+        categories={categories}
+        active="all"
+        tagline="What we are roasting, where it came from, and what we got wrong last week. Written by the people at the drum."
+      />
 
       {!posts.length ? (
-        <div className="mt-12">
+        <div className="mt-16">
           <EmptyState
             title="Nothing published yet"
             description="Posts written in the admin dashboard appear here once published."
@@ -83,35 +68,46 @@ export default async function BlogIndexPage() {
         </div>
       ) : (
         <>
-          {pinned && (
-            <div className="mt-12 border-b border-sea-200/70 pb-12">
-              <PostCard post={pinned} size="large" />
+          {lead && (
+            <div className="mt-12">
+              <PostCard post={lead} size="lead" priority />
             </div>
           )}
 
-          {rest.length > 0 && (
-            <div className="mt-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
-              {rest.map((post) => (
+          {secondary.length > 0 && (
+            <div className="mt-16 grid gap-x-10 gap-y-14 border-t border-sea-200 pt-14 sm:grid-cols-2">
+              {secondary.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
             </div>
+          )}
+
+          {archive.length > 0 && (
+            <section className="mt-20">
+              <h2 className="kicker border-b border-ink pb-3 text-ink">
+                More from the journal
+              </h2>
+              <div className="mt-0">
+                {archive.map((post) => (
+                  <PostCard key={post.id} post={post} size="compact" />
+                ))}
+              </div>
+            </section>
           )}
         </>
       )}
 
       {tags.length > 0 && (
-        <section className="mt-16 border-t border-sea-200/70 pt-10">
-          <h2 className="text-sm font-medium uppercase tracking-wider text-sea-800">
-            Browse by tag
-          </h2>
-          <div className="mt-4 flex flex-wrap gap-2">
+        <section className="mt-20 border-t border-sea-200 pt-8">
+          <h2 className="kicker text-sea-800">Browse by tag</h2>
+          <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2">
             {tags.map((tag) => (
               <Link
                 key={tag}
                 href={`/blog/tag/${encodeURIComponent(tag)}`}
-                className="badge border border-sea-200 bg-white text-sea-800 hover:border-sea-400"
+                className="meta text-sea-800 underline decoration-sea-300 underline-offset-4 hover:text-ink hover:decoration-ink"
               >
-                #{tag}
+                {tag}
               </Link>
             ))}
           </div>

@@ -45,7 +45,7 @@
 // Admin dashboard
 // ---------------------------------------------------------------------------
 
-import { IBM_Plex_Sans } from "next/font/google";
+import { Fraunces, IBM_Plex_Sans, Newsreader } from "next/font/google";
 
 /**
  * The dashboard's typeface, which is deliberately not the shop's.
@@ -67,6 +67,48 @@ export const adminFont = IBM_Plex_Sans({
   variable: "--font-admin",
   display: "swap",
 });
+
+// ---------------------------------------------------------------------------
+// The Journal
+// ---------------------------------------------------------------------------
+
+/*
+ * A magazine wants two typefaces doing two different jobs, and the shop's
+ * single face cannot do both: headlines want personality at 60px, body wants
+ * to disappear at 19px for a thousand words. So the journal gets a pair, and
+ * only the journal loads them -- the shop and the checkout are untouched.
+ *
+ * Both are variable fonts with an optical size axis, which is the thing that
+ * makes them read as typeset rather than as scaled: the letterforms genuinely
+ * differ between a headline and a caption instead of being the same drawing at
+ * two sizes.
+ */
+
+/** Headlines. High contrast, a little eccentric, unmistakably not a default. */
+export const displayFont = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+  axes: ["SOFT", "WONK", "opsz"],
+});
+
+/** Body copy. Drawn for screen reading at length. */
+export const readingFont = Newsreader({
+  subsets: ["latin"],
+  variable: "--font-read",
+  display: "swap",
+  style: ["normal", "italic"],
+  axes: ["opsz"],
+});
+
+/**
+ * Put on the wrapper of every journal page, alongside the `journal` class.
+ *
+ * next/font defines its CSS variables on whichever element carries these, so
+ * the two faces resolve inside the journal and nowhere else -- which is also
+ * what keeps the shop from downloading them.
+ */
+export const journalFontClassNames = `${displayFont.variable} ${readingFont.variable}`;
 
 /**
  * Applied to <html> in the root layout.

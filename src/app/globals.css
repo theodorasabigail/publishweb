@@ -167,3 +167,166 @@
 .admin-ui .input::placeholder {
   color: theme(colors.sea.500);
 }
+
+/* ==========================================================================
+   The Journal
+   ==========================================================================
+
+   The shop and the journal are read differently, so they are set differently.
+   A product page is scanned; an article is read for ten minutes. That wants a
+   longer measure, more leading, a proper reading face, and far less furniture
+   -- no cards, no pills, no boxes. Rules and space do the separating instead,
+   which is how a printed page has always done it.
+
+   Scoped to `.journal` so none of it reaches the shop or the checkout, and so
+   the two fonts below are only downloaded by people actually reading.
+   ========================================================================== */
+
+.journal {
+  font-family: var(--font-read), Georgia, Cambria, "Times New Roman", serif;
+}
+
+.journal h1,
+.journal h2,
+.journal h3,
+.journal h4 {
+  font-family: var(--font-display), Georgia, serif;
+  /* Display type is set tight. At 60px the default word-spacing and leading
+     read as an accident; headlines want to look built, not typed. */
+  letter-spacing: -0.02em;
+  line-height: 1.04;
+  font-optical-sizing: auto;
+}
+
+/* The small letterspaced label above a headline -- section, category, issue.
+   The oldest device in magazine layout and still the clearest: it says what
+   kind of thing you are about to read before you read any of it. */
+.journal .kicker {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+/* Bylines, dates, reading times. Sans, so they never compete with the serif
+   they sit beneath. */
+.journal .meta {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  letter-spacing: 0.01em;
+}
+
+/* ---- Article body ------------------------------------------------------ */
+
+.journal .article-body {
+  font-size: 1.1875rem;
+  line-height: 1.75;
+  /* Roughly 68 characters. Longer and the eye loses its place returning to the
+     next line; shorter and long-form reads as choppy. */
+  max-width: 34em;
+}
+
+.journal .article-body p {
+  margin-top: 1.5em;
+}
+
+.journal .article-body > p:first-of-type {
+  margin-top: 0;
+}
+
+/* Opening paragraph, raised. A drop cap is a signal as much as an ornament --
+   it marks where the article actually starts, distinct from the standfirst
+   above it. */
+.journal .article-body > p:first-of-type::first-letter {
+  float: left;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 3.4em;
+  line-height: 0.82;
+  font-weight: 600;
+  padding-right: 0.08em;
+  margin-top: 0.06em;
+}
+
+.journal .article-body h2 {
+  font-size: 1.75rem;
+  margin-top: 2.2em;
+  margin-bottom: 0.5em;
+}
+
+.journal .article-body h3 {
+  font-size: 1.3125rem;
+  margin-top: 1.8em;
+  margin-bottom: 0.4em;
+}
+
+.journal .article-body a {
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1px;
+  text-decoration-color: theme(colors.sea.400);
+}
+.journal .article-body a:hover {
+  text-decoration-color: theme(colors.ink);
+}
+
+/* Pull quote. Breaks the measure on purpose -- the interruption is the point,
+   and a quote set at body width just reads as another paragraph. */
+.journal .article-body blockquote {
+  margin: 2em 0;
+  padding-left: 1.25em;
+  border-left: 2px solid theme(colors.coral);
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.3125rem;
+  line-height: 1.4;
+  font-style: normal;
+  color: theme(colors.sea.900);
+}
+
+.journal .article-body blockquote p {
+  margin-top: 0.5em;
+}
+
+/* Images run wider than the text they sit in, which is what stops a long
+   article feeling like a single narrow column of grey. */
+.journal .article-body img {
+  width: 100%;
+  max-width: none;
+  margin: 2.5em 0;
+}
+
+@media (min-width: 1024px) {
+  .journal .article-body img,
+  .journal .article-body blockquote {
+    width: calc(100% + 8rem);
+    margin-left: -4rem;
+  }
+  .journal .article-body blockquote {
+    width: calc(100% + 4rem);
+    margin-left: -4rem;
+  }
+}
+
+.journal .article-body ul,
+.journal .article-body ol {
+  margin: 1.5em 0;
+  padding-left: 1.3em;
+}
+.journal .article-body ul { list-style: disc; }
+.journal .article-body ol { list-style: decimal; }
+.journal .article-body li { margin-top: 0.5em; }
+
+.journal .article-body hr {
+  margin: 3em 0;
+  border: 0;
+  border-top: 1px solid theme(colors.sea.200);
+}
+
+.journal .article-body figcaption {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  color: theme(colors.sea.800);
+  margin-top: -1.5em;
+  margin-bottom: 2.5em;
+}

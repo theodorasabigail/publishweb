@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { JournalMasthead } from "@/components/blog/journal-masthead";
 import { PostCard } from "@/components/blog/post-card";
+import { journalFontClassNames } from "@/lib/fonts";
 import { EmptyState } from "@/components/empty-state";
 import { getBlogCategories, getBlogCategoryBySlug, getPublishedPosts } from "@/lib/queries";
 
@@ -49,56 +50,39 @@ export default async function BlogCategoryPage({
   ]);
 
   return (
-    <div className="container-page py-14">
-      <nav className="text-sm text-sea-800">
-        <Link href="/blog" className="hover:underline">
-          Journal
-        </Link>
-        <span className="mx-2">/</span>
-        <span className="text-sea-800">{category.name}</span>
-      </nav>
+    <div className={`journal ${journalFontClassNames} container-page py-10`}>
+      <JournalMasthead
+        categories={categories}
+        active={category.slug}
+        tagline={category.description ?? undefined}
+      />
 
-      <header className="mt-4 max-w-2xl">
+      <div className="mt-10 flex items-baseline gap-3 border-b border-sea-200 pb-4">
         <span
-          className="inline-block h-1.5 w-12 rounded-full"
+          className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
           style={{ backgroundColor: category.accent_color }}
         />
-        <h1 className="mt-4 text-4xl sm:text-5xl">{category.name}</h1>
-        {category.description && (
-          <p className="mt-4 text-lg text-sea-800">{category.description}</p>
-        )}
-      </header>
-
-      <nav className="mt-8 flex flex-wrap gap-2" aria-label="Post categories">
-        <Link
-          href="/blog"
-          className="badge border border-sea-200 bg-white text-sea-700 hover:border-sea-400"
-        >
-          All
-        </Link>
-        {categories.map((item) => (
-          <Link
-            key={item.id}
-            href={`/blog/category/${item.slug}`}
-            className={
-              item.id === category.id
-                ? "badge bg-sea-800 text-cream"
-                : "badge border border-sea-200 bg-white text-sea-700 hover:border-sea-400"
-            }
-          >
-            {item.name}
-          </Link>
-        ))}
-      </nav>
+        <h2 className="text-3xl sm:text-4xl">{category.name}</h2>
+        <span className="meta ml-auto text-sea-800">
+          {posts.length} {posts.length === 1 ? "story" : "stories"}
+        </span>
+      </div>
 
       {posts.length ? (
-        <div className="mt-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
-          {posts.map((post) => (
-            <PostCard key={post.id} post={post} />
-          ))}
-        </div>
+        <>
+          <div className="mt-12">
+            <PostCard post={posts[0]} size="lead" priority />
+          </div>
+          {posts.length > 1 && (
+            <div className="mt-16 grid gap-x-10 gap-y-14 border-t border-sea-200 pt-14 sm:grid-cols-2">
+              {posts.slice(1).map((post) => (
+                <PostCard key={post.id} post={post} />
+              ))}
+            </div>
+          )}
+        </>
       ) : (
-        <div className="mt-12">
+        <div className="mt-14">
           <EmptyState
             title={`Nothing in ${category.name} yet`}
             actionLabel="Back to the Journal"

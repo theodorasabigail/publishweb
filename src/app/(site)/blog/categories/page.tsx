@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { journalFontClassNames } from "@/lib/fonts";
 import { getBlogCategories, getPublishedPosts } from "@/lib/queries";
 
 /*
@@ -23,18 +24,21 @@ export default async function BlogCategoriesPage() {
   ]);
 
   return (
-    <div className="container-page py-14">
-      <nav className="text-sm text-sea-800">
-        <Link href="/blog" className="hover:underline">
-          Journal
+    <div className={`journal ${journalFontClassNames} container-page py-10`}>
+      <nav className="meta text-sea-800">
+        <Link href="/blog" className="hover:text-ink">
+          The Journal
         </Link>
-        <span className="mx-2">/</span>
-        <span className="text-sea-800">Categories</span>
+        <span className="mx-2 text-sea-400">/</span>
+        <span>Sections</span>
       </nav>
 
-      <h1 className="mt-4 text-4xl sm:text-5xl">Categories</h1>
+      <h1 className="mt-6 border-b border-ink pb-4 text-4xl sm:text-5xl">
+        Sections
+      </h1>
 
-      <div className="mt-10 grid gap-4 sm:grid-cols-2">
+      {/* A contents page: rules between entries, not boxes around them. */}
+      <div className="mt-2">
         {categories.map((category) => {
           const count = posts.filter(
             (post) => post.blog_category_id === category.id,
@@ -44,19 +48,23 @@ export default async function BlogCategoriesPage() {
             <Link
               key={category.id}
               href={`/blog/category/${category.slug}`}
-              className="card group p-6 transition-colors hover:border-sea-400"
+              className="group flex items-baseline gap-4 border-b border-sea-200 py-6"
             >
               <span
-                className="inline-block h-1.5 w-10 rounded-full"
+                className="mt-2 inline-block h-2.5 w-2.5 shrink-0 rounded-full"
                 style={{ backgroundColor: category.accent_color }}
               />
-              <p className="mt-3 font-serif text-2xl">{category.name}</p>
-              {category.description && (
-                <p className="mt-2 text-sm text-sea-800">{category.description}</p>
-              )}
-              <p className="mt-4 text-xs text-sea-800">
-                {count} {count === 1 ? "post" : "posts"}
-              </p>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-2xl group-hover:underline group-hover:decoration-1 group-hover:underline-offset-4">
+                  {category.name}
+                </h2>
+                {category.description && (
+                  <p className="mt-1.5 text-sea-800">{category.description}</p>
+                )}
+              </div>
+              <span className="meta shrink-0 text-sea-800">
+                {count} {count === 1 ? "story" : "stories"}
+              </span>
             </Link>
           );
         })}

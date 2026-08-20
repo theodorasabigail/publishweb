@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PostCard } from "@/components/blog/post-card";
+import { journalFontClassNames } from "@/lib/fonts";
 import { siteUrl } from "@/lib/env";
 import { markdownToPlainText, renderMarkdown } from "@/lib/markdown";
 import { getPostBySlug, getPublishedPosts } from "@/lib/queries";
@@ -89,67 +90,69 @@ export default async function BlogPostPage({
   };
 
   return (
-    <article className="pb-20">
+    <article className={`journal ${journalFontClassNames} pb-24`}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <div className="container-page max-w-3xl pt-12">
-        <nav className="text-sm text-sea-800">
-          <Link href="/blog" className="hover:underline">
-            Journal
+      {/* --- Headline block -------------------------------------------------
+          Centred and narrow above a wide photograph. The asymmetry between the
+          two is what gives an article a front page rather than a top edge. */}
+      <div className="container-page max-w-3xl pt-10 text-center">
+        <nav className="meta text-sea-800">
+          <Link href="/blog" className="hover:text-ink">
+            The Journal
           </Link>
           {category && (
             <>
-              <span className="mx-2">/</span>
-              <Link href={`/blog/category/${category.slug}`} className="hover:underline">
+              <span className="mx-2 text-sea-400">/</span>
+              <Link
+                href={`/blog/category/${category.slug}`}
+                className="hover:text-ink"
+              >
                 {category.name}
               </Link>
             </>
           )}
         </nav>
 
-        <header className="mt-6">
-          {category && (
-            <span
-              className="badge"
-              style={{
-                backgroundColor: `${category.accent_color}1a`,
-                color: category.accent_color,
-              }}
-            >
-              {category.name}
-            </span>
+        {category && (
+          <p className="kicker mt-8" style={{ color: category.accent_color }}>
+            {category.name}
+          </p>
+        )}
+
+        <h1 className="mt-4 text-4xl sm:text-6xl">{post.title}</h1>
+
+        {/* The standfirst: one sentence, larger than the body, that decides
+            whether someone reads the rest. Set apart from both. */}
+        {post.excerpt && (
+          <p className="mx-auto mt-6 max-w-2xl text-xl leading-relaxed text-sea-800">
+            {post.excerpt}
+          </p>
+        )}
+
+        <div className="mt-8 inline-flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-y border-sea-200 py-3">
+          <span className="kicker text-ink">{post.author_name}</span>
+          <span className="text-sea-400">&middot;</span>
+          <time className="meta text-sea-800" dateTime={post.published_at ?? undefined}>
+            {formatDate(post.published_at)}
+          </time>
+          {post.reading_minutes && (
+            <>
+              <span className="text-sea-400">&middot;</span>
+              <span className="meta text-sea-800">
+                {post.reading_minutes} min read
+              </span>
+            </>
           )}
-
-          <h1 className="mt-4 text-4xl leading-[1.1] sm:text-5xl">{post.title}</h1>
-
-          {post.excerpt && (
-            <p className="mt-5 font-serif text-xl leading-relaxed text-sea-800">
-              {post.excerpt}
-            </p>
-          )}
-
-          <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-sea-800">
-            <span>{post.author_name}</span>
-            <span>·</span>
-            <time dateTime={post.published_at ?? undefined}>
-              {formatDate(post.published_at)}
-            </time>
-            {post.reading_minutes && (
-              <>
-                <span>·</span>
-                <span>{post.reading_minutes} min read</span>
-              </>
-            )}
-          </div>
-        </header>
+        </div>
       </div>
 
       {post.cover_image && (
-        <div className="container-page mt-10 max-w-5xl">
-          <div className="relative aspect-[16/9] overflow-hidden rounded-3xl bg-sea-100">
+        <figure className="container-page mt-12 max-w-5xl">
+          <div className="relative aspect-[3/2] overflow-hidden bg-sea-100 sm:aspect-[2/1]">
             <Image
               src={post.cover_image}
               alt={post.cover_alt ?? post.title}
@@ -159,37 +162,47 @@ export default async function BlogPostPage({
               className="object-cover"
             />
           </div>
-        </div>
+          {post.cover_alt && (
+            <figcaption className="meta mt-3 text-sea-800">
+              {post.cover_alt}
+            </figcaption>
+          )}
+        </figure>
       )}
 
-      <div className="container-page mt-12 max-w-3xl">
+      {/* --- Body -----------------------------------------------------------
+          `article-body` carries the measure, leading, drop cap and the rule
+          that lets images break wider than the text. See globals.css. */}
+      <div className="container-page mt-14 max-w-5xl">
         <div
-          className="prose prose-lg max-w-none prose-headings:font-serif prose-headings:tracking-tight
-                     prose-a:text-sea-800 prose-a:underline-offset-4 prose-blockquote:border-l-sea-400
-                     prose-blockquote:font-serif prose-blockquote:not-italic prose-blockquote:text-sea-700
-                     prose-strong:text-ink prose-img:rounded-2xl"
+          className="article-body mx-auto"
           dangerouslySetInnerHTML={{ __html: html }}
         />
 
         {post.tags.length > 0 && (
-          <div className="mt-12 flex flex-wrap gap-2 border-t border-sea-200/70 pt-8">
-            {post.tags.map((tag) => (
-              <Link
-                key={tag}
-                href={`/blog/tag/${encodeURIComponent(tag)}`}
-                className="badge border border-sea-200 bg-white text-sea-800 hover:border-sea-400"
-              >
-                #{tag}
-              </Link>
-            ))}
+          <div className="mx-auto mt-14 max-w-[34em] border-t border-sea-200 pt-6">
+            <p className="kicker text-sea-800">Filed under</p>
+            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
+              {post.tags.map((tag) => (
+                <Link
+                  key={tag}
+                  href={`/blog/tag/${encodeURIComponent(tag)}`}
+                  className="meta text-sea-800 underline decoration-sea-300 underline-offset-4 hover:text-ink hover:decoration-ink"
+                >
+                  {tag}
+                </Link>
+              ))}
+            </div>
           </div>
         )}
       </div>
 
       {more.length > 0 && (
-        <section className="container-page mt-20 max-w-5xl border-t border-sea-200/70 pt-12">
-          <h2 className="text-2xl">Keep reading</h2>
-          <div className="mt-8 grid gap-8 sm:grid-cols-3">
+        <section className="container-page mt-24">
+          <h2 className="kicker border-b border-ink pb-3 text-ink">
+            Keep reading
+          </h2>
+          <div className="mt-10 grid gap-x-10 gap-y-12 sm:grid-cols-3">
             {more.map((item) => (
               <PostCard key={item.id} post={item} />
             ))}

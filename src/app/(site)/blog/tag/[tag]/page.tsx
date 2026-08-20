@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PostCard } from "@/components/blog/post-card";
+import { journalFontClassNames } from "@/lib/fonts";
 import { EmptyState } from "@/components/empty-state";
 import { getPublishedPosts } from "@/lib/queries";
 
@@ -37,25 +38,30 @@ export default async function BlogTagPage({
   const posts = await getPublishedPosts({ tag: decoded });
 
   return (
-    <div className="container-page py-14">
-      <nav className="text-sm text-sea-800">
-        <Link href="/blog" className="hover:underline">
-          Journal
+    <div className={`journal ${journalFontClassNames} container-page py-10`}>
+      <nav className="meta text-sea-800">
+        <Link href="/blog" className="hover:text-ink">
+          The Journal
         </Link>
-        <span className="mx-2">/</span>
-        <span className="text-sea-800">#{decoded}</span>
+        <span className="mx-2 text-sea-400">/</span>
+        <span>Tagged</span>
       </nav>
 
-      <h1 className="mt-4 text-4xl sm:text-5xl">#{decoded}</h1>
+      <div className="mt-6 flex items-baseline gap-4 border-b border-ink pb-4">
+        <h1 className="text-4xl sm:text-5xl">{decoded}</h1>
+        <span className="meta ml-auto text-sea-800">
+          {posts.length} {posts.length === 1 ? "story" : "stories"}
+        </span>
+      </div>
 
       {posts.length ? (
-        <div className="mt-12 grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-4">
           {posts.map((post) => (
-            <PostCard key={post.id} post={post} />
+            <PostCard key={post.id} post={post} size="compact" />
           ))}
         </div>
       ) : (
-        <div className="mt-12">
+        <div className="mt-14">
           <EmptyState
             title="No posts with that tag"
             actionLabel="Back to the Journal"
