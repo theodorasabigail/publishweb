@@ -53,6 +53,22 @@ export async function proxy(request: NextRequest) {
 
   let response = NextResponse.next({ request });
 
+  // ---------------------------------------------------------------------
+  // Only refresh the session where a session is actually used.
+  //
+  // Refreshing means asking Supabase Auth to validate the token, which is a
+  // network round-trip. Anonymous visitors cost nothing -- with no cookie the
+  // client answers locally -- but a signed-in customer browsing the shop was
+  // paying one round-trip per page for a session no storefront page reads.
+  // Measured: /shop, /blog and the homepage make zero database calls, then
+  // this added an auth call on top of every one of them.
+  //
+  // Skipping is safe because refresh tokens outlive access tokens by weeks.
+  // A customer can read the shop all afternoon on an expired access token and
+  // it is renewed the moment they open their account or check out.
+  // ---------------------------------------------------------------------
+  if (!needsSession(pathname)) return response;
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anonKey) return response;
@@ -74,6 +90,32 @@ export async function proxy(request: NextRequest) {
 
   await supabase.auth.getUser();
   return response;
+}
+
+/**
+ * Paths whose rendering depends on who is signed in.
+ *
+ * Deliberately a prefix list rather than "everything except the shop": a new
+ * page that forgets to appear here still works, it just renders for a signed
+ * -out visitor until they touch one of these. The failure mode is a stale
+ * session, never a wrong one -- every page still checks authorisation itself
+ * in requireAdmin / requireUser.
+ */
+const SESSION_PATHS = [
+  "/admin",
+  "/account",
+  "/checkout",
+  "/order",
+  "/login",
+  "/signup",
+  "/auth",
+  "/api",
+];
+
+function needsSession(pathname: string): boolean {
+  return SESSION_PATHS.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
 }
 
 export const config = {

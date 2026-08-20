@@ -82,6 +82,11 @@ export type BiteshipFailure =
   /** Wrong or revoked key. Quotes have silently stopped being live — fall back
    *  to flat zones AND tell the operator, because this will not self-heal. */
   | { kind: "auth"; code: string; message: string }
+  /** The account has no prepaid credit left. Same handling as auth — silent
+   *  fallback for the customer, loud for the operator — but a different fix,
+   *  and worth naming separately because "rejected the key" would send them
+   *  hunting through Vercel for a problem that is not there. */
+  | { kind: "balance"; message: string }
   /** Timeout, 5xx, network. Fall back quietly and carry on. */
   | { kind: "transient"; message: string }
   /** A request we built wrong. Worth logging loudly in development. */
@@ -92,6 +97,12 @@ export function classifyFailure(status: number, body: unknown): BiteshipFailure 
   const code = payload?.code !== undefined ? String(payload.code) : "";
   const message = payload?.error ?? payload?.message ?? `HTTP ${status}`;
 
+  // Matched on the text because Biteship documents no code for it. Checked
+  // before auth: a balance failure can arrive as a 4xx that would otherwise
+  // look like a rejected key.
+  if (/insufficient|sufficient balance|top up|topup|saldo/i.test(message)) {
+    return { kind: "balance", message };
+  }
   if (AUTH_ERROR_CODES.has(code) || status === 401 || status === 403) {
     return { kind: "auth", code, message };
   }

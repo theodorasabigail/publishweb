@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { bootstrapAdmin } from "@/lib/admin-bootstrap";
 import { isSupabaseConfigured } from "@/lib/env";
@@ -10,8 +11,15 @@ export interface SessionContext {
   profile: Profile | null;
 }
 
-/** The signed-in user and their profile, or null for anonymous visitors. */
-export async function getSession(): Promise<SessionContext | null> {
+/**
+ * The signed-in user and their profile, or null for anonymous visitors.
+ *
+ * Wrapped in React's cache() so a layout and the page inside it asking the
+ * same question during one render costs one auth check and one profile read,
+ * not two of each. The cache is per-request, so it can never serve one
+ * visitor's session to another.
+ */
+export const getSession = cache(async (): Promise<SessionContext | null> => {
   // Before the first deploy is configured there is no auth to consult, and a
   // thrown "missing env var" here would take every page down with it.
   if (!isSupabaseConfigured()) return null;
@@ -33,7 +41,7 @@ export async function getSession(): Promise<SessionContext | null> {
     email: user.email ?? null,
     profile: (profile as Profile | null) ?? null,
   };
-}
+});
 
 /** Gate for /account. Sends anonymous visitors to login and back again. */
 export async function requireUser(returnTo = "/account"): Promise<SessionContext> {

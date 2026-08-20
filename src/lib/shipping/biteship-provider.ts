@@ -134,6 +134,14 @@ export function createBiteshipProvider(supabase: SupabaseClient): ShippingProvid
               `not working and every quote is falling back to flat rates. ` +
               `Check BITESHIP_API_KEY. ${failure.message}`,
           );
+        } else if (failure.kind === "balance") {
+          // Also permanent until a human acts, and also silent to customers,
+          // so it gets the same volume as an auth failure.
+          console.error(
+            `biteship: OUT OF CREDIT — live rates are not working and every ` +
+              `quote is falling back to flat rates. Top up the Biteship ` +
+              `account. ${failure.message}`,
+          );
         } else {
           console.warn(`biteship: ${failure.kind} failure, using flat rate`, failure.message);
         }
@@ -298,6 +306,16 @@ export async function diagnoseBiteship(
 
   if (!response.ok) {
     const failure = classifyFailure(response.status, payload);
+    if (failure.kind === "balance") {
+      return {
+        ...base,
+        ok: false,
+        summary: "Biteship needs credit on your account before it will quote.",
+        advice:
+          "Everything else is right — the key works and the request was accepted, it just was not paid for. Their rates API bills per lookup from a prepaid balance, and Testing Mode does not exempt it. Top up in the Biteship dashboard and press this again. Nothing is broken meanwhile: the shop is quoting from your own price list, exactly as before.",
+      };
+    }
+
     return {
       ...base,
       ok: false,
