@@ -83,7 +83,7 @@ export function ProductList({ products }: { products: ProductWithVariants[] }) {
                 dragIndex === index && "opacity-50",
               )}
             >
-              <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-bark-400" />
+              <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-bark-600" />
 
               <span
                 className="h-9 w-9 shrink-0 rounded-lg"
@@ -98,7 +98,7 @@ export function ProductList({ products }: { products: ProductWithVariants[] }) {
                 >
                   {product.name}
                 </Link>
-                <p className="truncate text-xs text-bark-500">
+                <p className="truncate text-xs text-bark-600">
                   {product.categories?.name ?? "Uncategorised"} ·{" "}
                   {prices.length ? `from ${formatIDR(Math.min(...prices))}` : "no price set"}
                 </p>
@@ -136,7 +136,7 @@ export function ProductList({ products }: { products: ProductWithVariants[] }) {
                   type="button"
                   onClick={() => move(index, index - 1)}
                   disabled={index === 0}
-                  className="rounded p-0.5 text-bark-500 hover:bg-bark-100 disabled:opacity-30"
+                  className="rounded p-0.5 text-bark-600 hover:bg-bark-100 disabled:opacity-30"
                   aria-label={`Move ${product.name} up`}
                 >
                   <ArrowUp className="h-3.5 w-3.5" />
@@ -145,7 +145,7 @@ export function ProductList({ products }: { products: ProductWithVariants[] }) {
                   type="button"
                   onClick={() => move(index, index + 1)}
                   disabled={index === items.length - 1}
-                  className="rounded p-0.5 text-bark-500 hover:bg-bark-100 disabled:opacity-30"
+                  className="rounded p-0.5 text-bark-600 hover:bg-bark-100 disabled:opacity-30"
                   aria-label={`Move ${product.name} down`}
                 >
                   <ArrowDown className="h-3.5 w-3.5" />

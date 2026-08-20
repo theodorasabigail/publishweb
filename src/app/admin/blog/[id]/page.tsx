@@ -64,7 +64,7 @@ export default async function EditPostPage({
         <input type="hidden" name="id" value={typed.id} />
         <button
           type="submit"
-          className="flex items-center gap-1.5 text-sm text-bark-500 hover:text-red-700"
+          className="flex items-center gap-1.5 text-sm text-bark-600 hover:text-red-700"
         >
           <Trash2 className="h-4 w-4" /> Delete this post
         </button>

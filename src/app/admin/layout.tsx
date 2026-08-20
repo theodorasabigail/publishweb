@@ -12,11 +12,13 @@ import {
   Tags,
   Users,
 } from "lucide-react";
+import { AdminNav, type NavItem } from "@/components/admin/admin-nav";
 import { PrelaunchBanner } from "@/components/admin/prelaunch-banner";
+import { adminFont } from "@/lib/fonts";
 import { requireAdmin } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 
-const NAV = [
+const NAV: NavItem[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/pos", label: "Counter sales", icon: Store },
   { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
@@ -47,31 +49,22 @@ export default async function AdminLayout({
   const session = await requireAdmin();
 
   return (
-    <div className="min-h-screen bg-bark-50">
+    // `admin-ui` is what switches on the dashboard's own type scale and
+    // interface font; see the block at the end of globals.css.
+    <div className={`admin-ui min-h-screen bg-bark-50 ${adminFont.variable}`}>
       <div className="mx-auto flex w-full max-w-[1400px] flex-col lg:flex-row">
         <aside className="shrink-0 border-b border-bark-200 bg-white lg:min-h-screen lg:w-64 lg:border-b-0 lg:border-r">
           <div className="px-5 py-5">
             <Link href="/" className="font-serif text-base font-semibold">
-              Publish <span className="text-bark-500">Coffee Roasters</span>
+              Publish <span className="text-bark-600">Coffee Roasters</span>
             </Link>
-            <p className="mt-0.5 text-xs text-bark-500">Admin dashboard</p>
+            <p className="mt-0.5 text-xs text-bark-600">Admin dashboard</p>
           </div>
 
-          <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:flex-col lg:overflow-visible">
-            {NAV.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-bark-700 hover:bg-bark-100"
-              >
-                <item.icon className="h-4 w-4 shrink-0" />
-                <span className="whitespace-nowrap">{item.label}</span>
-              </Link>
-            ))}
-          </nav>
+          <AdminNav items={NAV} />
 
           <div className="hidden border-t border-bark-200 px-5 py-4 lg:block">
-            <p className="truncate text-xs text-bark-500">{session.email}</p>
+            <p className="truncate text-xs text-bark-600">{session.email}</p>
             <div className="mt-2 flex flex-col gap-1.5 text-xs">
               <Link href="/" className="text-bark-700 hover:underline">
                 View the shop →

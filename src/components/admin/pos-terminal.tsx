@@ -184,7 +184,7 @@ export function PosTerminal({
           <Check className="h-8 w-8 text-emerald-700" />
         </div>
         <h2 className="mt-5 font-serif text-3xl">Sale complete</h2>
-        <p className="mt-1 text-sm text-bark-500">{receipt.ref}</p>
+        <p className="mt-1 text-sm text-bark-600">{receipt.ref}</p>
 
         {receipt.change !== null && receipt.change > 0 && (
           <div className="mt-8 rounded-2xl border-2 border-bark-800 p-6">
@@ -226,7 +226,7 @@ export function PosTerminal({
       {/* Product picker */}
       <div>
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-bark-400" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-bark-600" />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -248,7 +248,7 @@ export function PosTerminal({
               >
                 <p className="truncate text-sm font-medium">{product.name}</p>
                 {product.origin && (
-                  <p className="truncate text-xs text-bark-500">{product.origin}</p>
+                  <p className="truncate text-xs text-bark-600">{product.origin}</p>
                 )}
               </div>
 
@@ -269,13 +269,13 @@ export function PosTerminal({
                       )}
                     >
                       <span className="block text-sm font-medium">{variant.size}</span>
-                      <span className="block text-xs text-bark-500">
+                      <span className="block text-xs text-bark-600">
                         {formatIDR(variant.price_idr)}
                       </span>
                       <span
                         className={cn(
                           "mt-0.5 block text-[10px]",
-                          variant.stock <= 3 ? "text-amber-700" : "text-bark-400",
+                          variant.stock <= 3 ? "text-amber-700" : "text-bark-600",
                         )}
                       >
                         {soldOut ? "sold out" : `${variant.stock} left`}
@@ -289,7 +289,7 @@ export function PosTerminal({
         </div>
 
         {!visibleProducts.length && (
-          <p className="mt-8 text-center text-sm text-bark-500">
+          <p className="mt-8 text-center text-sm text-bark-600">
             Nothing matches “{query}”.
           </p>
         )}
@@ -303,7 +303,7 @@ export function PosTerminal({
             <button
               type="button"
               onClick={resetSale}
-              className="flex items-center gap-1 text-xs text-bark-500 hover:text-red-700"
+              className="flex items-center gap-1 text-xs text-bark-600 hover:text-red-700"
             >
               <Trash2 className="h-3.5 w-3.5" /> Clear
             </button>
@@ -316,7 +316,7 @@ export function PosTerminal({
               <li key={line.variantId} className="flex items-center gap-2 px-4 py-2.5">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{line.productName}</p>
-                  <p className="text-xs text-bark-500">
+                  <p className="text-xs text-bark-600">
                     {line.size} · {formatIDR(line.priceIdr)}
                   </p>
                 </div>
@@ -349,7 +349,7 @@ export function PosTerminal({
             ))}
           </ul>
         ) : (
-          <p className="px-4 py-10 text-center text-sm text-bark-500">
+          <p className="px-4 py-10 text-center text-sm text-bark-600">
             Tap a size to start a sale.
           </p>
         )}
@@ -362,14 +362,14 @@ export function PosTerminal({
                 <p className="truncate text-sm font-medium">
                   {customer.display_name || customer.email}
                 </p>
-                <p className="text-xs text-bark-500">
+                <p className="text-xs text-bark-600">
                   {customer.loyalty_points} points · {customer.tier}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setCustomer(null)}
-                className="rounded p-1 text-bark-500 hover:bg-bark-100"
+                className="rounded p-1 text-bark-600 hover:bg-bark-100"
                 aria-label="Remove customer"
               >
                 <X className="h-4 w-4" />
@@ -400,7 +400,7 @@ export function PosTerminal({
                         className="block w-full px-3 py-2 text-left text-sm hover:bg-bark-50"
                       >
                         {found.display_name || found.email}
-                        <span className="block text-xs text-bark-500">
+                        <span className="block text-xs text-bark-600">
                           {found.loyalty_points} points
                         </span>
                       </button>
@@ -411,7 +411,7 @@ export function PosTerminal({
               <button
                 type="button"
                 onClick={() => setShowCustomerSearch(false)}
-                className="mt-2 text-xs text-bark-500 hover:underline"
+                className="mt-2 text-xs text-bark-600 hover:underline"
               >
                 Cancel
               </button>

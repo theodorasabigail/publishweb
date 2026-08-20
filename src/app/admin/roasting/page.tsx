@@ -38,7 +38,7 @@ export default async function AdminRoastingPage() {
 
       {closed.length > 0 && (
         <>
-          <h2 className="mb-4 mt-10 text-sm font-medium uppercase tracking-wider text-bark-500">
+          <h2 className="mb-4 mt-10 text-sm font-medium uppercase tracking-wider text-bark-600">
             Closed
           </h2>
           <div className="space-y-4">
@@ -61,11 +61,11 @@ function RequestCard({ request }: { request: RoastingRequest }) {
         <div>
           <p className="font-medium">
             {request.contact_name}{" "}
-            <span className="text-sm font-normal text-bark-500">
+            <span className="text-sm font-normal text-bark-600">
               · {request.human_ref}
             </span>
           </p>
-          <p className="mt-0.5 text-xs text-bark-500">
+          <p className="mt-0.5 text-xs text-bark-600">
             {formatDateTime(request.created_at)}
           </p>
         </div>
@@ -150,7 +150,7 @@ function RequestCard({ request }: { request: RoastingRequest }) {
       </form>
 
       {request.quoted_price_idr && (
-        <p className="mt-3 text-xs text-bark-500">
+        <p className="mt-3 text-xs text-bark-600">
           Quoted at {formatIDR(request.quoted_price_idr)}.
         </p>
       )}
@@ -161,7 +161,7 @@ function RequestCard({ request }: { request: RoastingRequest }) {
 function Detail({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
-      <dt className="text-xs uppercase tracking-wider text-bark-500">{label}</dt>
+      <dt className="text-xs uppercase tracking-wider text-bark-600">{label}</dt>
       <dd className="mt-0.5 text-bark-800">{value}</dd>
     </div>
   );

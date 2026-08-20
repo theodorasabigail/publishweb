@@ -73,7 +73,7 @@ export default async function AdminBlogPage() {
       {rows.length ? (
         <div className="overflow-x-auto rounded-xl border border-bark-200 bg-white">
           <table className="w-full min-w-[680px] text-sm">
-            <thead className="border-b border-bark-200 text-left text-xs uppercase tracking-wider text-bark-500">
+            <thead className="border-b border-bark-200 text-left text-xs uppercase tracking-wider text-bark-600">
               <tr>
                 <th className="px-4 py-3 font-medium">Title</th>
                 <th className="px-4 py-3 font-medium">Category</th>

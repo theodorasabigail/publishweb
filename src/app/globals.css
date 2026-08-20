@@ -69,3 +69,91 @@
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
   }
 }
+
+/* ==========================================================================
+   Admin dashboard
+   ==========================================================================
+
+   The dashboard runs one step up the type scale from the shop, because the two
+   are read differently: the shop is glanced at, the dashboard is worked in.
+   Rather than change 200-odd class names one at a time -- which future edits
+   would immediately drift away from -- the scale is redefined once, here, for
+   anything inside `.admin-ui`.
+
+   So `text-sm` in an admin file means 15px, not 14px. That is surprising if
+   you do not know, which is why it is written down: this is the only place
+   admin sizing lives, and it is the only place to change it.
+
+   Sizes are in rem so browser zoom and OS text-size settings still work.
+   ========================================================================== */
+
+.admin-ui {
+  font-family: var(--font-admin), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
+  font-size: 1rem;
+  /* Lining, equal-width figures so prices and stock counts line up in columns
+     instead of shimmering as the digits change. */
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* The shop sets headings in the serif. In here they take the interface font,
+   so the dashboard reads as a tool rather than a page of the website. */
+.admin-ui h1,
+.admin-ui h2,
+.admin-ui h3,
+.admin-ui h4 {
+  font-family: inherit;
+  letter-spacing: -0.011em;
+}
+
+/* Line height rises with size more slowly than the size itself, which is what
+   keeps small text readable and large text from looking loose. */
+.admin-ui .text-xs {
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+.admin-ui .text-sm {
+  font-size: 0.9375rem;
+  line-height: 1.5rem;
+}
+.admin-ui .text-base {
+  font-size: 1.0625rem;
+  line-height: 1.7rem;
+}
+.admin-ui .text-lg {
+  font-size: 1.1875rem;
+  line-height: 1.75rem;
+}
+.admin-ui .text-xl {
+  font-size: 1.375rem;
+  line-height: 1.9rem;
+}
+.admin-ui .text-2xl {
+  font-size: 1.625rem;
+  line-height: 2.1rem;
+}
+.admin-ui .text-3xl {
+  font-size: 2rem;
+  line-height: 2.4rem;
+}
+
+/* These bake a size in through @apply, so they need lifting too or the form
+   controls stay at shop scale while the text around them grows. */
+.admin-ui .input,
+.admin-ui .label,
+.admin-ui .btn {
+  font-size: 0.9375rem;
+}
+.admin-ui .input {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+.admin-ui .badge {
+  font-size: 0.8125rem;
+}
+
+/* Placeholder text is decoration, not content, but bark-400 on white measures
+   2.9:1 -- low enough that it reads as an empty field. bark-500 is 3.9:1. */
+.admin-ui .input::placeholder {
+  color: theme(colors.bark.500);
+}

@@ -144,7 +144,7 @@ function TabButton({
  */
 function SimplePreview({ source }: { source: string }) {
   if (!source.trim()) {
-    return <p className="text-sm text-bark-400">Nothing to preview yet.</p>;
+    return <p className="text-sm text-bark-600">Nothing to preview yet.</p>;
   }
 
   const blocks = source.split(/\n{2,}/);

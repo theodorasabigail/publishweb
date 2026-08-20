@@ -55,7 +55,7 @@ export function CourierTest({ providerId }: { providerId: string }) {
         </button>
       </form>
 
-      <p className="mt-2 text-xs text-bark-500">
+      <p className="mt-2 text-xs text-bark-600">
         Pretends to send a 500 g parcel. Nothing is booked and nothing is
         charged.
       </p>
@@ -81,7 +81,7 @@ export function CourierTest({ providerId }: { providerId: string }) {
 
           {result.options.length > 0 && (
             <table className="mt-4 w-full text-sm">
-              <thead className="text-left text-xs uppercase tracking-wider text-bark-500">
+              <thead className="text-left text-xs uppercase tracking-wider text-bark-600">
                 <tr>
                   <th className="pb-1 font-medium">Courier</th>
                   <th className="pb-1 font-medium">Price</th>

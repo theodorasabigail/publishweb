@@ -72,7 +72,7 @@ export function ProductForm({
       >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm">
-            <thead className="text-left text-xs uppercase tracking-wider text-bark-500">
+            <thead className="text-left text-xs uppercase tracking-wider text-bark-600">
               <tr>
                 <th className="pb-2 pr-4 font-medium">Size</th>
                 <th className="pb-2 pr-4 font-medium">Price (Rp)</th>
@@ -131,7 +131,7 @@ export function ProductForm({
             </tbody>
           </table>
         </div>
-        <p className="mt-3 text-xs text-bark-500">
+        <p className="mt-3 text-xs text-bark-600">
           Stock comes down automatically when an order is paid for. You only need
           to top it up here after a roast.
         </p>

@@ -41,6 +41,33 @@
 //   adjustFontFallback: "Arial",
 // });
 
+// ---------------------------------------------------------------------------
+// Admin dashboard
+// ---------------------------------------------------------------------------
+
+import { IBM_Plex_Sans } from "next/font/google";
+
+/**
+ * The dashboard's typeface, which is deliberately not the shop's.
+ *
+ * The storefront is a brand; the dashboard is a tool someone reads for an hour
+ * at a time, in small sizes, with a lot of numbers. Those want different
+ * things, so they get different fonts rather than one compromise.
+ *
+ * IBM Plex Sans is drawn for interfaces: open apertures, unambiguous 1/l/I,
+ * and it holds up at 13px where a display face falls apart. Choosing anything
+ * here is a one-line change — the name below is the only place it appears.
+ *
+ * Self-hosted by next/font at build time, so there is no request to Google
+ * from a visitor's browser and nothing to slow the first paint.
+ */
+export const adminFont = IBM_Plex_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-admin",
+  display: "swap",
+});
+
 /**
  * Applied to <html> in the root layout.
  *

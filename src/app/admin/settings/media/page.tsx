@@ -99,7 +99,7 @@ export default async function AdminMediaPage() {
                   <span className="truncate font-mono text-xs text-bark-600">
                     {file.name}
                   </span>
-                  <span className="shrink-0 text-xs text-bark-500">
+                  <span className="shrink-0 text-xs text-bark-600">
                     {formatBytes(Number(file.size_bytes))} ·{" "}
                     {formatDate(file.uploaded_at)}
                   </span>

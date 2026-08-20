@@ -173,7 +173,7 @@ export default async function AdminSettingsPage() {
                 />
               </Field>
             </div>
-            <p className="mt-3 text-xs text-bark-500">
+            <p className="mt-3 text-xs text-bark-600">
               Points are only awarded on orders that have actually been paid for.
               Changing these does not re-calculate past orders.
             </p>

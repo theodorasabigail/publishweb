@@ -119,7 +119,7 @@ export default async function AdminOverviewPage() {
                   >
                     <div className="min-w-0">
                       <p className="truncate font-medium">{order.human_ref}</p>
-                      <p className="text-xs text-bark-500">
+                      <p className="text-xs text-bark-600">
                         {formatDate(order.created_at)}
                       </p>
                     </div>
@@ -146,7 +146,7 @@ export default async function AdminOverviewPage() {
                   <li key={variant.id} className="flex justify-between gap-3 py-2.5">
                     <span className="truncate text-sm">
                       {variant.products?.name ?? "—"}{" "}
-                      <span className="text-bark-500">· {variant.size}</span>
+                      <span className="text-bark-600">· {variant.size}</span>
                     </span>
                     <span
                       className={`shrink-0 text-sm font-medium ${
@@ -174,7 +174,7 @@ export default async function AdminOverviewPage() {
                     >
                       <span className="truncate text-sm">
                         {request.contact_name}{" "}
-                        <span className="text-bark-500">
+                        <span className="text-bark-600">
                           · {request.green_bean_origin}
                         </span>
                       </span>
@@ -192,7 +192,7 @@ export default async function AdminOverviewPage() {
         </div>
       </div>
 
-      <p className="mt-6 text-xs text-bark-500">
+      <p className="mt-6 text-xs text-bark-600">
         Payments are running through: <strong>{providerLabel}</strong>.
       </p>
     </div>

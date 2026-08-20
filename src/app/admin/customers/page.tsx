@@ -36,7 +36,7 @@ export default async function AdminCustomersPage() {
       {rows.length ? (
         <div className="overflow-x-auto rounded-xl border border-bark-200 bg-white">
           <table className="w-full min-w-[720px] text-sm">
-            <thead className="border-b border-bark-200 text-left text-xs uppercase tracking-wider text-bark-500">
+            <thead className="border-b border-bark-200 text-left text-xs uppercase tracking-wider text-bark-600">
               <tr>
                 <th className="px-4 py-3 font-medium">Customer</th>
                 <th className="px-4 py-3 font-medium">Joined</th>
@@ -58,7 +58,7 @@ export default async function AdminCustomersPage() {
                       >
                         {profile.display_name || profile.email || "Customer"}
                       </Link>
-                      <p className="text-xs text-bark-500">{profile.email}</p>
+                      <p className="text-xs text-bark-600">{profile.email}</p>
                       {profile.is_admin && (
                         <span className="badge mt-1 bg-bark-800 text-cream">Admin</span>
                       )}

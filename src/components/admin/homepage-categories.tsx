@@ -60,13 +60,13 @@ export function HomepageCategoryPicker({
 
               return (
                 <li key={id} className="flex items-center gap-3 px-3 py-2.5">
-                  <span className="w-5 text-xs text-bark-400">{index + 1}</span>
+                  <span className="w-5 text-xs text-bark-600">{index + 1}</span>
                   <span className="flex-1 text-sm">{category.name}</span>
                   <button
                     type="button"
                     onClick={() => move(index, -1)}
                     disabled={index === 0}
-                    className="rounded p-1 text-bark-500 hover:bg-bark-100 disabled:opacity-30"
+                    className="rounded p-1 text-bark-600 hover:bg-bark-100 disabled:opacity-30"
                     aria-label={`Move ${category.name} up`}
                   >
                     <ArrowUp className="h-3.5 w-3.5" />
@@ -75,7 +75,7 @@ export function HomepageCategoryPicker({
                     type="button"
                     onClick={() => move(index, 1)}
                     disabled={index === selected.length - 1}
-                    className="rounded p-1 text-bark-500 hover:bg-bark-100 disabled:opacity-30"
+                    className="rounded p-1 text-bark-600 hover:bg-bark-100 disabled:opacity-30"
                     aria-label={`Move ${category.name} down`}
                   >
                     <ArrowDown className="h-3.5 w-3.5" />
@@ -83,7 +83,7 @@ export function HomepageCategoryPicker({
                   <button
                     type="button"
                     onClick={() => toggle(id)}
-                    className="rounded px-2 py-1 text-xs text-bark-500 hover:bg-bark-100"
+                    className="rounded px-2 py-1 text-xs text-bark-600 hover:bg-bark-100"
                   >
                     Remove
                   </button>
@@ -92,7 +92,7 @@ export function HomepageCategoryPicker({
             })}
           </ul>
         ) : (
-          <p className="rounded-lg border border-dashed border-bark-300 px-3 py-6 text-center text-sm text-bark-500">
+          <p className="rounded-lg border border-dashed border-bark-300 px-3 py-6 text-center text-sm text-bark-600">
             None chosen — the homepage will fall back to every category marked
             &ldquo;available for the homepage&rdquo;.
           </p>

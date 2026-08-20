@@ -88,7 +88,7 @@ export default async function AdminPaymentsPage() {
         {rest.length ? (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
-              <thead className="text-left text-xs uppercase tracking-wider text-bark-500">
+              <thead className="text-left text-xs uppercase tracking-wider text-bark-600">
                 <tr>
                   <th className="pb-2 pr-4 font-medium">When</th>
                   <th className="pb-2 pr-4 font-medium">Provider</th>

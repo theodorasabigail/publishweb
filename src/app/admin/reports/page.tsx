@@ -130,7 +130,7 @@ export default async function ReportsPage({
               <p className="text-sm text-bark-600">Shipping you covered</p>
               <p className="mt-1 font-serif text-2xl">{formatIDR(shippingAbsorbed)}</p>
             </div>
-            <p className="max-w-md text-xs text-bark-500">
+            <p className="max-w-md text-xs text-bark-600">
               Free and discounted shipping given away in this period. Worth
               comparing against the extra orders it brought in before deciding
               whether the threshold is set right.
@@ -138,7 +138,7 @@ export default async function ReportsPage({
           </div>
 
           <table className="mt-4 w-full text-sm">
-            <thead className="text-left text-xs uppercase tracking-wider text-bark-500">
+            <thead className="text-left text-xs uppercase tracking-wider text-bark-600">
               <tr>
                 <th className="pb-2 font-medium">Zone</th>
                 <th className="pb-2 text-right font-medium">Orders</th>
@@ -168,7 +168,7 @@ export default async function ReportsPage({
         <Panel title="How the money came in">
           {summary.length ? (
             <table className="w-full text-sm">
-              <thead className="text-left text-xs uppercase tracking-wider text-bark-500">
+              <thead className="text-left text-xs uppercase tracking-wider text-bark-600">
                 <tr>
                   <th className="pb-2 font-medium">Where</th>
                   <th className="pb-2 font-medium">Method</th>
@@ -201,7 +201,7 @@ export default async function ReportsPage({
         <Panel title="What sold" description="Both channels combined — what to roast next.">
           {bySize.length ? (
             <table className="w-full text-sm">
-              <thead className="text-left text-xs uppercase tracking-wider text-bark-500">
+              <thead className="text-left text-xs uppercase tracking-wider text-bark-600">
                 <tr>
                   <th className="pb-2 font-medium">Coffee</th>
                   <th className="pb-2 text-right font-medium">Shop</th>
@@ -214,7 +214,7 @@ export default async function ReportsPage({
                   <tr key={`${row.product_name}-${row.size}`}>
                     <td className="py-2.5">
                       {row.product_name}{" "}
-                      <span className="text-bark-500">· {row.size}</span>
+                      <span className="text-bark-600">· {row.size}</span>
                     </td>
                     <td className="py-2.5 text-right text-bark-600">{row.pos_units}</td>
                     <td className="py-2.5 text-right text-bark-600">{row.online_units}</td>

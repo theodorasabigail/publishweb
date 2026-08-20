@@ -61,7 +61,7 @@ export function ColorPicker({
           Use a 6-digit hex colour, like #8c6144.
         </p>
       )}
-      {hint && <p className="mt-1.5 text-xs text-bark-500">{hint}</p>}
+      {hint && <p className="mt-1.5 text-xs text-bark-600">{hint}</p>}
     </div>
   );
 }

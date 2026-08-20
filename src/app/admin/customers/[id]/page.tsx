@@ -80,7 +80,7 @@ export default async function AdminCustomerPage({
                     >
                       <div>
                         <p className="font-medium">{order.human_ref}</p>
-                        <p className="text-xs text-bark-500">
+                        <p className="text-xs text-bark-600">
                           {formatDate(order.created_at)}
                         </p>
                       </div>
@@ -106,7 +106,7 @@ export default async function AdminCustomerPage({
                   <li key={entry.id} className="flex justify-between gap-4 py-2.5">
                     <div>
                       <p>{entry.reason}</p>
-                      <p className="text-xs text-bark-500">
+                      <p className="text-xs text-bark-600">
                         {formatDateTime(entry.created_at)}
                       </p>
                     </div>
@@ -159,7 +159,7 @@ export default async function AdminCustomerPage({
               <button type="submit" className="btn-secondary w-full py-2 text-xs">
                 Set tier
               </button>
-              <p className="text-xs text-bark-500">
+              <p className="text-xs text-bark-600">
                 Tiers normally follow lifetime points. Setting one by hand holds
                 until their next points change.
               </p>

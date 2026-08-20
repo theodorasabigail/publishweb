@@ -52,7 +52,7 @@ export function EmailTest({ configured }: { configured: boolean }) {
         </button>
       </form>
 
-      <p className="mt-2 text-xs text-bark-500">
+      <p className="mt-2 text-xs text-bark-600">
         Sends one real email. No customer is contacted.
       </p>
 

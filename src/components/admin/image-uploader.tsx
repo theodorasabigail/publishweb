@@ -144,7 +144,7 @@ export function ImageUploader({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={busy}
-          className="flex h-32 w-32 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-bark-300 px-2 text-center text-xs text-bark-500 hover:border-bark-500"
+          className="flex h-32 w-32 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-bark-300 px-2 text-center text-xs text-bark-600 hover:border-bark-500"
         >
           {busy ? (
             <>
@@ -176,7 +176,7 @@ export function ImageUploader({
       )}
 
       {warning && <p className="mt-1.5 text-xs text-amber-700">{warning}</p>}
-      {hint && <p className="mt-1.5 text-xs text-bark-500">{hint}</p>}
+      {hint && <p className="mt-1.5 text-xs text-bark-600">{hint}</p>}
       {error && <p className="mt-1.5 text-xs text-red-700">{error}</p>}
     </div>
   );

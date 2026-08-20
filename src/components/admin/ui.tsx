@@ -64,7 +64,7 @@ export function Field({
         {label}
       </label>
       {children}
-      {hint && <p className="mt-1.5 text-xs text-bark-500">{hint}</p>}
+      {hint && <p className="mt-1.5 text-xs text-bark-600">{hint}</p>}
     </div>
   );
 }
@@ -94,7 +94,7 @@ export function StatCard({
     >
       <p className="text-sm text-bark-600">{label}</p>
       <p className="mt-2 font-serif text-2xl">{value}</p>
-      {hint && <p className="mt-1 text-xs text-bark-500">{hint}</p>}
+      {hint && <p className="mt-1 text-xs text-bark-600">{hint}</p>}
     </div>
   );
 

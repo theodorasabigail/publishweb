@@ -104,7 +104,7 @@ export default async function AdminShippingPage() {
                 <input type="hidden" name="id" value={zone.id} />
                 <button
                   type="submit"
-                  className="flex items-center gap-1.5 text-xs text-bark-500 hover:text-red-700"
+                  className="flex items-center gap-1.5 text-xs text-bark-600 hover:text-red-700"
                 >
                   <Trash2 className="h-3.5 w-3.5" /> Delete this zone
                 </button>

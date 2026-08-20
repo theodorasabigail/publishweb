@@ -108,7 +108,7 @@ export default async function AdminCategoriesPage() {
                   </details>
 
                   <div className="flex items-center justify-between gap-3 border-t border-bark-200 pt-4">
-                    <span className="text-xs text-bark-500">
+                    <span className="text-xs text-bark-600">
                       {productCounts.get(category.id) ?? 0} products
                     </span>
                     <div className="flex gap-2">
@@ -123,11 +123,11 @@ export default async function AdminCategoriesPage() {
                   <input type="hidden" name="id" value={category.id} />
                   <button
                     type="submit"
-                    className="flex items-center gap-1.5 text-xs text-bark-500 hover:text-red-700"
+                    className="flex items-center gap-1.5 text-xs text-bark-600 hover:text-red-700"
                   >
                     <Trash2 className="h-3.5 w-3.5" /> Delete category
                   </button>
-                  <p className="mt-1 text-xs text-bark-400">
+                  <p className="mt-1 text-xs text-bark-600">
                     Products in it stay on the shop, just uncategorised.
                   </p>
                 </form>

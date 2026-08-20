@@ -86,7 +86,7 @@ export default async function AdminOrdersPage({
       {orders.length ? (
         <div className="overflow-x-auto rounded-xl border border-bark-200 bg-white">
           <table className="w-full min-w-[720px] text-sm">
-            <thead className="border-b border-bark-200 text-left text-xs uppercase tracking-wider text-bark-500">
+            <thead className="border-b border-bark-200 text-left text-xs uppercase tracking-wider text-bark-600">
               <tr>
                 <th className="px-4 py-3 font-medium">Order</th>
                 <th className="px-4 py-3 font-medium">Placed</th>
@@ -115,7 +115,7 @@ export default async function AdminOrdersPage({
                     {order.shipping_address?.recipient_name ??
                       (order.channel === "pos" ? "Walk-in" : "—")}
                     {!order.user_id && order.channel === "online" && (
-                      <span className="ml-1.5 text-xs text-bark-400">(guest)</span>
+                      <span className="ml-1.5 text-xs text-bark-600">(guest)</span>
                     )}
                   </td>
                   <td className="px-4 py-3">

@@ -66,7 +66,7 @@ export default async function AdminOrderDetailPage({
                 <li key={item.id} className="flex justify-between gap-4 py-3">
                   <div>
                     <p className="font-medium">{item.name_snapshot}</p>
-                    <p className="text-sm text-bark-500">
+                    <p className="text-sm text-bark-600">
                       {item.size_snapshot} × {item.quantity}
                     </p>
                   </div>
@@ -145,7 +145,7 @@ export default async function AdminOrderDetailPage({
                 )}
               </address>
             ) : (
-              <p className="text-sm text-bark-500">No address recorded.</p>
+              <p className="text-sm text-bark-600">No address recorded.</p>
             )}
 
             {order.channel === "online" && (
