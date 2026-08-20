@@ -4,13 +4,27 @@ import { useMemo, useState } from "react";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { ProductCard } from "@/components/shop/product-card";
 import { EmptyState } from "@/components/empty-state";
+import {
+  FLAVOUR_LEVELS,
+  FLAVOUR_SWATCH_RING,
+  flavourFor,
+} from "@/lib/flavour";
 import type { Category, ProductWithVariants } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-type Sort = "featured" | "price-asc" | "price-desc" | "name" | "newest";
+type Sort =
+  | "featured"
+  | "flavour-asc"
+  | "flavour-desc"
+  | "price-asc"
+  | "price-desc"
+  | "name"
+  | "newest";
 
 const SORTS: { value: Sort; label: string }[] = [
   { value: "featured", label: "Our order" },
+  { value: "flavour-asc", label: "Lightest first" },
+  { value: "flavour-desc", label: "Boldest first" },
   { value: "price-asc", label: "Price: low to high" },
   { value: "price-desc", label: "Price: high to low" },
   { value: "name", label: "Name A–Z" },
@@ -50,6 +64,7 @@ export function ShopBrowser({
   const [query, setQuery] = useState("");
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [origins, setOrigins] = useState<string[]>([]);
+  const [flavours, setFlavours] = useState<number[]>([]);
   const [stockOnly, setStockOnly] = useState(false);
   const [sort, setSort] = useState<Sort>("featured");
   const [railOpen, setRailOpen] = useState(false);
@@ -66,6 +81,15 @@ export function ShopBrowser({
     return [...seen.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   }, [products]);
 
+  // Only the levels actually on the shelf. A scale with three empty swatches
+  // makes a small lineup look like a gap rather than a selection.
+  const usedFlavours = useMemo(() => {
+    return FLAVOUR_LEVELS.map((entry) => ({
+      entry,
+      count: products.filter((p) => p.flavour_level === entry.level).length,
+    })).filter((row) => row.count > 0);
+  }, [products]);
+
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
 
@@ -74,6 +98,9 @@ export function ShopBrowser({
         return false;
       }
       if (origins.length && !origins.includes(product.origin?.trim() ?? "")) {
+        return false;
+      }
+      if (flavours.length && !flavours.includes(product.flavour_level ?? -1)) {
         return false;
       }
       if (stockOnly && !inStock(product)) return false;
@@ -113,6 +140,20 @@ export function ShopBrowser({
         });
         break;
       }
+      case "flavour-asc":
+      case "flavour-desc": {
+        // Unassigned coffees sort to the end either way rather than pretending
+        // to be level 0, which would put them at the head of "lightest first".
+        const direction = sort === "flavour-asc" ? 1 : -1;
+        sorted.sort((a, b) => {
+          const x = a.flavour_level;
+          const y = b.flavour_level;
+          if (!x) return 1;
+          if (!y) return -1;
+          return (x - y) * direction;
+        });
+        break;
+      }
       case "name":
         sorted.sort((a, b) => a.name.localeCompare(b.name));
         break;
@@ -123,10 +164,14 @@ export function ShopBrowser({
         break; // Already in the operator's own order from the server.
     }
     return sorted;
-  }, [products, query, categoryIds, origins, stockOnly, sort]);
+  }, [products, query, categoryIds, origins, flavours, stockOnly, sort]);
 
   const activeCount =
-    categoryIds.length + origins.length + (stockOnly ? 1 : 0) + (query ? 1 : 0);
+    categoryIds.length +
+    origins.length +
+    flavours.length +
+    (stockOnly ? 1 : 0) +
+    (query ? 1 : 0);
 
   const toggle = (
     value: string,
@@ -138,6 +183,7 @@ export function ShopBrowser({
     setQuery("");
     setCategoryIds([]);
     setOrigins([]);
+    setFlavours([]);
     setStockOnly(false);
   }
 
@@ -177,6 +223,57 @@ export function ShopBrowser({
               />
             </div>
           </div>
+
+          {usedFlavours.length > 0 && (
+            <FilterGroup title="Flavour">
+              <p className="mb-3 text-xs leading-relaxed text-sea-800">
+                Our colour scale. Pale is clean and delicate, deep is big and
+                sweet, purple is the heavily processed lots.
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {usedFlavours.map(({ entry, count }) => {
+                  const on = flavours.includes(entry.level);
+                  return (
+                    <button
+                      key={entry.level}
+                      type="button"
+                      onClick={() =>
+                        setFlavours(
+                          on
+                            ? flavours.filter((l) => l !== entry.level)
+                            : [...flavours, entry.level],
+                        )
+                      }
+                      aria-pressed={on}
+                      title={`${entry.label} — ${entry.description} (${count})`}
+                      className={cn(
+                        "h-8 w-8 rounded-full transition-transform hover:scale-110",
+                        on && "ring-2 ring-ink ring-offset-2",
+                      )}
+                      style={{
+                        backgroundColor: entry.hex,
+                        border: FLAVOUR_SWATCH_RING,
+                      }}
+                    >
+                      <span className="sr-only">
+                        {entry.label}: {entry.description}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {flavours.length > 0 && (
+                <p className="mt-2.5 text-xs text-sea-800">
+                  {flavours
+                    .slice()
+                    .sort((a, b) => a - b)
+                    .map((level) => flavourFor(level)?.label)
+                    .filter(Boolean)
+                    .join(", ")}
+                </p>
+              )}
+            </FilterGroup>
+          )}
 
           {allOrigins.length > 1 && (
             <FilterGroup title="Origin">

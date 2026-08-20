@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { lowestPrice, totalStock } from "@/lib/product";
 import type { ProductWithVariants } from "@/lib/types";
+import { FLAVOUR_SWATCH_RING, flavourFor } from "@/lib/flavour";
 import { contrastText, formatIDR } from "@/lib/utils";
 
 /**
@@ -11,6 +12,7 @@ import { contrastText, formatIDR } from "@/lib/utils";
 export function ProductCard({ product }: { product: ProductWithVariants }) {
   const price = lowestPrice(product);
   const stock = totalStock(product);
+  const flavour = flavourFor(product.flavour_level);
   const soldOut = stock <= 0;
   const textColor = contrastText(product.accent_color);
 
@@ -55,11 +57,23 @@ export function ProductCard({ product }: { product: ProductWithVariants }) {
       </div>
 
       <div className="flex flex-1 flex-col p-4">
-        {product.origin && (
-          <p className="text-xs uppercase tracking-wider text-sea-800">
-            {product.origin}
-          </p>
-        )}
+        <div className="flex items-center gap-2">
+          {/* The flavour colour, at the top of the card where it is scanned
+              before the name is read. Titled rather than labelled, so it does
+              not compete with the coffee's own name for space. */}
+          {flavour && (
+            <span
+              className="h-3.5 w-3.5 shrink-0 rounded-full"
+              style={{ backgroundColor: flavour.hex, border: FLAVOUR_SWATCH_RING }}
+              title={`${flavour.label} — ${flavour.description}`}
+            />
+          )}
+          {product.origin && (
+            <p className="truncate text-xs uppercase tracking-wider text-sea-800">
+              {product.origin}
+            </p>
+          )}
+        </div>
         <h3 className="mt-1 text-lg font-semibold">{product.name}</h3>
         {product.tasting_notes && (
           <p className="mt-1 line-clamp-2 text-sm text-sea-800">

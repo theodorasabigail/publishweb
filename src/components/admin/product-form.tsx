@@ -1,4 +1,5 @@
 import { ColorPicker } from "@/components/admin/color-picker";
+import { FlavourPicker } from "@/components/admin/flavour-picker";
 import { ImageUploader } from "@/components/admin/image-uploader";
 import { TitleAndSlug } from "@/components/admin/slug-input";
 import { Field, Panel } from "@/components/admin/ui";
@@ -110,6 +111,8 @@ export function ProductForm({
               placeholder="A bag of Gayo Arunika on a wooden table"
             />
           </Field>
+
+          <FlavourPicker defaultValue={product?.flavour_level} />
 
           <ColorPicker
             name="accent_color"
