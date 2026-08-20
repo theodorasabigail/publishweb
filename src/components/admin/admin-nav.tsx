@@ -2,14 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { LucideIcon } from "lucide-react";
+import {
+  BarChart3,
+  BookOpen,
+  Coffee,
+  CreditCard,
+  Flame,
+  LayoutDashboard,
+  Settings,
+  ShoppingCart,
+  Store,
+  Tags,
+  Users,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-
-export interface NavItem {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-}
 
 /**
  * The dashboard sidebar.
@@ -19,13 +25,33 @@ export interface NavItem {
  * every other, which is the single most disorienting thing about a dashboard
  * — and on mobile, where the nav is a horizontal scroller, it is the only cue
  * that scrolling sideways would reveal more.
+ *
+ * The list lives here rather than being passed in from the layout, and it has
+ * to: an icon is a React component, which is a function, and functions cannot
+ * cross the server-to-client boundary. Passing them in built cleanly and then
+ * failed on every request, because /admin is rendered on demand and never
+ * prerendered — so nothing evaluated the boundary until a real visitor did.
  */
-export function AdminNav({ items }: { items: NavItem[] }) {
+const NAV = [
+  { href: "/admin", label: "Overview", icon: LayoutDashboard },
+  { href: "/admin/pos", label: "Counter sales", icon: Store },
+  { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
+  { href: "/admin/reports", label: "Sales", icon: BarChart3 },
+  { href: "/admin/products", label: "Products", icon: Coffee },
+  { href: "/admin/categories", label: "Categories", icon: Tags },
+  { href: "/admin/roasting", label: "Roasting requests", icon: Flame },
+  { href: "/admin/blog", label: "Journal", icon: BookOpen },
+  { href: "/admin/customers", label: "Customers & loyalty", icon: Users },
+  { href: "/admin/payments", label: "Payments", icon: CreditCard },
+  { href: "/admin/settings", label: "Site settings", icon: Settings },
+];
+
+export function AdminNav() {
   const pathname = usePathname();
 
   return (
     <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:flex-col lg:overflow-visible">
-      {items.map((item) => {
+      {NAV.map((item) => {
         // /admin matches only itself; everything else also owns its subpages,
         // so /admin/settings/email keeps "Site settings" lit.
         const active =

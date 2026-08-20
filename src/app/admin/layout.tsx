@@ -1,36 +1,9 @@
 import Link from "next/link";
-import {
-  BarChart3,
-  BookOpen,
-  Coffee,
-  CreditCard,
-  Flame,
-  LayoutDashboard,
-  Settings,
-  ShoppingCart,
-  Store,
-  Tags,
-  Users,
-} from "lucide-react";
-import { AdminNav, type NavItem } from "@/components/admin/admin-nav";
+import { AdminNav } from "@/components/admin/admin-nav";
 import { PrelaunchBanner } from "@/components/admin/prelaunch-banner";
 import { adminFont } from "@/lib/fonts";
 import { requireAdmin } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
-
-const NAV: NavItem[] = [
-  { href: "/admin", label: "Overview", icon: LayoutDashboard },
-  { href: "/admin/pos", label: "Counter sales", icon: Store },
-  { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
-  { href: "/admin/reports", label: "Sales", icon: BarChart3 },
-  { href: "/admin/products", label: "Products", icon: Coffee },
-  { href: "/admin/categories", label: "Categories", icon: Tags },
-  { href: "/admin/roasting", label: "Roasting requests", icon: Flame },
-  { href: "/admin/blog", label: "Journal", icon: BookOpen },
-  { href: "/admin/customers", label: "Customers & loyalty", icon: Users },
-  { href: "/admin/payments", label: "Payments", icon: CreditCard },
-  { href: "/admin/settings", label: "Site settings", icon: Settings },
-];
 
 export const metadata = {
   title: "Admin",
@@ -61,7 +34,7 @@ export default async function AdminLayout({
             <p className="mt-0.5 text-xs text-bark-600">Admin dashboard</p>
           </div>
 
-          <AdminNav items={NAV} />
+          <AdminNav />
 
           <div className="hidden border-t border-bark-200 px-5 py-4 lg:block">
             <p className="truncate text-xs text-bark-600">{session.email}</p>
