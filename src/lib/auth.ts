@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { bootstrapAdmin } from "@/lib/admin-bootstrap";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types";
@@ -51,6 +52,12 @@ export async function requireAdmin(returnTo = "/admin"): Promise<SessionContext>
     redirect(`/login?next=${encodeURIComponent(returnTo)}`);
   }
   if (!session.profile?.is_admin) {
+    // Before refusing, check whether this is the account named as the first
+    // admin. Only reached when the caller is not already an admin, so it costs
+    // nothing on any normal request.
+    const promoted = await bootstrapAdmin(session);
+    if (promoted?.is_admin) return { ...session, profile: promoted };
+
     // Signed in, but this account has no dashboard access. Previously this
     // bounced silently to the homepage, which is indistinguishable from the
     // site being broken — and the person most likely to hit it is the owner,

@@ -49,11 +49,21 @@ export default async function AccountOverviewPage({
             This account does not have dashboard access.
           </p>
           <p className="mt-2 text-sm text-amber-900">
-            You are signed in as{" "}
-            <strong>{session.email}</strong>, but that account has not been made
-            an admin. If you are the owner and this is your first time, the very
-            first admin has to be granted once in Supabase — every one after
-            that is a button in Admin → Customers.
+            You are signed in as <strong>{session.email}</strong>, but that
+            account has not been made an admin. Sign-in worked — this is the
+            step after it.
+          </p>
+          <p className="mt-3 text-sm text-amber-900">
+            If you are the owner setting this up for the first time, add this in
+            Vercel → Settings → Environment Variables, redeploy, then come back
+            to <span className="font-mono text-xs">/admin</span>:
+          </p>
+          <div className="mt-2 rounded-lg bg-white/70 p-3 font-mono text-xs text-amber-900">
+            ADMIN_BOOTSTRAP_EMAIL = {session.email}
+          </div>
+          <p className="mt-3 text-sm text-amber-900">
+            That is only needed once. Clear it afterwards, and grant everyone
+            else with a button in Admin → Customers.
           </p>
         </div>
       )}
