@@ -2,6 +2,7 @@ import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createStaticClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
+import { sortVariants } from "@/lib/product";
 import type {
   BlogCategory,
   BlogPostWithCategory,
@@ -56,6 +57,11 @@ export const FALLBACK_SETTINGS: SiteSettings = {
   origin_postal_code: null,
   origin_area_code: null,
   origin_note: null,
+  coming_soon_eyebrow: null,
+  coming_soon_title: null,
+  coming_soon_body: null,
+  coming_soon_note: null,
+  coming_soon_contact_line: null,
   courier_variance_alert_idr: 10000,
   updated_at: new Date().toISOString(),
 };
@@ -149,35 +155,6 @@ export async function getProductBySlug(
 
   if (!data) return null;
   return sortVariants([data as ProductWithVariants])[0];
-}
-
-/**
- * Smallest pack first, whatever order Postgres returns them in.
- *
- * Ordered by weight rather than by a list of known size names. That is what
- * lets the operator invent a size: a new 250g bag sorts between 200g and 1kg
- * because it weighs what it weighs, with nobody maintaining an order. Ties
- * fall back to the label so the result is at least stable.
- */
-function sortVariants(products: ProductWithVariants[]): ProductWithVariants[] {
-  return products.map((product) => ({
-    ...product,
-    product_variants: [...(product.product_variants ?? [])]
-      .filter((variant) => variant.is_active)
-      .sort(
-        (a, b) =>
-          a.weight_grams - b.weight_grams || a.size.localeCompare(b.size),
-      ),
-  }));
-}
-
-export function lowestPrice(product: ProductWithVariants): number | null {
-  const prices = (product.product_variants ?? []).map((v) => v.price_idr);
-  return prices.length ? Math.min(...prices) : null;
-}
-
-export function totalStock(product: ProductWithVariants): number {
-  return (product.product_variants ?? []).reduce((sum, v) => sum + v.stock, 0);
 }
 
 // ---------------------------------------------------------------------------

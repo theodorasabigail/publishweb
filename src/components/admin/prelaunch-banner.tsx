@@ -10,6 +10,30 @@ import { siteUrl } from "@/lib/env";
  * the shop, and the preview link is the kind of thing nobody remembers — so it
  * is printed rather than described.
  */
+/**
+ * When this deployment was built.
+ *
+ * The single most useful fact for "I added the setting and nothing happened",
+ * because it distinguishes the two cases: a build older than the change means
+ * a redeploy is needed, a newer one means the setting is scoped to the wrong
+ * environment. Frozen at build time by design — that is exactly what makes it
+ * evidence about which build is serving.
+ */
+function buildStamp(): string {
+  const iso = process.env.NEXT_PUBLIC_BUILD_TIME;
+  if (!iso) return "at an unknown time";
+  const when = new Date(iso);
+  if (Number.isNaN(when.getTime())) return "at an unknown time";
+  return `on ${when.toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+  })} UTC`;
+}
+
 export function PrelaunchBanner() {
   if (!isComingSoon()) return null;
 
@@ -51,14 +75,43 @@ export function PrelaunchBanner() {
           </p>
         </>
       ) : (
-        <p className="mt-3 text-sm text-amber-900">
-          To be able to preview the real site, add a setting in Vercel called{" "}
-          <code className="rounded bg-white/70 px-1.5 py-0.5 text-xs">
-            COMING_SOON_PREVIEW_SECRET
-          </code>{" "}
-          with any hard-to-guess phrase as its value, then redeploy. A preview
-          link will appear here.
-        </p>
+        <div className="mt-3 text-sm text-amber-900">
+          <p>
+            To preview the real site, this deployment needs a setting called{" "}
+            <code className="rounded bg-white/70 px-1.5 py-0.5 text-xs">
+              COMING_SOON_PREVIEW_SECRET
+            </code>{" "}
+            with any hard-to-guess phrase as its value.
+          </p>
+
+          {/* Saying "it is not set" would be wrong and would send them looking
+              in the wrong place: the setting can exist in Vercel and still not
+              reach the running server. What is true is that this deployment
+              cannot see it, and the two reasons for that are worth naming
+              rather than leaving to be guessed. */}
+          <p className="mt-2">
+            <strong>This deployment cannot see it.</strong> If you have already
+            added it in Vercel, it is almost always one of these two:
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            <li>
+              <strong>It needs a redeploy.</strong> Adding a setting does not
+              rebuild the site by itself — the running deployment was built
+              before your change and still has the old settings. Vercel →
+              Deployments → ⋯ → Redeploy.
+            </li>
+            <li>
+              <strong>It may be ticked for the wrong environment.</strong> Vercel
+              asks whether a setting applies to Production, Preview and
+              Development. This page is Production, so Production must be
+              ticked.
+            </li>
+          </ul>
+          <p className="mt-2 text-xs text-amber-800">
+            This deployment was built {buildStamp()}. If that is before you added
+            the setting, a redeploy is the answer.
+          </p>
+        </div>
       )}
     </div>
   );

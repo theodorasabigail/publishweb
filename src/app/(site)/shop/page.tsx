@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { EmptyState } from "@/components/empty-state";
-import { ProductCard } from "@/components/shop/product-card";
+import { ShopBrowser } from "@/components/shop/shop-browser";
 import { getCategories, getProducts } from "@/lib/queries";
 
 /*
@@ -9,13 +7,18 @@ import { getCategories, getProducts } from "@/lib/queries";
  * calls revalidatePath, so edits appear immediately. This timer only catches
  * changes made outside the admin and scheduled posts going live — so it is set
  * long, because each expiry costs a fresh set of database queries.
+ *
+ * Filtering is deliberately not in the URL. Doing it with search params would
+ * make this page render per request and cost a query per checkbox; the whole
+ * list is sent once instead and filtered in the browser, which keeps the page
+ * cached and makes filtering instant.
  */
 export const revalidate = 1800;
 
 export const metadata: Metadata = {
   title: "Shop",
   description:
-    "Every coffee we are roasting right now — single origins, blends, filter and espresso roasts, in 100g, 200g and 1kg.",
+    "Every coffee we are roasting right now — filter and search by origin, process and price.",
   alternates: { canonical: "/shop" },
 };
 
@@ -27,40 +30,12 @@ export default async function ShopPage() {
       <header className="max-w-2xl">
         <h1 className="text-4xl sm:text-5xl">The roast list</h1>
         <p className="mt-4 text-sea-800">
-          Everything currently on the shelf. Bags are roasted to order and shipped
-          within 48 hours.
+          Every coffee on the shelf right now, whatever it is grouped under.
+          Roasted to order and shipped within 48 hours.
         </p>
       </header>
 
-      {categories.length > 0 && (
-        <nav className="mt-8 flex flex-wrap gap-2" aria-label="Product categories">
-          <span className="badge bg-sea-800 text-cream">All</span>
-          {categories.map((category) => (
-            <Link
-              key={category.id}
-              href={`/shop/category/${category.slug}`}
-              className="badge border border-sea-200 bg-white text-sea-700 hover:border-sea-400"
-            >
-              {category.name}
-            </Link>
-          ))}
-        </nav>
-      )}
-
-      {products.length ? (
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
-      ) : (
-        <div className="mt-10">
-          <EmptyState
-            title="Nothing listed yet"
-            description="Products added in the admin dashboard show up here straight away."
-          />
-        </div>
-      )}
+      <ShopBrowser products={products} categories={categories} />
     </div>
   );
 }

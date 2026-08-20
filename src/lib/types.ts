@@ -298,6 +298,12 @@ export interface SiteSettings {
   origin_postal_code: string | null;
   origin_area_code: string | null;
   origin_note: string | null;
+  /** Pre-launch page wording. Null means "use the built-in copy". */
+  coming_soon_eyebrow: string | null;
+  coming_soon_title: string | null;
+  coming_soon_body: string | null;
+  coming_soon_note: string | null;
+  coming_soon_contact_line: string | null;
   /** How large a courier overcharge has to be before it is worth flagging. */
   courier_variance_alert_idr: number;
   updated_at: string;

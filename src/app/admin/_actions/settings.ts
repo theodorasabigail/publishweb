@@ -26,6 +26,13 @@ export async function updateSiteSettings(formData: FormData) {
       banner_text: optionalText(formData, "banner_text"),
       banner_link: optionalText(formData, "banner_link"),
       announcement_note: optionalText(formData, "announcement_note"),
+      // Null rather than "" when cleared, so the page falls back to its
+      // built-in wording instead of rendering an empty heading.
+      coming_soon_eyebrow: optionalText(formData, "coming_soon_eyebrow"),
+      coming_soon_title: optionalText(formData, "coming_soon_title"),
+      coming_soon_body: optionalText(formData, "coming_soon_body"),
+      coming_soon_note: optionalText(formData, "coming_soon_note"),
+      coming_soon_contact_line: optionalText(formData, "coming_soon_contact_line"),
       loyalty_rupiah_per_point: Math.max(
         1,
         integer(formData, "loyalty_rupiah_per_point", 10000),

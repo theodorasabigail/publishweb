@@ -3,6 +3,7 @@ import Image from "next/image";
 import { Instagram, Mail, MessageCircle } from "lucide-react";
 import { NewsletterSignup } from "@/components/layout/newsletter-signup";
 import { getSiteSettings } from "@/lib/queries";
+import { COMING_SOON_DEFAULTS } from "@/lib/coming-soon";
 
 export const revalidate = 3600;
 
@@ -19,6 +20,15 @@ export default async function ComingSoonPage() {
   const settings = await getSiteSettings();
   const whatsapp = settings.whatsapp_number?.replace(/[^0-9]/g, "");
 
+  const copy = {
+    eyebrow: settings.coming_soon_eyebrow || COMING_SOON_DEFAULTS.eyebrow,
+    title: settings.coming_soon_title || COMING_SOON_DEFAULTS.title,
+    body: settings.coming_soon_body || COMING_SOON_DEFAULTS.body,
+    note: settings.coming_soon_note || COMING_SOON_DEFAULTS.note,
+    contactLine:
+      settings.coming_soon_contact_line || COMING_SOON_DEFAULTS.contactLine,
+  };
+
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-sea-950 px-6 py-20 text-cream">
       {settings.hero_image && (
@@ -33,21 +43,19 @@ export default async function ComingSoonPage() {
       )}
 
       <div className="relative w-full max-w-xl text-center">
-        <p className="text-xs uppercase tracking-[0.25em] text-sea-400">
-          PT Aroma Pulau Arunika
+        <p className="text-xs uppercase tracking-[0.25em] text-sea-300">
+          {copy.eyebrow}
         </p>
 
         <h1 className="mt-5 font-serif text-5xl leading-[1.05] sm:text-6xl">
-          Publish Coffee Roasters
+          {copy.title}
         </h1>
 
-        <p className="mt-6 text-lg leading-relaxed text-sea-200">
-          A small roastery in Indonesia. Rotating single origins, blends we
-          actually drink, and a custom roasting service for your own green
-          beans.
+        <p className="mt-6 whitespace-pre-line text-lg leading-relaxed text-sea-200">
+          {copy.body}
         </p>
 
-        <p className="mt-4 font-serif text-2xl text-sea-100">Opening soon.</p>
+        <p className="mt-4 font-serif text-2xl text-sea-100">{copy.note}</p>
 
         <div className="mt-10 text-left">
           <NewsletterSignup />
@@ -55,8 +63,8 @@ export default async function ComingSoonPage() {
 
         {(whatsapp || settings.instagram_url || settings.contact_email) && (
           <>
-            <p className="mt-12 text-sm text-sea-400">
-              Roasting for a café, or want coffee before we open? Talk to us.
+            <p className="mt-12 text-sm text-sea-300">
+              {copy.contactLine}
             </p>
 
             <div className="mt-4 flex items-center justify-center gap-3">

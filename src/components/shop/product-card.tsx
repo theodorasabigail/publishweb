@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { lowestPrice, totalStock } from "@/lib/queries";
+import { lowestPrice, totalStock } from "@/lib/product";
 import type { ProductWithVariants } from "@/lib/types";
 import { contrastText, formatIDR } from "@/lib/utils";
 

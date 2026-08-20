@@ -47,3 +47,21 @@ export function previewSecret(): string | null {
   const secret = process.env.COMING_SOON_PREVIEW_SECRET;
   return secret && secret.length > 0 ? secret : null;
 }
+
+/**
+ * The wording the pre-launch page ships with.
+ *
+ * Every corresponding column is nullable and falls back to here, so an
+ * operator who never opens the panel sees the page they already have, and
+ * clearing a field restores this rather than leaving a blank page. It lives
+ * beside the rest of the coming-soon logic so the copy and the switch that
+ * shows it are never edited in two places.
+ */
+export const COMING_SOON_DEFAULTS = {
+  eyebrow: "PT Aroma Pulau Arunika",
+  title: "Publish Coffee Roasters",
+  body:
+    "A small roastery in Indonesia. Rotating single origins, blends we actually drink, and a custom roasting service for your own green beans.",
+  note: "Opening soon.",
+  contactLine: "Roasting for a caf\u00e9, or want coffee before we open? Talk to us.",
+};

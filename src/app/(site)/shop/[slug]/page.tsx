@@ -5,7 +5,8 @@ import { notFound } from "next/navigation";
 import { AddToCart } from "@/components/shop/add-to-cart";
 import { ProductCard } from "@/components/shop/product-card";
 import { siteUrl } from "@/lib/env";
-import { getProductBySlug, getProducts, lowestPrice, totalStock } from "@/lib/queries";
+import { getProductBySlug, getProducts } from "@/lib/queries";
+import { lowestPrice, totalStock } from "@/lib/product";
 import { contrastText } from "@/lib/utils";
 
 /*

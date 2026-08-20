@@ -6,6 +6,7 @@ import { ImageUploader } from "@/components/admin/image-uploader";
 import { Field, PageHeader, Panel } from "@/components/admin/ui";
 import { updateSiteSettings } from "@/app/admin/_actions/settings";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { COMING_SOON_DEFAULTS } from "@/lib/coming-soon";
 import type { Category, SiteSettings } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -138,6 +139,62 @@ export default async function AdminSettingsPage() {
                 folder="banner"
               />
             </div>
+          </Panel>
+
+          <Panel
+            title="Coming-soon page"
+            description="What visitors see while the shop is hidden. Leave a box empty to use the wording it came with."
+          >
+            <div className="space-y-5">
+              <Field label="Small line above the name">
+                <input
+                  name="coming_soon_eyebrow"
+                  className="input"
+                  defaultValue={site?.coming_soon_eyebrow ?? ""}
+                  placeholder={COMING_SOON_DEFAULTS.eyebrow}
+                />
+              </Field>
+              <Field label="Name">
+                <input
+                  name="coming_soon_title"
+                  className="input"
+                  defaultValue={site?.coming_soon_title ?? ""}
+                  placeholder={COMING_SOON_DEFAULTS.title}
+                />
+              </Field>
+              <Field label="Paragraph" hint="Line breaks are kept.">
+                <textarea
+                  name="coming_soon_body"
+                  className="input min-h-24"
+                  defaultValue={site?.coming_soon_body ?? ""}
+                  placeholder={COMING_SOON_DEFAULTS.body}
+                />
+              </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="The line in big type">
+                  <input
+                    name="coming_soon_note"
+                    className="input"
+                    defaultValue={site?.coming_soon_note ?? ""}
+                    placeholder={COMING_SOON_DEFAULTS.note}
+                  />
+                </Field>
+                <Field label="Above the contact buttons">
+                  <input
+                    name="coming_soon_contact_line"
+                    className="input"
+                    defaultValue={site?.coming_soon_contact_line ?? ""}
+                    placeholder={COMING_SOON_DEFAULTS.contactLine}
+                  />
+                </Field>
+              </div>
+            </div>
+            <p className="mt-4 text-xs text-sea-800">
+              The background is the hero image set above, and the contact
+              buttons appear on their own once WhatsApp, Instagram or an email
+              address is filled in below. To see the page as visitors do, open{" "}
+              <span className="font-mono">/coming-soon</span>.
+            </p>
           </Panel>
 
           <Panel

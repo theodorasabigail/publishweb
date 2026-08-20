@@ -9,6 +9,18 @@ const supabaseHost = (() => {
 })();
 
 const nextConfig: NextConfig = {
+  env: {
+    /*
+     * Stamped at build time so the admin can show which build is serving.
+     *
+     * "I added the setting and nothing happened" is almost always a deployment
+     * that predates the change, and there is otherwise no way to tell that
+     * from inside the running site. Comparing this against when they made the
+     * change answers it in one glance.
+     */
+    NEXT_PUBLIC_BUILD_TIME: new Date().toISOString(),
+  },
+
   images: {
     remotePatterns: supabaseHost
       ? [{ protocol: "https", hostname: supabaseHost, pathname: "/storage/v1/object/public/**" }]
