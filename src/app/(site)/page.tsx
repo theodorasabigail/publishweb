@@ -4,8 +4,15 @@ import { ArrowRight, Flame, Globe, Package } from "lucide-react";
 import { PostCard } from "@/components/blog/post-card";
 import { EmptyState } from "@/components/empty-state";
 import { ProductCard } from "@/components/shop/product-card";
+import { PageBlocks } from "@/components/blocks/page-blocks";
 import { isSupabaseConfigured } from "@/lib/env";
-import { getCategories, getProducts, getPublishedPosts, getSiteSettings } from "@/lib/queries";
+import {
+  getCategories,
+  getPageBlocks,
+  getProducts,
+  getPublishedPosts,
+  getSiteSettings,
+} from "@/lib/queries";
 
 /*
  * Revalidation is a backstop, not the update mechanism: every admin action
@@ -18,12 +25,13 @@ export const revalidate = 3600;
 export default async function HomePage() {
   if (!isSupabaseConfigured()) return <NotConnectedYet />;
 
-  const [settings, categories, featured, latest, posts] = await Promise.all([
+  const [settings, categories, featured, latest, posts, blocks] = await Promise.all([
     getSiteSettings(),
     getCategories(),
     getProducts({ featuredOnly: true, limit: 4 }),
     getProducts({ limit: 8 }),
     getPublishedPosts({ limit: 3 }),
+    getPageBlocks("home"),
   ]);
 
   // The operator picks which categories appear here, and in what order.
@@ -200,6 +208,11 @@ export default async function HomePage() {
           </div>
         </section>
       )}
+
+      {/* Anything the operator has added in Admin → Pages → Homepage. Placed
+          after the built-in sections rather than replacing them, so adding a
+          block can never take the shop off the front page by accident. */}
+      <PageBlocks blocks={blocks} />
     </>
   );
 }

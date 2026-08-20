@@ -6,8 +6,15 @@ import { FLAVOUR_SWATCH_RING, flavourFor } from "@/lib/flavour";
 import { contrastText, formatIDR } from "@/lib/utils";
 
 /**
- * The coloured product card. `accent_color` is set per product in the admin
- * (spec §7.2), so the operator can re-colour the shop without touching code.
+ * A coffee in a grid.
+ *
+ * No border, no shadow, no rounded panel. The picture is the card: it sits on
+ * a flat field of the coffee's own colour and runs to the edges of its cell,
+ * and the words underneath are small and quiet. The chrome was doing nothing
+ * except announcing that this is software.
+ *
+ * `accent_color` is set per product in the admin (spec §7.2), so the operator
+ * can re-colour the shop without touching code.
  */
 export function ProductCard({ product }: { product: ProductWithVariants }) {
   const price = lowestPrice(product);
@@ -19,7 +26,7 @@ export function ProductCard({ product }: { product: ProductWithVariants }) {
   return (
     <Link
       href={`/shop/${product.slug}`}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-sea-200/70 bg-white transition-shadow hover:shadow-lg"
+      className="group flex flex-col"
     >
       <div
         className="relative aspect-[4/5] overflow-hidden"
@@ -44,19 +51,21 @@ export function ProductCard({ product }: { product: ProductWithVariants }) {
           </div>
         )}
 
+        {/* Flat rectangles in the corner, the way a shop tags a rail. A pill
+            floating over a photograph reads as an interface element. */}
         {product.is_featured && !soldOut && (
-          <span className="absolute left-3 top-3 badge bg-cream/95 text-sea-900">
+          <span className="absolute left-0 top-0 bg-cream px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-ink">
             Featured
           </span>
         )}
         {soldOut && (
-          <span className="absolute left-3 top-3 badge bg-ink/85 text-cream">
+          <span className="absolute left-0 top-0 bg-ink px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-cream">
             Sold out
           </span>
         )}
       </div>
 
-      <div className="flex flex-1 flex-col p-4">
+      <div className="flex flex-1 flex-col pt-3.5">
         <div className="flex items-center gap-2">
           {/* The flavour colour, at the top of the card where it is scanned
               before the name is read. Titled rather than labelled, so it does
@@ -69,26 +78,27 @@ export function ProductCard({ product }: { product: ProductWithVariants }) {
             />
           )}
           {product.origin && (
-            <p className="truncate text-xs uppercase tracking-wider text-sea-800">
+            <p className="truncate text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-sea-800">
               {product.origin}
             </p>
           )}
         </div>
-        <h3 className="mt-1 text-lg font-semibold">{product.name}</h3>
+
+        <h3 className="mt-2 text-sm font-semibold uppercase tracking-[0.04em] group-hover:underline group-hover:underline-offset-4">
+          {product.name}
+        </h3>
+
         {product.tasting_notes && (
-          <p className="mt-1 line-clamp-2 text-sm text-sea-800">
+          <p className="mt-1 line-clamp-1 text-sm text-sea-800">
             {product.tasting_notes}
           </p>
         )}
 
-        <div className="mt-auto flex items-baseline gap-1.5 pt-4">
+        <div className="mt-auto pt-2.5 text-sm">
           {price !== null ? (
-            <>
-              <span className="text-xs text-sea-800">from</span>
-              <span className="font-medium">{formatIDR(price)}</span>
-            </>
+            <span className="tabular-nums">{formatIDR(price)}</span>
           ) : (
-            <span className="text-sm text-sea-800">Price on request</span>
+            <span className="text-sea-800">Price on request</span>
           )}
         </div>
       </div>

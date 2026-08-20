@@ -2,6 +2,7 @@ import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createStaticClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
+import type { PageBlock, PageRecord } from "@/lib/blocks";
 import { sortVariants } from "@/lib/product";
 import type {
   BlogCategory,
@@ -236,3 +237,55 @@ export async function getAllTags(client?: SupabaseClient): Promise<string[]> {
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .map(([tag]) => tag);
 }
+
+// ---------------------------------------------------------------------------
+// Pages and blocks
+// ---------------------------------------------------------------------------
+
+export async function getPageBlocks(
+  page: string,
+  client?: SupabaseClient,
+): Promise<PageBlock[]> {
+  if (!isSupabaseConfigured()) return [];
+  const supabase = client ?? createStaticClient();
+  const { data } = await supabase
+    .from("page_blocks")
+    .select("*")
+    .eq("page", page)
+    .eq("is_active", true)
+    .order("sort_order");
+  return (data ?? []) as PageBlock[];
+}
+
+export async function getPageBySlug(
+  slug: string,
+  client?: SupabaseClient,
+): Promise<PageRecord | null> {
+  if (!isSupabaseConfigured()) return null;
+  const supabase = client ?? createStaticClient();
+  const { data } = await supabase
+    .from("pages")
+    .select("*")
+    .eq("slug", slug)
+    .eq("is_published", true)
+    .maybeSingle();
+  return (data as PageRecord | null) ?? null;
+}
+
+/**
+ * Pages the operator has chosen to put in the menu.
+ *
+ * Cached per request because the site layout needs it on every page render,
+ * and an uncached call there is one query per page view on the storefront —
+ * exactly the cost the caching work went to remove.
+ */
+export const getNavPages = cache(async (): Promise<PageRecord[]> => {
+  if (!isSupabaseConfigured()) return [];
+  const { data } = await createStaticClient()
+    .from("pages")
+    .select("*")
+    .eq("is_published", true)
+    .eq("show_in_nav", true)
+    .order("nav_order");
+  return (data ?? []) as PageRecord[];
+});

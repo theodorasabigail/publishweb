@@ -15,7 +15,18 @@ const NAV = [
   { href: "/about", label: "About" },
 ];
 
-export function SiteHeader() {
+/**
+ * The operator's own pages sit after the fixed ones rather than among them.
+ *
+ * They are passed in from the layout, which reads them once per render pass,
+ * because this is a client component and a database call cannot happen here.
+ */
+export function SiteHeader({
+  extraNav = [],
+}: {
+  extraNav?: { href: string; label: string }[];
+}) {
+  const nav = [...NAV, ...extraNav];
   const pathname = usePathname();
   const { count, ready } = useCart();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -28,7 +39,7 @@ export function SiteHeader() {
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
-          {NAV.map((item) => (
+          {nav.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -71,7 +82,7 @@ export function SiteHeader() {
       {menuOpen && (
         <nav className="border-t border-sea-200/70 bg-cream md:hidden">
           <div className="container-page flex flex-col py-2">
-            {NAV.map((item) => (
+            {nav.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}

@@ -351,7 +351,7 @@ export function ShopBrowser({
         </div>
 
         {visible.length ? (
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-8 grid gap-x-4 gap-y-10 sm:grid-cols-2 xl:grid-cols-3">
             {visible.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
