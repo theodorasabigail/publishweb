@@ -83,10 +83,10 @@ export function AuthForm({ mode, next }: { mode: "login" | "signup"; next: strin
         Continue with Google
       </button>
 
-      <div className="my-6 flex items-center gap-3 text-xs text-bark-400">
-        <span className="h-px flex-1 bg-bark-200" />
+      <div className="my-6 flex items-center gap-3 text-xs text-sea-800">
+        <span className="h-px flex-1 bg-sea-200" />
         or
-        <span className="h-px flex-1 bg-bark-200" />
+        <span className="h-px flex-1 bg-sea-200" />
       </div>
 
       <form onSubmit={onSubmit} className="space-y-4">
@@ -135,7 +135,7 @@ export function AuthForm({ mode, next }: { mode: "login" | "signup"; next: strin
             autoComplete={isSignup ? "new-password" : "current-password"}
           />
           {isSignup && (
-            <p className="mt-1.5 text-xs text-bark-500">At least 8 characters.</p>
+            <p className="mt-1.5 text-xs text-sea-800">At least 8 characters.</p>
           )}
         </div>
 
@@ -155,7 +155,7 @@ export function AuthForm({ mode, next }: { mode: "login" | "signup"; next: strin
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-bark-600">
+      <p className="mt-6 text-center text-sm text-sea-800">
         {isSignup ? "Already have an account? " : "New here? "}
         <Link
           href={isSignup ? "/login" : "/signup"}

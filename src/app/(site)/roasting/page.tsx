@@ -20,13 +20,13 @@ export default async function RoastingPage() {
     <div className="container-page py-14">
       <div className="grid gap-12 lg:grid-cols-[1fr_460px]">
         <div className="max-w-xl">
-          <p className="text-xs uppercase tracking-[0.2em] text-bark-500">
+          <p className="text-xs uppercase tracking-[0.2em] text-sea-800">
             Jasa Roasting
           </p>
           <h1 className="mt-3 text-4xl sm:text-5xl">
             Your green beans, our drum.
           </h1>
-          <p className="mt-5 leading-relaxed text-bark-700">
+          <p className="mt-5 leading-relaxed text-sea-700">
             We roast to order for cafés, small brands, and anyone with a sack of
             green coffee and nowhere to roast it. Every job is quoted
             individually — volume, origin and target profile all move the number.
@@ -56,19 +56,19 @@ export default async function RoastingPage() {
               },
             ].map((item) => (
               <div key={item.step} className="flex gap-4">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-bark-800 text-sm text-cream">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sea-800 text-sm text-cream">
                   {item.step}
                 </span>
                 <div>
                   <p className="font-medium">{item.title}</p>
-                  <p className="mt-1 text-sm text-bark-600">{item.body}</p>
+                  <p className="mt-1 text-sm text-sea-800">{item.body}</p>
                 </div>
               </div>
             ))}
           </div>
 
           {whatsapp && (
-            <p className="mt-10 rounded-xl bg-bark-100 p-4 text-sm text-bark-700">
+            <p className="mt-10 rounded-xl bg-sea-100 p-4 text-sm text-sea-700">
               Wholesale or a standing order?{" "}
               <a
                 href={`https://wa.me/${whatsapp}`}
@@ -85,7 +85,7 @@ export default async function RoastingPage() {
 
         <div className="card h-fit p-6 sm:p-8 lg:sticky lg:top-24">
           <h2 className="text-2xl">Request a quote</h2>
-          <p className="mt-2 text-sm text-bark-600">
+          <p className="mt-2 text-sm text-sea-800">
             No commitment. We will come back with a price and a timeline.
           </p>
           <div className="mt-6">

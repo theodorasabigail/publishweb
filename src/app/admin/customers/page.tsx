@@ -34,9 +34,9 @@ export default async function AdminCustomersPage() {
       />
 
       {rows.length ? (
-        <div className="overflow-x-auto rounded-xl border border-bark-200 bg-white">
+        <div className="overflow-x-auto rounded-xl border border-sea-200 bg-white">
           <table className="w-full min-w-[720px] text-sm">
-            <thead className="border-b border-bark-200 text-left text-xs uppercase tracking-wider text-bark-600">
+            <thead className="border-b border-sea-200 text-left text-xs uppercase tracking-wider text-sea-800">
               <tr>
                 <th className="px-4 py-3 font-medium">Customer</th>
                 <th className="px-4 py-3 font-medium">Joined</th>
@@ -46,11 +46,11 @@ export default async function AdminCustomersPage() {
                 <th className="px-4 py-3 font-medium">Tier</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-bark-200">
+            <tbody className="divide-y divide-sea-200">
               {rows.map((profile) => {
                 const stats = spendByUser.get(profile.id) ?? { count: 0, total: 0 };
                 return (
-                  <tr key={profile.id} className="hover:bg-bark-50">
+                  <tr key={profile.id} className="hover:bg-sea-50">
                     <td className="px-4 py-3">
                       <Link
                         href={`/admin/customers/${profile.id}`}
@@ -58,16 +58,16 @@ export default async function AdminCustomersPage() {
                       >
                         {profile.display_name || profile.email || "Customer"}
                       </Link>
-                      <p className="text-xs text-bark-600">{profile.email}</p>
+                      <p className="text-xs text-sea-800">{profile.email}</p>
                       {profile.is_admin && (
-                        <span className="badge mt-1 bg-bark-800 text-cream">Admin</span>
+                        <span className="badge mt-1 bg-sea-800 text-cream">Admin</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-bark-600">
+                    <td className="px-4 py-3 text-sea-800">
                       {formatDate(profile.created_at)}
                     </td>
-                    <td className="px-4 py-3 text-bark-600">{stats.count}</td>
-                    <td className="px-4 py-3 text-bark-600">{formatIDR(stats.total)}</td>
+                    <td className="px-4 py-3 text-sea-800">{stats.count}</td>
+                    <td className="px-4 py-3 text-sea-800">{formatIDR(stats.total)}</td>
                     <td className="px-4 py-3 font-medium">{profile.loyalty_points}</td>
                     <td className="px-4 py-3">
                       <span className={cn("badge", TIER_STYLES[profile.tier])}>

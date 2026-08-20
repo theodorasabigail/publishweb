@@ -102,8 +102,8 @@ export default async function ReportsPage({
             className={cn(
               "badge",
               key === option
-                ? "bg-bark-800 text-cream"
-                : "border border-bark-200 bg-white text-bark-700 hover:border-bark-400",
+                ? "bg-sea-800 text-cream"
+                : "border border-sea-200 bg-white text-sea-700 hover:border-sea-400",
             )}
           >
             {RANGES[option].label}
@@ -124,13 +124,13 @@ export default async function ReportsPage({
       </div>
 
       {shippingAbsorbed > 0 && (
-        <div className="mt-4 rounded-xl border border-bark-200 bg-white p-5">
+        <div className="mt-4 rounded-xl border border-sea-200 bg-white p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <div>
-              <p className="text-sm text-bark-600">Shipping you covered</p>
+              <p className="text-sm text-sea-800">Shipping you covered</p>
               <p className="mt-1 font-serif text-2xl">{formatIDR(shippingAbsorbed)}</p>
             </div>
-            <p className="max-w-md text-xs text-bark-600">
+            <p className="max-w-md text-xs text-sea-800">
               Free and discounted shipping given away in this period. Worth
               comparing against the extra orders it brought in before deciding
               whether the threshold is set right.
@@ -138,7 +138,7 @@ export default async function ReportsPage({
           </div>
 
           <table className="mt-4 w-full text-sm">
-            <thead className="text-left text-xs uppercase tracking-wider text-bark-600">
+            <thead className="text-left text-xs uppercase tracking-wider text-sea-800">
               <tr>
                 <th className="pb-2 font-medium">Zone</th>
                 <th className="pb-2 text-right font-medium">Orders</th>
@@ -146,12 +146,12 @@ export default async function ReportsPage({
                 <th className="pb-2 text-right font-medium">You covered</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-bark-200">
+            <tbody className="divide-y divide-sea-200">
               {shippingRowsTyped.map((row) => (
                 <tr key={row.shipping_zone}>
                   <td className="py-2">{row.shipping_zone}</td>
-                  <td className="py-2 text-right text-bark-600">{row.order_count}</td>
-                  <td className="py-2 text-right text-bark-600">
+                  <td className="py-2 text-right text-sea-800">{row.order_count}</td>
+                  <td className="py-2 text-right text-sea-800">
                     {formatIDR(row.charged_idr)}
                   </td>
                   <td className="py-2 text-right font-medium text-emerald-700">
@@ -168,7 +168,7 @@ export default async function ReportsPage({
         <Panel title="How the money came in">
           {summary.length ? (
             <table className="w-full text-sm">
-              <thead className="text-left text-xs uppercase tracking-wider text-bark-600">
+              <thead className="text-left text-xs uppercase tracking-wider text-sea-800">
                 <tr>
                   <th className="pb-2 font-medium">Where</th>
                   <th className="pb-2 font-medium">Method</th>
@@ -176,16 +176,16 @@ export default async function ReportsPage({
                   <th className="pb-2 text-right font-medium">Total</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-bark-200">
+              <tbody className="divide-y divide-sea-200">
                 {summary.map((row) => (
                   <tr key={`${row.channel}-${row.payment_method}`}>
                     <td className="py-2.5 capitalize">
                       {row.channel === "pos" ? "Shop" : "Website"}
                     </td>
-                    <td className="py-2.5 capitalize text-bark-600">
+                    <td className="py-2.5 capitalize text-sea-800">
                       {row.payment_method}
                     </td>
-                    <td className="py-2.5 text-right text-bark-600">{row.order_count}</td>
+                    <td className="py-2.5 text-right text-sea-800">{row.order_count}</td>
                     <td className="py-2.5 text-right font-medium">
                       {formatIDR(row.gross_idr)}
                     </td>
@@ -201,7 +201,7 @@ export default async function ReportsPage({
         <Panel title="What sold" description="Both channels combined — what to roast next.">
           {bySize.length ? (
             <table className="w-full text-sm">
-              <thead className="text-left text-xs uppercase tracking-wider text-bark-600">
+              <thead className="text-left text-xs uppercase tracking-wider text-sea-800">
                 <tr>
                   <th className="pb-2 font-medium">Coffee</th>
                   <th className="pb-2 text-right font-medium">Shop</th>
@@ -209,15 +209,15 @@ export default async function ReportsPage({
                   <th className="pb-2 text-right font-medium">Total</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-bark-200">
+              <tbody className="divide-y divide-sea-200">
                 {bySize.map((row) => (
                   <tr key={`${row.product_name}-${row.size}`}>
                     <td className="py-2.5">
                       {row.product_name}{" "}
-                      <span className="text-bark-600">· {row.size}</span>
+                      <span className="text-sea-800">· {row.size}</span>
                     </td>
-                    <td className="py-2.5 text-right text-bark-600">{row.pos_units}</td>
-                    <td className="py-2.5 text-right text-bark-600">{row.online_units}</td>
+                    <td className="py-2.5 text-right text-sea-800">{row.pos_units}</td>
+                    <td className="py-2.5 text-right text-sea-800">{row.online_units}</td>
                     <td className="py-2.5 text-right font-medium">{row.units_sold}</td>
                   </tr>
                 ))}

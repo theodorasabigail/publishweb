@@ -17,7 +17,7 @@ export function ProductCard({ product }: { product: ProductWithVariants }) {
   return (
     <Link
       href={`/shop/${product.slug}`}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-bark-200/70 bg-white transition-shadow hover:shadow-lg"
+      className="group flex flex-col overflow-hidden rounded-2xl border border-sea-200/70 bg-white transition-shadow hover:shadow-lg"
     >
       <div
         className="relative aspect-[4/5] overflow-hidden"
@@ -43,7 +43,7 @@ export function ProductCard({ product }: { product: ProductWithVariants }) {
         )}
 
         {product.is_featured && !soldOut && (
-          <span className="absolute left-3 top-3 badge bg-cream/95 text-bark-900">
+          <span className="absolute left-3 top-3 badge bg-cream/95 text-sea-900">
             Featured
           </span>
         )}
@@ -56,13 +56,13 @@ export function ProductCard({ product }: { product: ProductWithVariants }) {
 
       <div className="flex flex-1 flex-col p-4">
         {product.origin && (
-          <p className="text-xs uppercase tracking-wider text-bark-500">
+          <p className="text-xs uppercase tracking-wider text-sea-800">
             {product.origin}
           </p>
         )}
         <h3 className="mt-1 text-lg font-semibold">{product.name}</h3>
         {product.tasting_notes && (
-          <p className="mt-1 line-clamp-2 text-sm text-bark-600">
+          <p className="mt-1 line-clamp-2 text-sm text-sea-800">
             {product.tasting_notes}
           </p>
         )}
@@ -70,11 +70,11 @@ export function ProductCard({ product }: { product: ProductWithVariants }) {
         <div className="mt-auto flex items-baseline gap-1.5 pt-4">
           {price !== null ? (
             <>
-              <span className="text-xs text-bark-500">from</span>
+              <span className="text-xs text-sea-800">from</span>
               <span className="font-medium">{formatIDR(price)}</span>
             </>
           ) : (
-            <span className="text-sm text-bark-500">Price on request</span>
+            <span className="text-sm text-sea-800">Price on request</span>
           )}
         </div>
       </div>

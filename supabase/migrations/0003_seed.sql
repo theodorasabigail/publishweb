@@ -43,31 +43,31 @@ values
    'Our anchor lot from the Gayo highlands. Wet-hulled in the traditional Sumatran way, then roasted a touch past first crack to keep the body heavy and the finish clean.',
    'Aceh Tengah, Sumatra', 'Wet Hulled', 'Medium', 'Ateng, Timtim', '1400–1600',
    'Dark chocolate, cedar, brown sugar',
-   (select id from c where slug = 'single-origin'), '#5d4033', true, 1),
+   (select id from c where slug = 'single-origin'), '#486b73', true, 1),
 
   ('kintamani-lestari', 'Kintamani Lestari',
    'Grown alongside citrus trees on the slopes of Mount Batur, which is exactly what it tastes like. Fully washed and dried on raised beds.',
    'Kintamani, Bali', 'Fully Washed', 'Light-Medium', 'Kartika, S795', '1200–1500',
    'Mandarin, jasmine, golden syrup',
-   (select id from c where slug = 'filter'), '#b69169', true, 2),
+   (select id from c where slug = 'filter'), '#dab0b0', true, 2),
 
   ('toraja-sapan', 'Toraja Sapan',
    'A high-grown Sulawesi lot with the structure to hold up in a long brew. Quiet acidity, long sweet finish.',
    'Tana Toraja, Sulawesi', 'Semi Washed', 'Medium', 'S795, Typica', '1500–1750',
    'Baking spice, dried fig, dark cocoa',
-   (select id from c where slug = 'single-origin'), '#714c39', false, 3),
+   (select id from c where slug = 'single-origin'), '#486b73', false, 3),
 
   ('terbit-blend', 'Terbit Blend',
    'Our everyday espresso. Sumatra for the body, Bali for the lift. Designed to taste like itself through a flat white.',
    'Blend — Sumatra & Bali', 'Blend', 'Medium-Dark', 'Various', '1200–1600',
    'Milk chocolate, toasted almond, red plum',
-   (select id from c where slug = 'espresso'), '#8c6144', true, 4),
+   (select id from c where slug = 'espresso'), '#638c97', true, 4),
 
   ('malam-decaf', 'Malam Decaf',
    'Sugarcane-process decaf from Java. For the second pot, the late shift, and everyone who wants the ritual without the rest of it.',
    'Java Barat', 'Sugarcane EA Decaf', 'Medium', 'Lini S', '1300–1500',
    'Cocoa nib, roasted hazelnut, raisin',
-   (select id from c where slug = 'house-blend'), '#4e372d', false, 5)
+   (select id from c where slug = 'house-blend'), '#a7a4b5', false, 5)
 on conflict (slug) do nothing;
 
 insert into public.product_variants (product_id, size, price_idr, stock, weight_grams)
@@ -86,10 +86,10 @@ on conflict (product_id, size) do nothing;
 -- --------------------------------------------------------------------------
 insert into public.blog_categories (slug, name, description, accent_color, sort_order)
 values
-  ('roasting-notes', 'Roasting Notes', 'What came off the drum this week, and why it tastes the way it does.', '#5d4033', 1),
-  ('origin', 'Origin', 'Farms, washing stations, and the people we buy from.', '#8c6144', 2),
-  ('brewing', 'Brewing', 'Recipes, ratios, and arguments about water.', '#b69169', 3),
-  ('shop-journal', 'Shop Journal', 'Everything else that happens in a roastery.', '#714c39', 4)
+  ('roasting-notes', 'Roasting Notes', 'What came off the drum this week, and why it tastes the way it does.', '#486b73', 1),
+  ('origin', 'Origin', 'Farms, washing stations, and the people we buy from.', '#638c97', 2),
+  ('brewing', 'Brewing', 'Recipes, ratios, and arguments about water.', '#dab0b0', 3),
+  ('shop-journal', 'Shop Journal', 'Everything else that happens in a roastery.', '#486b73', 4)
 on conflict (slug) do nothing;
 
 insert into public.blog_posts

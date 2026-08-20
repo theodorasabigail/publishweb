@@ -38,12 +38,12 @@ export default async function BlogTagPage({
 
   return (
     <div className="container-page py-14">
-      <nav className="text-sm text-bark-500">
+      <nav className="text-sm text-sea-800">
         <Link href="/blog" className="hover:underline">
           Journal
         </Link>
         <span className="mx-2">/</span>
-        <span className="text-bark-800">#{decoded}</span>
+        <span className="text-sea-800">#{decoded}</span>
       </nav>
 
       <h1 className="mt-4 text-4xl sm:text-5xl">#{decoded}</h1>

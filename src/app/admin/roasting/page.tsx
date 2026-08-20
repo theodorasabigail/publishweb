@@ -38,7 +38,7 @@ export default async function AdminRoastingPage() {
 
       {closed.length > 0 && (
         <>
-          <h2 className="mb-4 mt-10 text-sm font-medium uppercase tracking-wider text-bark-600">
+          <h2 className="mb-4 mt-10 text-sm font-medium uppercase tracking-wider text-sea-800">
             Closed
           </h2>
           <div className="space-y-4">
@@ -61,11 +61,11 @@ function RequestCard({ request }: { request: RoastingRequest }) {
         <div>
           <p className="font-medium">
             {request.contact_name}{" "}
-            <span className="text-sm font-normal text-bark-600">
+            <span className="text-sm font-normal text-sea-800">
               · {request.human_ref}
             </span>
           </p>
-          <p className="mt-0.5 text-xs text-bark-600">
+          <p className="mt-0.5 text-xs text-sea-800">
             {formatDateTime(request.created_at)}
           </p>
         </div>
@@ -102,14 +102,14 @@ function RequestCard({ request }: { request: RoastingRequest }) {
       </dl>
 
       {request.notes && (
-        <p className="mt-4 rounded-lg bg-bark-50 p-3 text-sm text-bark-700">
+        <p className="mt-4 rounded-lg bg-sea-50 p-3 text-sm text-sea-700">
           {request.notes}
         </p>
       )}
 
       <form
         action={updateRoastingRequest}
-        className="mt-5 grid gap-4 border-t border-bark-200 pt-5 sm:grid-cols-[160px_180px_1fr_auto] sm:items-end"
+        className="mt-5 grid gap-4 border-t border-sea-200 pt-5 sm:grid-cols-[160px_180px_1fr_auto] sm:items-end"
       >
         <input type="hidden" name="id" value={request.id} />
 
@@ -150,7 +150,7 @@ function RequestCard({ request }: { request: RoastingRequest }) {
       </form>
 
       {request.quoted_price_idr && (
-        <p className="mt-3 text-xs text-bark-600">
+        <p className="mt-3 text-xs text-sea-800">
           Quoted at {formatIDR(request.quoted_price_idr)}.
         </p>
       )}
@@ -161,8 +161,8 @@ function RequestCard({ request }: { request: RoastingRequest }) {
 function Detail({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
-      <dt className="text-xs uppercase tracking-wider text-bark-600">{label}</dt>
-      <dd className="mt-0.5 text-bark-800">{value}</dd>
+      <dt className="text-xs uppercase tracking-wider text-sea-800">{label}</dt>
+      <dd className="mt-0.5 text-sea-800">{value}</dd>
     </div>
   );
 }

@@ -23,7 +23,7 @@ export default async function AccountLayout({
               ? `Hello, ${session.profile.display_name}`
               : "Your account"}
           </h1>
-          <p className="mt-2 text-sm text-bark-600">{session.email}</p>
+          <p className="mt-2 text-sm text-sea-800">{session.email}</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -40,12 +40,12 @@ export default async function AccountLayout({
         </div>
       </div>
 
-      <nav className="mt-8 flex gap-2 border-b border-bark-200/70">
+      <nav className="mt-8 flex gap-2 border-b border-sea-200/70">
         {TABS.map((tab) => (
           <Link
             key={tab.href}
             href={tab.href}
-            className="-mb-px border-b-2 border-transparent px-3 py-2.5 text-sm text-bark-700 hover:border-bark-300"
+            className="-mb-px border-b-2 border-transparent px-3 py-2.5 text-sm text-sea-700 hover:border-sea-300"
           >
             {tab.label}
           </Link>

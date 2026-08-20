@@ -25,7 +25,7 @@ export function EmailTest({ configured }: { configured: boolean }) {
   return (
     <div>
       {!configured && (
-        <p className="mb-4 rounded-lg bg-bark-50 p-3 text-sm text-bark-700">
+        <p className="mb-4 rounded-lg bg-sea-50 p-3 text-sm text-sea-700">
           No email service is connected, so no receipts are being sent. Everything
           else about the shop works normally. Follow the steps above to switch it
           on.
@@ -52,7 +52,7 @@ export function EmailTest({ configured }: { configured: boolean }) {
         </button>
       </form>
 
-      <p className="mt-2 text-xs text-bark-600">
+      <p className="mt-2 text-xs text-sea-800">
         Sends one real email. No customer is contacted.
       </p>
 
@@ -71,7 +71,7 @@ export function EmailTest({ configured }: { configured: boolean }) {
             {result.summary}
           </p>
           {result.advice && (
-            <p className="mt-2 pl-6 text-sm text-bark-700">{result.advice}</p>
+            <p className="mt-2 pl-6 text-sm text-sea-700">{result.advice}</p>
           )}
         </div>
       )}

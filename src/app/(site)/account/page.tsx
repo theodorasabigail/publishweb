@@ -73,7 +73,7 @@ export default async function AccountOverviewPage({
         <Stat label="Lifetime spend" value={formatIDR(lifetimeSpend)} />
         <Stat label="Points balance" value={String(profile?.loyalty_points ?? 0)} />
         <div className="card p-5">
-          <p className="text-sm text-bark-600">Tier</p>
+          <p className="text-sm text-sea-800">Tier</p>
           <p className="mt-2">
             <span className={cn("badge text-sm", TIER_STYLES[progress.tier])}>
               {TIER_LABELS[progress.tier]}
@@ -85,19 +85,19 @@ export default async function AccountOverviewPage({
       <section className="card p-6">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-xl">Loyalty</h2>
-          <p className="text-sm text-bark-600">
+          <p className="text-sm text-sea-800">
             1 point per {formatIDR(settings.loyalty_rupiah_per_point)} spent
           </p>
         </div>
 
         <div className="mt-5">
-          <div className="h-2 overflow-hidden rounded-full bg-bark-100">
+          <div className="h-2 overflow-hidden rounded-full bg-sea-100">
             <div
-              className="h-full rounded-full bg-bark-700 transition-all"
+              className="h-full rounded-full bg-sea-700 transition-all"
               style={{ width: `${Math.min(100, Math.max(2, progress.percent))}%` }}
             />
           </div>
-          <p className="mt-3 text-sm text-bark-600">
+          <p className="mt-3 text-sm text-sea-800">
             {progress.nextTier
               ? `${progress.pointsToNext} more points to ${TIER_LABELS[progress.nextTier]}.`
               : "You are at the top tier. Thank you, genuinely."}
@@ -114,16 +114,16 @@ export default async function AccountOverviewPage({
         </div>
 
         {activeOrders.length ? (
-          <ul className="mt-4 divide-y divide-bark-200/70 card">
+          <ul className="mt-4 divide-y divide-sea-200/70 card">
             {activeOrders.slice(0, 5).map((order) => (
               <li key={order.id}>
                 <Link
                   href={`/order/${order.id}`}
-                  className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 hover:bg-bark-50"
+                  className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 hover:bg-sea-50"
                 >
                   <div>
                     <p className="font-medium">{order.human_ref}</p>
-                    <p className="text-sm text-bark-500">{formatDate(order.created_at)}</p>
+                    <p className="text-sm text-sea-800">{formatDate(order.created_at)}</p>
                   </div>
                   <div className="flex items-center gap-4">
                     <OrderStatusBadge status={order.status} />
@@ -134,7 +134,7 @@ export default async function AccountOverviewPage({
             ))}
           </ul>
         ) : (
-          <p className="mt-4 card p-6 text-sm text-bark-600">
+          <p className="mt-4 card p-6 text-sm text-sea-800">
             Nothing in progress right now.
           </p>
         )}
@@ -157,7 +157,7 @@ export default async function AccountOverviewPage({
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="card p-5">
-      <p className="text-sm text-bark-600">{label}</p>
+      <p className="text-sm text-sea-800">{label}</p>
       <p className="mt-2 font-serif text-2xl">{value}</p>
     </div>
   );

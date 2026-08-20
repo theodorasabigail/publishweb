@@ -61,15 +61,15 @@ export function MarkdownEditor({
   }
 
   return (
-    <div className="rounded-lg border border-bark-200">
-      <div className="flex flex-wrap items-center gap-1 border-b border-bark-200 bg-bark-50 px-2 py-1.5">
+    <div className="rounded-lg border border-sea-200">
+      <div className="flex flex-wrap items-center gap-1 border-b border-sea-200 bg-sea-50 px-2 py-1.5">
         {TOOLBAR.map((item) => (
           <button
             key={item.label}
             type="button"
             title={item.label}
             onClick={() => applyWrap(item.wrap[0], item.wrap[1], item.placeholder)}
-            className="rounded p-1.5 text-bark-600 hover:bg-white hover:text-bark-900"
+            className="rounded p-1.5 text-sea-800 hover:bg-white hover:text-sea-900"
           >
             <item.icon className="h-4 w-4" />
           </button>
@@ -129,7 +129,7 @@ function TabButton({
       onClick={onClick}
       className={cn(
         "flex items-center gap-1.5 rounded px-2.5 py-1 text-xs",
-        active ? "bg-white text-bark-900 shadow-sm" : "text-bark-600 hover:text-bark-900",
+        active ? "bg-white text-sea-900 shadow-sm" : "text-sea-800 hover:text-sea-900",
       )}
     >
       <Icon className="h-3.5 w-3.5" /> {label}
@@ -144,7 +144,7 @@ function TabButton({
  */
 function SimplePreview({ source }: { source: string }) {
   if (!source.trim()) {
-    return <p className="text-sm text-bark-600">Nothing to preview yet.</p>;
+    return <p className="text-sm text-sea-800">Nothing to preview yet.</p>;
   }
 
   const blocks = source.split(/\n{2,}/);

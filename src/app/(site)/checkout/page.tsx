@@ -17,7 +17,7 @@ export default async function CheckoutPage() {
   if (!isSupabaseConfigured()) {
     return (
       <div className="container-page py-20">
-        <p className="text-bark-600">
+        <p className="text-sea-800">
           Checkout is unavailable until Supabase is connected.
         </p>
       </div>
@@ -43,7 +43,7 @@ export default async function CheckoutPage() {
   return (
     <div className="container-page py-14">
       <h1 className="text-4xl">Checkout</h1>
-      <p className="mt-2 max-w-xl text-bark-600">
+      <p className="mt-2 max-w-xl text-sea-800">
         {provider.supportsInternationalCards
           ? "We accept QRIS, virtual accounts, e-wallets and international cards."
           : "Domestic bank transfer and QRIS. Paying from outside Indonesia? Message us on WhatsApp and we will arrange it."}

@@ -151,14 +151,23 @@ export async function getProductBySlug(
   return sortVariants([data as ProductWithVariants])[0];
 }
 
-/** 100g before 200g before 1kg, whatever order Postgres returns them in. */
+/**
+ * Smallest pack first, whatever order Postgres returns them in.
+ *
+ * Ordered by weight rather than by a list of known size names. That is what
+ * lets the operator invent a size: a new 250g bag sorts between 200g and 1kg
+ * because it weighs what it weighs, with nobody maintaining an order. Ties
+ * fall back to the label so the result is at least stable.
+ */
 function sortVariants(products: ProductWithVariants[]): ProductWithVariants[] {
-  const order: Record<string, number> = { "100g": 0, "200g": 1, "1kg": 2 };
   return products.map((product) => ({
     ...product,
     product_variants: [...(product.product_variants ?? [])]
       .filter((variant) => variant.is_active)
-      .sort((a, b) => (order[a.size] ?? 9) - (order[b.size] ?? 9)),
+      .sort(
+        (a, b) =>
+          a.weight_grams - b.weight_grams || a.size.localeCompare(b.size),
+      ),
   }));
 }
 

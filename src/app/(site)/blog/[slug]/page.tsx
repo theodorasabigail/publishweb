@@ -96,7 +96,7 @@ export default async function BlogPostPage({
       />
 
       <div className="container-page max-w-3xl pt-12">
-        <nav className="text-sm text-bark-500">
+        <nav className="text-sm text-sea-800">
           <Link href="/blog" className="hover:underline">
             Journal
           </Link>
@@ -126,12 +126,12 @@ export default async function BlogPostPage({
           <h1 className="mt-4 text-4xl leading-[1.1] sm:text-5xl">{post.title}</h1>
 
           {post.excerpt && (
-            <p className="mt-5 font-serif text-xl leading-relaxed text-bark-600">
+            <p className="mt-5 font-serif text-xl leading-relaxed text-sea-800">
               {post.excerpt}
             </p>
           )}
 
-          <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-bark-500">
+          <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-sea-800">
             <span>{post.author_name}</span>
             <span>·</span>
             <time dateTime={post.published_at ?? undefined}>
@@ -149,7 +149,7 @@ export default async function BlogPostPage({
 
       {post.cover_image && (
         <div className="container-page mt-10 max-w-5xl">
-          <div className="relative aspect-[16/9] overflow-hidden rounded-3xl bg-bark-100">
+          <div className="relative aspect-[16/9] overflow-hidden rounded-3xl bg-sea-100">
             <Image
               src={post.cover_image}
               alt={post.cover_alt ?? post.title}
@@ -165,19 +165,19 @@ export default async function BlogPostPage({
       <div className="container-page mt-12 max-w-3xl">
         <div
           className="prose prose-lg max-w-none prose-headings:font-serif prose-headings:tracking-tight
-                     prose-a:text-bark-800 prose-a:underline-offset-4 prose-blockquote:border-l-bark-400
-                     prose-blockquote:font-serif prose-blockquote:not-italic prose-blockquote:text-bark-700
+                     prose-a:text-sea-800 prose-a:underline-offset-4 prose-blockquote:border-l-sea-400
+                     prose-blockquote:font-serif prose-blockquote:not-italic prose-blockquote:text-sea-700
                      prose-strong:text-ink prose-img:rounded-2xl"
           dangerouslySetInnerHTML={{ __html: html }}
         />
 
         {post.tags.length > 0 && (
-          <div className="mt-12 flex flex-wrap gap-2 border-t border-bark-200/70 pt-8">
+          <div className="mt-12 flex flex-wrap gap-2 border-t border-sea-200/70 pt-8">
             {post.tags.map((tag) => (
               <Link
                 key={tag}
                 href={`/blog/tag/${encodeURIComponent(tag)}`}
-                className="badge border border-bark-200 bg-white text-bark-600 hover:border-bark-400"
+                className="badge border border-sea-200 bg-white text-sea-800 hover:border-sea-400"
               >
                 #{tag}
               </Link>
@@ -187,7 +187,7 @@ export default async function BlogPostPage({
       </div>
 
       {more.length > 0 && (
-        <section className="container-page mt-20 max-w-5xl border-t border-bark-200/70 pt-12">
+        <section className="container-page mt-20 max-w-5xl border-t border-sea-200/70 pt-12">
           <h2 className="text-2xl">Keep reading</h2>
           <div className="mt-8 grid gap-8 sm:grid-cols-3">
             {more.map((item) => (

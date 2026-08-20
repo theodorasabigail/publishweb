@@ -40,7 +40,7 @@ export function ProductList({ products }: { products: ProductWithVariants[] }) {
   return (
     <div>
       {(dirty || saved) && (
-        <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-bark-300 bg-bark-50 px-4 py-3 text-sm">
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-sea-300 bg-sea-50 px-4 py-3 text-sm">
           <span>
             {dirty
               ? "You changed the order of the shop."
@@ -59,7 +59,7 @@ export function ProductList({ products }: { products: ProductWithVariants[] }) {
         </div>
       )}
 
-      <ul className="divide-y divide-bark-200 rounded-xl border border-bark-200 bg-white">
+      <ul className="divide-y divide-sea-200 rounded-xl border border-sea-200 bg-white">
         {items.map((product, index) => {
           const prices = (product.product_variants ?? []).map((v) => v.price_idr);
           const stock = (product.product_variants ?? []).reduce(
@@ -83,7 +83,7 @@ export function ProductList({ products }: { products: ProductWithVariants[] }) {
                 dragIndex === index && "opacity-50",
               )}
             >
-              <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-bark-600" />
+              <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-sea-800" />
 
               <span
                 className="h-9 w-9 shrink-0 rounded-lg"
@@ -98,7 +98,7 @@ export function ProductList({ products }: { products: ProductWithVariants[] }) {
                 >
                   {product.name}
                 </Link>
-                <p className="truncate text-xs text-bark-600">
+                <p className="truncate text-xs text-sea-800">
                   {product.categories?.name ?? "Uncategorised"} ·{" "}
                   {prices.length ? `from ${formatIDR(Math.min(...prices))}` : "no price set"}
                 </p>
@@ -124,7 +124,7 @@ export function ProductList({ products }: { products: ProductWithVariants[] }) {
                     "badge",
                     product.is_active
                       ? "bg-emerald-100 text-emerald-800"
-                      : "bg-bark-100 text-bark-600",
+                      : "bg-sea-100 text-sea-800",
                   )}
                 >
                   {product.is_active ? "Live" : "Hidden"}
@@ -136,7 +136,7 @@ export function ProductList({ products }: { products: ProductWithVariants[] }) {
                   type="button"
                   onClick={() => move(index, index - 1)}
                   disabled={index === 0}
-                  className="rounded p-0.5 text-bark-600 hover:bg-bark-100 disabled:opacity-30"
+                  className="rounded p-0.5 text-sea-800 hover:bg-sea-100 disabled:opacity-30"
                   aria-label={`Move ${product.name} up`}
                 >
                   <ArrowUp className="h-3.5 w-3.5" />
@@ -145,7 +145,7 @@ export function ProductList({ products }: { products: ProductWithVariants[] }) {
                   type="button"
                   onClick={() => move(index, index + 1)}
                   disabled={index === items.length - 1}
-                  className="rounded p-0.5 text-bark-600 hover:bg-bark-100 disabled:opacity-30"
+                  className="rounded p-0.5 text-sea-800 hover:bg-sea-100 disabled:opacity-30"
                   aria-label={`Move ${product.name} down`}
                 >
                   <ArrowDown className="h-3.5 w-3.5" />

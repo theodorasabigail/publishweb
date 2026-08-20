@@ -110,7 +110,7 @@ export default async function AdminOverviewPage() {
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Panel title="Recent orders">
           {orders.length ? (
-            <ul className="divide-y divide-bark-200">
+            <ul className="divide-y divide-sea-200">
               {orders.map((order) => (
                 <li key={order.id}>
                   <Link
@@ -119,7 +119,7 @@ export default async function AdminOverviewPage() {
                   >
                     <div className="min-w-0">
                       <p className="truncate font-medium">{order.human_ref}</p>
-                      <p className="text-xs text-bark-600">
+                      <p className="text-xs text-sea-800">
                         {formatDate(order.created_at)}
                       </p>
                     </div>
@@ -141,12 +141,12 @@ export default async function AdminOverviewPage() {
         <div className="space-y-6">
           <Panel title="Low stock" description="Five bags or fewer left.">
             {variants.length ? (
-              <ul className="divide-y divide-bark-200">
+              <ul className="divide-y divide-sea-200">
                 {variants.map((variant) => (
                   <li key={variant.id} className="flex justify-between gap-3 py-2.5">
                     <span className="truncate text-sm">
                       {variant.products?.name ?? "—"}{" "}
-                      <span className="text-bark-600">· {variant.size}</span>
+                      <span className="text-sea-800">· {variant.size}</span>
                     </span>
                     <span
                       className={`shrink-0 text-sm font-medium ${
@@ -165,7 +165,7 @@ export default async function AdminOverviewPage() {
 
           <Panel title="New roasting requests">
             {requests.length ? (
-              <ul className="divide-y divide-bark-200">
+              <ul className="divide-y divide-sea-200">
                 {requests.map((request) => (
                   <li key={request.id}>
                     <Link
@@ -174,11 +174,11 @@ export default async function AdminOverviewPage() {
                     >
                       <span className="truncate text-sm">
                         {request.contact_name}{" "}
-                        <span className="text-bark-600">
+                        <span className="text-sea-800">
                           · {request.green_bean_origin}
                         </span>
                       </span>
-                      <span className="shrink-0 text-sm text-bark-600">
+                      <span className="shrink-0 text-sm text-sea-800">
                         {request.quantity_kg} kg
                       </span>
                     </Link>
@@ -192,7 +192,7 @@ export default async function AdminOverviewPage() {
         </div>
       </div>
 
-      <p className="mt-6 text-xs text-bark-600">
+      <p className="mt-6 text-xs text-sea-800">
         Payments are running through: <strong>{providerLabel}</strong>.
       </p>
     </div>

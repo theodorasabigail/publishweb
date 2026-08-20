@@ -43,27 +43,36 @@
     @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium
            transition-colors disabled:pointer-events-none disabled:opacity-50;
   }
+  /* Deep teal, not coral. The coral is the louder colour and the tempting
+     one for a button, but nothing readable sits on it: white is 2.5:1 there,
+     and dark type on coral reads as a warning, not an invitation. So the
+     brand's darkest note carries the action and the coral does the pointing. */
   .btn-primary {
-    @apply btn bg-bark-800 text-cream hover:bg-bark-900;
+    @apply btn bg-sea-900 text-cream hover:bg-sea-950;
   }
   .btn-secondary {
-    @apply btn border border-bark-300 bg-transparent text-bark-900 hover:bg-bark-100;
+    @apply btn border border-sea-400 bg-transparent text-sea-900 hover:bg-sea-100;
   }
   .btn-ghost {
-    @apply btn text-bark-800 hover:bg-bark-100;
+    @apply btn text-sea-900 hover:bg-sea-100;
+  }
+  /* For the one action on a page that should catch the eye. Dark type,
+     because coral cannot carry white — 6.8:1 with ink, 2.5:1 with white. */
+  .btn-accent {
+    @apply btn bg-coral text-ink hover:brightness-95;
   }
   .btn-danger {
     @apply btn bg-red-700 text-white hover:bg-red-800;
   }
   .input {
-    @apply w-full rounded-lg border border-bark-200 bg-white px-3 py-2 text-sm text-ink
-           placeholder:text-bark-400 focus:border-bark-500 focus:outline-none focus:ring-1 focus:ring-bark-500;
+    @apply w-full rounded-lg border border-sea-300 bg-white px-3 py-2 text-sm text-ink
+           placeholder:text-sea-500 focus:border-sea-700 focus:outline-none focus:ring-1 focus:ring-sea-700;
   }
   .label {
-    @apply mb-1.5 block text-sm font-medium text-bark-900;
+    @apply mb-1.5 block text-sm font-medium text-sea-900;
   }
   .card {
-    @apply rounded-2xl border border-bark-200/70 bg-white;
+    @apply rounded-2xl border border-sea-200/70 bg-white;
   }
   .badge {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
@@ -152,8 +161,9 @@
   font-size: 0.8125rem;
 }
 
-/* Placeholder text is decoration, not content, but bark-400 on white measures
-   2.9:1 -- low enough that it reads as an empty field. bark-500 is 3.9:1. */
+/* Placeholder text is decoration, not content, but it still has to be seen.
+   sea-500 is 3.7:1 on white -- enough to read as a hint rather than as an
+   empty field, without competing with what the visitor types. */
 .admin-ui .input::placeholder {
-  color: theme(colors.bark.500);
+  color: theme(colors.sea.500);
 }

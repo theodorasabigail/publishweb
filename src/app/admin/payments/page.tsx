@@ -52,7 +52,7 @@ export default async function AdminPaymentsPage() {
 
                 <div className="flex flex-wrap items-baseline justify-between gap-3">
                   <p className="font-serif text-xl">{formatIDR(event.amount_idr ?? 0)}</p>
-                  <p className="text-xs text-bark-600">
+                  <p className="text-xs text-sea-800">
                     {event.provider} · {formatDateTime(event.created_at)}
                   </p>
                 </div>
@@ -88,7 +88,7 @@ export default async function AdminPaymentsPage() {
         {rest.length ? (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-sm">
-              <thead className="text-left text-xs uppercase tracking-wider text-bark-600">
+              <thead className="text-left text-xs uppercase tracking-wider text-sea-800">
                 <tr>
                   <th className="pb-2 pr-4 font-medium">When</th>
                   <th className="pb-2 pr-4 font-medium">Provider</th>
@@ -97,14 +97,14 @@ export default async function AdminPaymentsPage() {
                   <th className="pb-2 text-right font-medium">Amount</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-bark-200">
+              <tbody className="divide-y divide-sea-200">
                 {rest.map((event) => (
                   <tr key={event.id}>
-                    <td className="py-2.5 pr-4 text-bark-600">
+                    <td className="py-2.5 pr-4 text-sea-800">
                       {formatDateTime(event.created_at)}
                     </td>
                     <td className="py-2.5 pr-4">{event.provider}</td>
-                    <td className="py-2.5 pr-4 font-mono text-xs text-bark-600">
+                    <td className="py-2.5 pr-4 font-mono text-xs text-sea-800">
                       {event.external_id ?? "—"}
                     </td>
                     <td className="py-2.5 pr-4">{event.status ?? "—"}</td>

@@ -3,7 +3,8 @@ import { ImageUploader } from "@/components/admin/image-uploader";
 import { TitleAndSlug } from "@/components/admin/slug-input";
 import { Field, Panel } from "@/components/admin/ui";
 import { createProduct, updateProduct } from "@/app/admin/_actions/products";
-import { VARIANT_SIZES, type Category, type ProductWithVariants } from "@/lib/types";
+import { VariantEditor } from "@/components/admin/variant-editor";
+import type { Category, ProductWithVariants } from "@/lib/types";
 
 export function ProductForm({
   product,
@@ -13,8 +14,6 @@ export function ProductForm({
   categories: Category[];
 }) {
   const isEdit = Boolean(product);
-  const variantFor = (size: string) =>
-    product?.product_variants?.find((variant) => variant.size === size);
 
   return (
     <form action={isEdit ? updateProduct : createProduct} className="space-y-6">
@@ -68,73 +67,9 @@ export function ProductForm({
 
       <Panel
         title="Sizes, prices and stock"
-        description="Set a price to put a size on sale. Leave it at 0 to keep that size off the shop."
+        description="Any sizes you like. Set a price above zero and tick “On sale” to put one in the shop."
       >
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-sm">
-            <thead className="text-left text-xs uppercase tracking-wider text-bark-600">
-              <tr>
-                <th className="pb-2 pr-4 font-medium">Size</th>
-                <th className="pb-2 pr-4 font-medium">Price (Rp)</th>
-                <th className="pb-2 pr-4 font-medium">Stock (bags)</th>
-                <th className="pb-2 pr-4 font-medium">Shipping weight (g)</th>
-                <th className="pb-2 font-medium">On sale</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-bark-200">
-              {VARIANT_SIZES.map((size) => {
-                const variant = variantFor(size);
-                const defaultWeight = size === "100g" ? 130 : size === "200g" ? 240 : 1100;
-
-                return (
-                  <tr key={size}>
-                    <td className="py-3 pr-4 font-medium">{size}</td>
-                    <td className="py-3 pr-4">
-                      <input
-                        type="number"
-                        min="0"
-                        step="1000"
-                        name={`price_${size}`}
-                        className="input w-32"
-                        defaultValue={variant?.price_idr ?? 0}
-                      />
-                    </td>
-                    <td className="py-3 pr-4">
-                      <input
-                        type="number"
-                        min="0"
-                        name={`stock_${size}`}
-                        className="input w-24"
-                        defaultValue={variant?.stock ?? 0}
-                      />
-                    </td>
-                    <td className="py-3 pr-4">
-                      <input
-                        type="number"
-                        min="0"
-                        name={`weight_${size}`}
-                        className="input w-24"
-                        defaultValue={variant?.weight_grams || defaultWeight}
-                      />
-                    </td>
-                    <td className="py-3">
-                      <input
-                        type="checkbox"
-                        name={`active_${size}`}
-                        defaultChecked={variant ? variant.is_active : true}
-                        className="h-4 w-4 rounded border-bark-300"
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        <p className="mt-3 text-xs text-bark-600">
-          Stock comes down automatically when an order is paid for. You only need
-          to top it up here after a roast.
-        </p>
+        <VariantEditor variants={product?.product_variants} />
       </Panel>
 
       <Panel title="Coffee details" description="Shown in the spec table on the product page.">
@@ -179,7 +114,7 @@ export function ProductForm({
           <ColorPicker
             name="accent_color"
             label="Card accent colour"
-            defaultValue={product?.accent_color ?? "#8c6144"}
+            defaultValue={product?.accent_color ?? "#486b73"}
             hint="The colour behind this product on the shop grid."
           />
 
@@ -189,7 +124,7 @@ export function ProductForm({
                 type="checkbox"
                 name="is_active"
                 defaultChecked={product ? product.is_active : true}
-                className="h-4 w-4 rounded border-bark-300"
+                className="h-4 w-4 rounded border-sea-300"
               />
               Show on the shop
             </label>
@@ -198,7 +133,7 @@ export function ProductForm({
                 type="checkbox"
                 name="is_featured"
                 defaultChecked={product?.is_featured ?? false}
-                className="h-4 w-4 rounded border-bark-300"
+                className="h-4 w-4 rounded border-sea-300"
               />
               Feature on the homepage
             </label>

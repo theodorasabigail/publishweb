@@ -7,7 +7,7 @@ export const TIER_LABELS: Record<LoyaltyTier, string> = {
 };
 
 export const TIER_STYLES: Record<LoyaltyTier, string> = {
-  bronze: "bg-bark-100 text-bark-800",
+  bronze: "bg-sea-100 text-sea-800",
   silver: "bg-slate-200 text-slate-800",
   gold: "bg-amber-200 text-amber-900",
 };

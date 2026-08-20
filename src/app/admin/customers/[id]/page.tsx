@@ -46,7 +46,7 @@ export default async function AdminCustomerPage({
     <div>
       <Link
         href="/admin/customers"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-bark-600 hover:underline"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-sea-800 hover:underline"
       >
         <ArrowLeft className="h-3.5 w-3.5" /> All customers
       </Link>
@@ -71,7 +71,7 @@ export default async function AdminCustomerPage({
 
           <Panel title="Orders">
             {orderRows.length ? (
-              <ul className="divide-y divide-bark-200">
+              <ul className="divide-y divide-sea-200">
                 {orderRows.map((order) => (
                   <li key={order.id}>
                     <Link
@@ -80,7 +80,7 @@ export default async function AdminCustomerPage({
                     >
                       <div>
                         <p className="font-medium">{order.human_ref}</p>
-                        <p className="text-xs text-bark-600">
+                        <p className="text-xs text-sea-800">
                           {formatDate(order.created_at)}
                         </p>
                       </div>
@@ -101,12 +101,12 @@ export default async function AdminCustomerPage({
 
           <Panel title="Points history">
             {ledgerRows.length ? (
-              <ul className="divide-y divide-bark-200 text-sm">
+              <ul className="divide-y divide-sea-200 text-sm">
                 {ledgerRows.map((entry) => (
                   <li key={entry.id} className="flex justify-between gap-4 py-2.5">
                     <div>
                       <p>{entry.reason}</p>
-                      <p className="text-xs text-bark-600">
+                      <p className="text-xs text-sea-800">
                         {formatDateTime(entry.created_at)}
                       </p>
                     </div>
@@ -159,7 +159,7 @@ export default async function AdminCustomerPage({
               <button type="submit" className="btn-secondary w-full py-2 text-xs">
                 Set tier
               </button>
-              <p className="text-xs text-bark-600">
+              <p className="text-xs text-sea-800">
                 Tiers normally follow lifetime points. Setting one by hand holds
                 until their next points change.
               </p>
@@ -170,7 +170,7 @@ export default async function AdminCustomerPage({
             <form action={setAdminFlag} className="space-y-3">
               <input type="hidden" name="user_id" value={customer.id} />
               <input type="hidden" name="is_admin" value={customer.is_admin ? "false" : "true"} />
-              <p className="text-sm text-bark-600">
+              <p className="text-sm text-sea-800">
                 {customer.is_admin
                   ? "This person can open the admin dashboard."
                   : "This person is a normal customer."}
@@ -191,8 +191,8 @@ export default async function AdminCustomerPage({
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-bark-200 bg-white p-4">
-      <p className="text-sm text-bark-600">{label}</p>
+    <div className="rounded-xl border border-sea-200 bg-white p-4">
+      <p className="text-sm text-sea-800">{label}</p>
       <p className="mt-1.5 font-serif text-xl">{value}</p>
     </div>
   );

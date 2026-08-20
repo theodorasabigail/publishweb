@@ -66,9 +66,9 @@ export default async function EditProductPage({
 
       <ProductForm product={typed} categories={(categories ?? []) as Category[]} />
 
-      <form action={deleteProduct} className="mt-10 border-t border-bark-200 pt-6">
+      <form action={deleteProduct} className="mt-10 border-t border-sea-200 pt-6">
         <input type="hidden" name="id" value={typed.id} />
-        <p className="text-sm text-bark-600">
+        <p className="text-sm text-sea-800">
           Deleting removes this product from the shop for good. Past orders keep
           their own copy of the name and price, so order history is unaffected.
         </p>

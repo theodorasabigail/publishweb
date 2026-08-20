@@ -11,7 +11,7 @@ export default function CartPage() {
   const { lines, subtotal, count, ready, setQuantity, remove } = useCart();
 
   if (!ready) {
-    return <div className="container-page py-20 text-bark-500">Loading your cart…</div>;
+    return <div className="container-page py-20 text-sea-800">Loading your cart…</div>;
   }
 
   if (!lines.length) {
@@ -31,12 +31,12 @@ export default function CartPage() {
   return (
     <div className="container-page py-14">
       <h1 className="text-4xl">Your cart</h1>
-      <p className="mt-2 text-bark-600">
+      <p className="mt-2 text-sea-800">
         {count} {count === 1 ? "bag" : "bags"}
       </p>
 
       <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_360px]">
-        <ul className="divide-y divide-bark-200/70 border-y border-bark-200/70">
+        <ul className="divide-y divide-sea-200/70 border-y border-sea-200/70">
           {lines.map((line) => (
             <li key={line.variantId} className="flex gap-4 py-5">
               <div
@@ -63,13 +63,13 @@ export default function CartPage() {
                     >
                       {line.name}
                     </Link>
-                    <p className="mt-0.5 text-sm text-bark-500">{line.size}</p>
+                    <p className="mt-0.5 text-sm text-sea-800">{line.size}</p>
                   </div>
                   <p className="font-medium">{formatIDR(line.priceIdr * line.quantity)}</p>
                 </div>
 
                 <div className="mt-auto flex items-center justify-between pt-3">
-                  <div className="flex items-center rounded-full border border-bark-200">
+                  <div className="flex items-center rounded-full border border-sea-200">
                     <button
                       type="button"
                       onClick={() => setQuantity(line.variantId, line.quantity - 1)}
@@ -92,7 +92,7 @@ export default function CartPage() {
                   <button
                     type="button"
                     onClick={() => remove(line.variantId)}
-                    className="flex items-center gap-1.5 text-sm text-bark-500 hover:text-red-700"
+                    className="flex items-center gap-1.5 text-sm text-sea-800 hover:text-red-700"
                   >
                     <Trash2 className="h-3.5 w-3.5" /> Remove
                   </button>
@@ -106,12 +106,12 @@ export default function CartPage() {
           <h2 className="text-xl">Summary</h2>
           <dl className="mt-5 space-y-2.5 text-sm">
             <div className="flex justify-between">
-              <dt className="text-bark-600">Subtotal</dt>
+              <dt className="text-sea-800">Subtotal</dt>
               <dd className="font-medium">{formatIDR(subtotal)}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-bark-600">Shipping</dt>
-              <dd className="text-bark-500">Calculated at checkout</dd>
+              <dt className="text-sea-800">Shipping</dt>
+              <dd className="text-sea-800">Calculated at checkout</dd>
             </div>
           </dl>
 

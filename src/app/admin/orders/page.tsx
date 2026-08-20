@@ -57,8 +57,8 @@ export default async function AdminOrdersPage({
             className={cn(
               "badge",
               activeChannel === option.value
-                ? "bg-bark-700 text-cream"
-                : "border border-bark-200 bg-white text-bark-700 hover:border-bark-400",
+                ? "bg-sea-700 text-cream"
+                : "border border-sea-200 bg-white text-sea-700 hover:border-sea-400",
             )}
           >
             {option.label}
@@ -74,8 +74,8 @@ export default async function AdminOrdersPage({
             className={cn(
               "badge capitalize",
               active === filter.value
-                ? "bg-bark-800 text-cream"
-                : "border border-bark-200 bg-white text-bark-700 hover:border-bark-400",
+                ? "bg-sea-800 text-cream"
+                : "border border-sea-200 bg-white text-sea-700 hover:border-sea-400",
             )}
           >
             {filter.label}
@@ -84,9 +84,9 @@ export default async function AdminOrdersPage({
       </nav>
 
       {orders.length ? (
-        <div className="overflow-x-auto rounded-xl border border-bark-200 bg-white">
+        <div className="overflow-x-auto rounded-xl border border-sea-200 bg-white">
           <table className="w-full min-w-[720px] text-sm">
-            <thead className="border-b border-bark-200 text-left text-xs uppercase tracking-wider text-bark-600">
+            <thead className="border-b border-sea-200 text-left text-xs uppercase tracking-wider text-sea-800">
               <tr>
                 <th className="px-4 py-3 font-medium">Order</th>
                 <th className="px-4 py-3 font-medium">Placed</th>
@@ -97,9 +97,9 @@ export default async function AdminOrdersPage({
                 <th className="px-4 py-3 text-right font-medium">Total</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-bark-200">
+            <tbody className="divide-y divide-sea-200">
               {orders.map((order) => (
-                <tr key={order.id} className="hover:bg-bark-50">
+                <tr key={order.id} className="hover:bg-sea-50">
                   <td className="px-4 py-3">
                     <Link
                       href={`/admin/orders/${order.id}`}
@@ -108,28 +108,28 @@ export default async function AdminOrdersPage({
                       {order.human_ref}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-bark-600">
+                  <td className="px-4 py-3 text-sea-800">
                     {formatDateTime(order.created_at)}
                   </td>
-                  <td className="px-4 py-3 text-bark-600">
+                  <td className="px-4 py-3 text-sea-800">
                     {order.shipping_address?.recipient_name ??
                       (order.channel === "pos" ? "Walk-in" : "—")}
                     {!order.user_id && order.channel === "online" && (
-                      <span className="ml-1.5 text-xs text-bark-600">(guest)</span>
+                      <span className="ml-1.5 text-xs text-sea-800">(guest)</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
                     <span
                       className={
                         order.channel === "pos"
-                          ? "badge bg-bark-100 text-bark-800"
+                          ? "badge bg-sea-100 text-sea-800"
                           : "badge bg-sky-100 text-sky-800"
                       }
                     >
                       {order.channel === "pos" ? "Shop" : "Website"}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-bark-600">
+                  <td className="px-4 py-3 text-sea-800">
                     {order.channel === "pos"
                       ? "—"
                       : order.shipping_address?.city ?? "—"}

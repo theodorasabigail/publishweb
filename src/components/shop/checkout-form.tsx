@@ -233,7 +233,7 @@ export function CheckoutForm({
               onChange={(event) => setEmail(event.target.value)}
               placeholder="you@email.com"
             />
-            <p className="mt-1.5 text-xs text-bark-500">
+            <p className="mt-1.5 text-xs text-sea-800">
               We send the receipt and tracking here.
             </p>
           </div>
@@ -376,12 +376,12 @@ export function CheckoutForm({
           </div>
 
           {isSignedIn && (
-            <label className="mt-4 flex items-center gap-2 text-sm text-bark-700">
+            <label className="mt-4 flex items-center gap-2 text-sm text-sea-700">
               <input
                 type="checkbox"
                 checked={saveAddress}
                 onChange={(event) => setSaveAddress(event.target.checked)}
-                className="rounded border-bark-300"
+                className="rounded border-sea-300"
               />
               Save this address to my account
             </label>
@@ -399,7 +399,7 @@ export function CheckoutForm({
         </section>
 
         {!isSignedIn && (
-          <p className="rounded-xl bg-bark-100 p-4 text-sm text-bark-700">
+          <p className="rounded-xl bg-sea-100 p-4 text-sm text-sea-700">
             Checking out as a guest is fine. You can create an account after
             paying to keep your order history and start earning points.
           </p>
@@ -412,9 +412,9 @@ export function CheckoutForm({
         <ul className="mt-4 space-y-3 text-sm">
           {lines.map((line) => (
             <li key={line.variantId} className="flex justify-between gap-3">
-              <span className="text-bark-700">
+              <span className="text-sea-700">
                 {line.name}{" "}
-                <span className="text-bark-500">
+                <span className="text-sea-800">
                   · {line.size} × {line.quantity}
                 </span>
               </span>
@@ -425,24 +425,24 @@ export function CheckoutForm({
           ))}
         </ul>
 
-        <dl className="mt-5 space-y-2 border-t border-bark-200/70 pt-4 text-sm">
+        <dl className="mt-5 space-y-2 border-t border-sea-200/70 pt-4 text-sm">
           <div className="flex justify-between">
-            <dt className="text-bark-600">Subtotal</dt>
+            <dt className="text-sea-800">Subtotal</dt>
             <dd>{formatIDR(subtotal)}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-bark-600">
+            <dt className="text-sea-800">
               Shipping{quote ? ` — ${quote.zoneName}` : ""}
             </dt>
             <dd>
               {quoteLoading && !quote ? (
-                <span className="text-bark-400">…</span>
+                <span className="text-sea-800">…</span>
               ) : quote?.isFree ? (
                 "Free"
               ) : quote ? (
                 formatIDR(shipping)
               ) : (
-                <span className="text-bark-400">—</span>
+                <span className="text-sea-800">—</span>
               )}
             </dd>
           </div>
@@ -455,14 +455,14 @@ export function CheckoutForm({
           )}
 
           {quote?.estimate && (
-            <p className="text-xs text-bark-500">Estimated {quote.estimate}</p>
+            <p className="text-xs text-sea-800">Estimated {quote.estimate}</p>
           )}
           {quoteError && (
             <p className="text-xs text-red-700" role="status">
               {quoteError}
             </p>
           )}
-          <div className="flex justify-between border-t border-bark-200/70 pt-3 text-base font-medium">
+          <div className="flex justify-between border-t border-sea-200/70 pt-3 text-base font-medium">
             <dt>Total</dt>
             <dd>{formatIDR(total)}</dd>
           </div>
@@ -495,7 +495,7 @@ export function CheckoutForm({
                 : "Place order"}
         </button>
 
-        <p className="mt-3 text-center text-xs text-bark-500">
+        <p className="mt-3 text-center text-xs text-sea-800">
           Prices are confirmed on our server before payment.
         </p>
       </aside>
@@ -516,7 +516,7 @@ function Field({
     <div>
       <label className="label">
         {label}
-        {required && <span className="text-bark-400"> *</span>}
+        {required && <span className="text-sea-800"> *</span>}
       </label>
       {children}
     </div>

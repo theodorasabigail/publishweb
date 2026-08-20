@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { VARIANT_SIZES } from "@/lib/types";
 import { slugify } from "@/lib/utils";
 import {
   adminClient,
@@ -36,7 +35,7 @@ function productFields(formData: FormData) {
     category_id: optionalText(formData, "category_id"),
     image_url: optionalText(formData, "image_url"),
     image_alt: optionalText(formData, "image_alt"),
-    accent_color: text(formData, "accent_color") || "#8c6144",
+    accent_color: text(formData, "accent_color") || "#486b73",
     is_active: boolean(formData, "is_active"),
     is_featured: boolean(formData, "is_featured"),
     sort_order: integer(formData, "sort_order"),
@@ -46,26 +45,72 @@ function productFields(formData: FormData) {
   };
 }
 
-/** Variant rows are always the three sizes; a size the operator leaves blank
- *  is simply deactivated rather than deleted, so its stock history survives. */
+/**
+ * Save whatever sizes the form submitted.
+ *
+ * Rows arrive indexed with a count alongside, rather than one field per known
+ * size, because there is no longer a known set -- the operator invents them.
+ * A size removed from the form is deleted; order history is unaffected, since
+ * order_items keep their own name and size snapshots and the foreign key is
+ * `on delete set null` precisely so a discontinued pack cannot rewrite a
+ * receipt.
+ */
 async function upsertVariants(
   supabase: Awaited<ReturnType<typeof adminClient>>["supabase"],
   productId: string,
   formData: FormData,
 ) {
-  const rows = VARIANT_SIZES.map((size) => {
-    const price = integer(formData, `price_${size}`, 0);
-    return {
+  const count = Math.min(integer(formData, "variant_count", 0), 40);
+
+  const rows: {
+    product_id: string;
+    size: string;
+    price_idr: number;
+    stock: number;
+    weight_grams: number;
+    is_active: boolean;
+  }[] = [];
+  const seen = new Set<string>();
+
+  for (let index = 0; index < count; index++) {
+    const size = text(formData, `variant_size_${index}`);
+    // A blank row is someone who pressed "Add a size" and changed their mind.
+    if (!size) continue;
+    // The database has a unique constraint on (product_id, size); two rows
+    // with one name would fail the whole save with a constraint error nobody
+    // could act on. Last one entered wins, silently.
+    if (seen.has(size.toLowerCase())) continue;
+    seen.add(size.toLowerCase());
+
+    const price = Math.max(0, integer(formData, `variant_price_${index}`, 0));
+
+    rows.push({
       product_id: productId,
       size,
-      price_idr: Math.max(0, price),
-      stock: Math.max(0, integer(formData, `stock_${size}`, 0)),
-      weight_grams: Math.max(0, integer(formData, `weight_${size}`, 0)),
-      is_active: price > 0 && boolean(formData, `active_${size}`),
-    };
-  });
+      price_idr: price,
+      stock: Math.max(0, integer(formData, `variant_stock_${index}`, 0)),
+      // Never zero: shipping is priced from this, and a zero silently becomes
+      // a 250 g guess at quote time. Falling back to the same guess here at
+      // least makes it visible in the admin afterwards.
+      weight_grams: Math.max(1, integer(formData, `variant_weight_${index}`, 250)),
+      is_active: price > 0 && boolean(formData, `variant_active_${index}`),
+    });
+  }
 
-  await supabase.from("product_variants").upsert(rows, { onConflict: "product_id,size" });
+  if (!rows.length) return;
+
+  await supabase
+    .from("product_variants")
+    .upsert(rows, { onConflict: "product_id,size" });
+
+  // Sizes the operator deleted from the form. Done after the upsert so a
+  // failed save never leaves a product with nothing to buy, and scoped to this
+  // product so it can only ever remove what this form was editing.
+  await supabase
+    .from("product_variants")
+    .delete()
+    .eq("product_id", productId)
+    .not("size", "in", `(${rows.map((row) => `"${row.size.replace(/"/g, '""')}"`).join(",")})`);
 }
 
 export async function createProduct(formData: FormData) {

@@ -16,7 +16,7 @@ export default async function LoginPage({
   return (
     <div className="container-page max-w-md py-20">
       <h1 className="text-4xl">Sign in</h1>
-      <p className="mt-2 text-bark-600">
+      <p className="mt-2 text-sea-800">
         Your orders, addresses and loyalty points live here.
       </p>
       <div className="card mt-8 p-6 sm:p-8">

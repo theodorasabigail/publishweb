@@ -37,7 +37,7 @@ export default async function AdminMediaPage() {
     <div>
       <Link
         href="/admin/settings"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-bark-600 hover:underline"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-sea-800 hover:underline"
       >
         <ArrowLeft className="h-3.5 w-3.5" /> Site settings
       </Link>
@@ -50,12 +50,12 @@ export default async function AdminMediaPage() {
       <Panel title="Storage used">
         <div className="flex items-baseline justify-between gap-4">
           <p className="font-serif text-3xl">{formatBytes(usage.total_bytes)}</p>
-          <p className="text-sm text-bark-600">
+          <p className="text-sm text-sea-800">
             of {formatBytes(STORAGE_LIMIT_BYTES)} · {usage.object_count} files
           </p>
         </div>
 
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-bark-100">
+        <div className="mt-4 h-2 overflow-hidden rounded-full bg-sea-100">
           <div
             className={`h-full rounded-full transition-all ${
               tone === "red"
@@ -68,7 +68,7 @@ export default async function AdminMediaPage() {
           />
         </div>
 
-        <p className="mt-3 text-sm text-bark-600">
+        <p className="mt-3 text-sm text-sea-800">
           {percent < 50
             ? "Plenty of room. Images are shrunk automatically when you upload them, so this should grow slowly."
             : percent < 80
@@ -84,22 +84,22 @@ export default async function AdminMediaPage() {
       >
         {unused.length ? (
           <>
-            <p className="mb-4 text-sm text-bark-600">
+            <p className="mb-4 text-sm text-sea-800">
               Deleting these frees{" "}
               <strong>{formatBytes(reclaimable)}</strong>. Anything uploaded in
               the last day is left alone, so work in progress is never touched.
             </p>
 
-            <ul className="mb-5 max-h-72 divide-y divide-bark-200 overflow-y-auto rounded-lg border border-bark-200">
+            <ul className="mb-5 max-h-72 divide-y divide-sea-200 overflow-y-auto rounded-lg border border-sea-200">
               {unused.map((file) => (
                 <li
                   key={file.name}
                   className="flex items-center justify-between gap-4 px-3 py-2 text-sm"
                 >
-                  <span className="truncate font-mono text-xs text-bark-600">
+                  <span className="truncate font-mono text-xs text-sea-800">
                     {file.name}
                   </span>
-                  <span className="shrink-0 text-xs text-bark-600">
+                  <span className="shrink-0 text-xs text-sea-800">
                     {formatBytes(Number(file.size_bytes))} ·{" "}
                     {formatDate(file.uploaded_at)}
                   </span>
@@ -120,7 +120,7 @@ export default async function AdminMediaPage() {
       </Panel>
 
       <Panel title="How images are handled" className="mt-6">
-        <ul className="space-y-2 text-sm text-bark-600">
+        <ul className="space-y-2 text-sm text-sea-800">
           <li>
             Every image you upload is resized and re-compressed in your browser
             first. A photo straight off a phone typically goes from several

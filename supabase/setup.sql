@@ -20,7 +20,7 @@
 -- rather than duplicated, the example content is skipped if it already exists,
 -- and your own settings are never overwritten.
 --
--- Generated from 9 migrations:
+-- Generated from 10 migrations:
 --   0001_init.sql
 --   0002_functions_rls.sql
 --   0003_seed.sql
@@ -30,6 +30,7 @@
 --   0007_shipping_origin.sql
 --   0008_courier_tracking.sql
 --   0009_email_notifications.sql
+--   0010_free_sizes.sql
 -- ===========================================================================
 
 
@@ -849,31 +850,31 @@ values
    'Our anchor lot from the Gayo highlands. Wet-hulled in the traditional Sumatran way, then roasted a touch past first crack to keep the body heavy and the finish clean.',
    'Aceh Tengah, Sumatra', 'Wet Hulled', 'Medium', 'Ateng, Timtim', '1400–1600',
    'Dark chocolate, cedar, brown sugar',
-   (select id from c where slug = 'single-origin'), '#5d4033', true, 1),
+   (select id from c where slug = 'single-origin'), '#486b73', true, 1),
 
   ('kintamani-lestari', 'Kintamani Lestari',
    'Grown alongside citrus trees on the slopes of Mount Batur, which is exactly what it tastes like. Fully washed and dried on raised beds.',
    'Kintamani, Bali', 'Fully Washed', 'Light-Medium', 'Kartika, S795', '1200–1500',
    'Mandarin, jasmine, golden syrup',
-   (select id from c where slug = 'filter'), '#b69169', true, 2),
+   (select id from c where slug = 'filter'), '#dab0b0', true, 2),
 
   ('toraja-sapan', 'Toraja Sapan',
    'A high-grown Sulawesi lot with the structure to hold up in a long brew. Quiet acidity, long sweet finish.',
    'Tana Toraja, Sulawesi', 'Semi Washed', 'Medium', 'S795, Typica', '1500–1750',
    'Baking spice, dried fig, dark cocoa',
-   (select id from c where slug = 'single-origin'), '#714c39', false, 3),
+   (select id from c where slug = 'single-origin'), '#486b73', false, 3),
 
   ('terbit-blend', 'Terbit Blend',
    'Our everyday espresso. Sumatra for the body, Bali for the lift. Designed to taste like itself through a flat white.',
    'Blend — Sumatra & Bali', 'Blend', 'Medium-Dark', 'Various', '1200–1600',
    'Milk chocolate, toasted almond, red plum',
-   (select id from c where slug = 'espresso'), '#8c6144', true, 4),
+   (select id from c where slug = 'espresso'), '#638c97', true, 4),
 
   ('malam-decaf', 'Malam Decaf',
    'Sugarcane-process decaf from Java. For the second pot, the late shift, and everyone who wants the ritual without the rest of it.',
    'Java Barat', 'Sugarcane EA Decaf', 'Medium', 'Lini S', '1300–1500',
    'Cocoa nib, roasted hazelnut, raisin',
-   (select id from c where slug = 'house-blend'), '#4e372d', false, 5)
+   (select id from c where slug = 'house-blend'), '#a7a4b5', false, 5)
 on conflict (slug) do nothing;
 
 insert into public.product_variants (product_id, size, price_idr, stock, weight_grams)
@@ -892,10 +893,10 @@ on conflict (product_id, size) do nothing;
 -- --------------------------------------------------------------------------
 insert into public.blog_categories (slug, name, description, accent_color, sort_order)
 values
-  ('roasting-notes', 'Roasting Notes', 'What came off the drum this week, and why it tastes the way it does.', '#5d4033', 1),
-  ('origin', 'Origin', 'Farms, washing stations, and the people we buy from.', '#8c6144', 2),
-  ('brewing', 'Brewing', 'Recipes, ratios, and arguments about water.', '#b69169', 3),
-  ('shop-journal', 'Shop Journal', 'Everything else that happens in a roastery.', '#714c39', 4)
+  ('roasting-notes', 'Roasting Notes', 'What came off the drum this week, and why it tastes the way it does.', '#486b73', 1),
+  ('origin', 'Origin', 'Farms, washing stations, and the people we buy from.', '#638c97', 2),
+  ('brewing', 'Brewing', 'Recipes, ratios, and arguments about water.', '#dab0b0', 3),
+  ('shop-journal', 'Shop Journal', 'Everything else that happens in a roastery.', '#486b73', 4)
 on conflict (slug) do nothing;
 
 insert into public.blog_posts
@@ -1538,4 +1539,66 @@ comment on column public.orders.confirmation_email_sent_at is
 
 comment on column public.orders.shipped_email_tracking is
   'The tracking number the customer was last emailed. A different value means a correction worth re-sending.';
+
+
+-- ###########################################################################
+-- ## 0010_free_sizes.sql
+-- ###########################################################################
+
+-- ===========================================================================
+-- Publish Coffee Roasters -- sizes the operator controls
+--
+-- `size` was an enum of exactly '100g', '200g' and '1kg', which meant adding a
+-- 250g bag or a 12oz sample was a code change and a deployment. For a roastery
+-- that is the wrong place to put that decision -- pack sizes change with the
+-- lot, the season, and what the wholesale customer asks for.
+--
+-- So it becomes free text, and sorting moves onto weight_grams, which the
+-- table already carries and which shipping already prices from. Sorting by a
+-- real weight is also more correct than the old hard-coded list ever was: it
+-- puts 250g between 200g and 1kg without anybody maintaining an order.
+--
+-- Existing rows are untouched -- '100g' as an enum value and '100g' as text
+-- are the same three characters -- so nothing needs re-entering.
+--
+-- Run this in Supabase -> SQL Editor, after 0009.
+-- ===========================================================================
+
+alter table public.product_variants
+  alter column size type text using size::text;
+
+-- The old enum still backs nothing once the column is text. Dropped so a
+-- future reader does not mistake it for the source of truth. Guarded, because
+-- re-running a migration must never be the thing that breaks a database.
+drop type if exists variant_size;
+
+-- Shipping already reads weight_grams, but it defaulted to 0, and a 0 g
+-- variant silently falls back to a 250 g assumption when a parcel is priced.
+-- That was survivable with three fixed sizes whose weights were filled in by
+-- the form; with sizes the operator invents, an unfilled weight is a real
+-- possibility and a wrong shipping quote is a real cost.
+alter table public.product_variants
+  add constraint product_variants_weight_positive
+  check (weight_grams > 0) not valid;
+
+-- `not valid` above means existing rows are left alone rather than blocking
+-- the migration; this fixes them, and then the constraint holds for everything
+-- new. The estimate is the pack size plus packaging, matching what the admin
+-- form has been defaulting to.
+update public.product_variants
+set weight_grams = case
+  when size ilike '%1kg%' or size ilike '%1000g%' then 1100
+  when size ilike '%500g%' then 550
+  when size ilike '%250g%' then 290
+  when size ilike '%200g%' then 240
+  when size ilike '%100g%' then 130
+  else 250
+end
+where weight_grams <= 0;
+
+alter table public.product_variants
+  validate constraint product_variants_weight_positive;
+
+comment on column public.product_variants.size is
+  'Free text, shown to the customer as-is. Ordering comes from weight_grams.';
 

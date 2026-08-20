@@ -25,7 +25,7 @@ export function CourierTest({ providerId }: { providerId: string }) {
   return (
     <div>
       {providerId !== "biteship" && (
-        <p className="mb-4 rounded-lg bg-bark-50 p-3 text-sm text-bark-700">
+        <p className="mb-4 rounded-lg bg-sea-50 p-3 text-sm text-sea-700">
           The shop is currently using <strong>your own price list</strong>. To
           switch to live courier prices, add{" "}
           <code className="rounded bg-white px-1.5 py-0.5 text-xs">
@@ -55,7 +55,7 @@ export function CourierTest({ providerId }: { providerId: string }) {
         </button>
       </form>
 
-      <p className="mt-2 text-xs text-bark-600">
+      <p className="mt-2 text-xs text-sea-800">
         Pretends to send a 500 g parcel. Nothing is booked and nothing is
         charged.
       </p>
@@ -76,12 +76,12 @@ export function CourierTest({ providerId }: { providerId: string }) {
           </p>
 
           {result.advice && (
-            <p className="mt-2 pl-6 text-sm text-bark-700">{result.advice}</p>
+            <p className="mt-2 pl-6 text-sm text-sea-700">{result.advice}</p>
           )}
 
           {result.options.length > 0 && (
             <table className="mt-4 w-full text-sm">
-              <thead className="text-left text-xs uppercase tracking-wider text-bark-600">
+              <thead className="text-left text-xs uppercase tracking-wider text-sea-800">
                 <tr>
                   <th className="pb-1 font-medium">Courier</th>
                   <th className="pb-1 font-medium">Price</th>
@@ -94,7 +94,7 @@ export function CourierTest({ providerId }: { providerId: string }) {
                   <tr key={option.label + option.priceIdr}>
                     <td className="py-1.5">{option.label}</td>
                     <td className="py-1.5">{formatIDR(option.priceIdr)}</td>
-                    <td className="py-1.5 text-bark-600">{option.duration ?? "—"}</td>
+                    <td className="py-1.5 text-sea-800">{option.duration ?? "—"}</td>
                     <td className="py-1.5">
                       {option.collects ? (
                         "Yes"

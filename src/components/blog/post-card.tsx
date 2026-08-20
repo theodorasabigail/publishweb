@@ -18,7 +18,7 @@ export function PostCard({
       <Link href={`/blog/${post.slug}`} className="block">
         <div
           className={`relative overflow-hidden rounded-2xl ${large ? "aspect-[16/9]" : "aspect-[3/2]"}`}
-          style={{ backgroundColor: category?.accent_color ?? "#714c39" }}
+          style={{ backgroundColor: category?.accent_color ?? "#486b73" }}
         >
           {post.cover_image ? (
             <Image
@@ -38,7 +38,7 @@ export function PostCard({
         </div>
 
         <div className="mt-4">
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-bark-500">
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-sea-800">
             {category && (
               <span
                 className="badge"
@@ -62,7 +62,7 @@ export function PostCard({
           </h3>
 
           {post.excerpt && (
-            <p className={`mt-2 text-bark-600 ${large ? "text-base" : "line-clamp-3 text-sm"}`}>
+            <p className={`mt-2 text-sea-800 ${large ? "text-base" : "line-clamp-3 text-sm"}`}>
               {post.excerpt}
             </p>
           )}

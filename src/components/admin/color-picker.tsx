@@ -3,9 +3,12 @@
 import { useState } from "react";
 import { isValidHexColor } from "@/lib/utils";
 
+/** The brand palette first, then the two darkest steps of the site's own ramp.
+ *  These are the eight colours that look like they belong here; the hex field
+ *  below is for anything else. */
 const PRESETS = [
-  "#5d4033", "#714c39", "#8c6144", "#a3784f",
-  "#b69169", "#cdb493", "#4e372d", "#2b1c16",
+  "#ee8a7a", "#e2a290", "#dab0b0", "#a7a4b5",
+  "#638c97", "#486b73", "#243c43", "#13262b",
 ];
 
 /** Product card accent colour (spec §7.2). Swatches for speed, a hex field for
@@ -13,7 +16,7 @@ const PRESETS = [
 export function ColorPicker({
   name,
   label,
-  defaultValue = "#8c6144",
+  defaultValue = "#486b73",
   hint,
 }: {
   name: string;
@@ -30,9 +33,9 @@ export function ColorPicker({
       <div className="flex items-center gap-3">
         <input
           type="color"
-          value={valid ? color : "#8c6144"}
+          value={valid ? color : "#486b73"}
           onChange={(event) => setColor(event.target.value)}
-          className="h-10 w-14 cursor-pointer rounded border border-bark-200 bg-white p-1"
+          className="h-10 w-14 cursor-pointer rounded border border-sea-200 bg-white p-1"
           aria-label={`${label} colour picker`}
         />
         <input
@@ -58,10 +61,10 @@ export function ColorPicker({
       </div>
       {!valid && (
         <p className="mt-1.5 text-xs text-amber-700">
-          Use a 6-digit hex colour, like #8c6144.
+          Use a 6-digit hex colour, like #486b73.
         </p>
       )}
-      {hint && <p className="mt-1.5 text-xs text-bark-600">{hint}</p>}
+      {hint && <p className="mt-1.5 text-xs text-sea-800">{hint}</p>}
     </div>
   );
 }

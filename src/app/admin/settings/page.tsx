@@ -111,7 +111,7 @@ export default async function AdminSettingsPage() {
                   type="checkbox"
                   name="banner_enabled"
                   defaultChecked={site?.banner_enabled ?? false}
-                  className="h-4 w-4 rounded border-bark-300"
+                  className="h-4 w-4 rounded border-sea-300"
                 />
                 Show the banner
               </label>
@@ -173,7 +173,7 @@ export default async function AdminSettingsPage() {
                 />
               </Field>
             </div>
-            <p className="mt-3 text-xs text-bark-600">
+            <p className="mt-3 text-xs text-sea-800">
               Points are only awarded on orders that have actually been paid for.
               Changing these does not re-calculate past orders.
             </p>
@@ -240,7 +240,7 @@ export default async function AdminSettingsPage() {
             </div>
           </Panel>
 
-          <div className="sticky bottom-0 -mx-5 border-t border-bark-200 bg-white/95 px-5 py-3 backdrop-blur sm:-mx-8 sm:px-8">
+          <div className="sticky bottom-0 -mx-5 border-t border-sea-200 bg-white/95 px-5 py-3 backdrop-blur sm:-mx-8 sm:px-8">
             <button type="submit" className="btn-primary">
               Save settings
             </button>

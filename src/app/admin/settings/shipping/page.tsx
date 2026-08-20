@@ -29,7 +29,7 @@ export default async function AdminShippingPage() {
     <div>
       <Link
         href="/admin/settings"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-bark-600 hover:underline"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-sea-800 hover:underline"
       >
         <ArrowLeft className="h-3.5 w-3.5" /> Site settings
       </Link>
@@ -39,7 +39,7 @@ export default async function AdminShippingPage() {
         description="Flat rates by zone. Checkout picks the zone from the delivery address."
       />
 
-      <p className="mb-6 rounded-lg border border-bark-200 bg-white px-4 py-3 text-sm text-bark-600">
+      <p className="mb-6 rounded-lg border border-sea-200 bg-white px-4 py-3 text-sm text-sea-800">
         Indonesian orders use the two domestic zones — Java and everywhere else —
         chosen automatically from the province. Everywhere else matches on
         country code, falling back to the zone coded <code>rest</code>.
@@ -100,11 +100,11 @@ export default async function AdminShippingPage() {
           zones.map((zone) => (
             <Panel key={zone.id}>
               <ZoneForm zone={zone} />
-              <form action={deleteShippingZone} className="mt-3 border-t border-bark-200 pt-3">
+              <form action={deleteShippingZone} className="mt-3 border-t border-sea-200 pt-3">
                 <input type="hidden" name="id" value={zone.id} />
                 <button
                   type="submit"
-                  className="flex items-center gap-1.5 text-xs text-bark-600 hover:text-red-700"
+                  className="flex items-center gap-1.5 text-xs text-sea-800 hover:text-red-700"
                 >
                   <Trash2 className="h-3.5 w-3.5" /> Delete this zone
                 </button>
@@ -195,9 +195,9 @@ function ZoneForm({ zone }: { zone?: ShippingZone }) {
         </Field>
       </div>
 
-      <div className="rounded-lg border border-bark-200 bg-bark-50 p-4">
+      <div className="rounded-lg border border-sea-200 bg-sea-50 p-4">
         <p className="text-sm font-medium">Partial discount (optional)</p>
-        <p className="mt-1 text-xs text-bark-600">
+        <p className="mt-1 text-xs text-sea-800">
           A step below free shipping — knock a fixed amount off for orders over
           a smaller spend. Leave blank to skip straight from full price to free.
         </p>
@@ -249,7 +249,7 @@ function ZoneForm({ zone }: { zone?: ShippingZone }) {
               type="checkbox"
               name="is_domestic"
               defaultChecked={zone?.is_domestic ?? false}
-              className="h-4 w-4 rounded border-bark-300"
+              className="h-4 w-4 rounded border-sea-300"
             />
             Indonesia
           </label>
@@ -258,7 +258,7 @@ function ZoneForm({ zone }: { zone?: ShippingZone }) {
               type="checkbox"
               name="is_active"
               defaultChecked={zone?.is_active ?? true}
-              className="h-4 w-4 rounded border-bark-300"
+              className="h-4 w-4 rounded border-sea-300"
             />
             Active
           </label>

@@ -6,7 +6,7 @@ const ORDER_STYLES: Record<OrderStatus, string> = {
   paid: "bg-emerald-100 text-emerald-800",
   roasting: "bg-orange-100 text-orange-800",
   shipped: "bg-sky-100 text-sky-800",
-  completed: "bg-bark-100 text-bark-800",
+  completed: "bg-sea-100 text-sea-800",
   cancelled: "bg-red-100 text-red-800",
 };
 
@@ -24,7 +24,7 @@ const ROASTING_STYLES: Record<RoastingStatus, string> = {
   quoted: "bg-amber-100 text-amber-800",
   accepted: "bg-emerald-100 text-emerald-800",
   declined: "bg-red-100 text-red-800",
-  done: "bg-bark-100 text-bark-800",
+  done: "bg-sea-100 text-sea-800",
 };
 
 export function OrderStatusBadge({ status }: { status: OrderStatus }) {

@@ -21,7 +21,7 @@ export function AddToCart({ product }: { product: ProductWithVariants }) {
 
   if (!selected) {
     return (
-      <p className="rounded-xl bg-bark-100 p-4 text-sm text-bark-700">
+      <p className="rounded-xl bg-sea-100 p-4 text-sm text-sea-700">
         This coffee has no sizes listed right now. Check back soon.
       </p>
     );
@@ -67,8 +67,8 @@ export function AddToCart({ product }: { product: ProductWithVariants }) {
                 className={cn(
                   "rounded-xl border px-4 py-2.5 text-left transition-colors",
                   isSelected
-                    ? "border-bark-800 bg-bark-800 text-cream"
-                    : "border-bark-200 bg-white hover:border-bark-400",
+                    ? "border-sea-800 bg-sea-800 text-cream"
+                    : "border-sea-200 bg-white hover:border-sea-400",
                   unavailable && "opacity-50",
                 )}
               >
@@ -76,7 +76,7 @@ export function AddToCart({ product }: { product: ProductWithVariants }) {
                 <span
                   className={cn(
                     "block text-xs",
-                    isSelected ? "text-bark-200" : "text-bark-500",
+                    isSelected ? "text-sea-200" : "text-sea-800",
                   )}
                 >
                   {unavailable ? "Sold out" : formatIDR(variant.price_idr)}
@@ -87,13 +87,13 @@ export function AddToCart({ product }: { product: ProductWithVariants }) {
         </div>
       </div>
 
-      <div className="flex items-baseline justify-between border-y border-bark-200/70 py-4">
-        <span className="text-sm text-bark-600">Price</span>
+      <div className="flex items-baseline justify-between border-y border-sea-200/70 py-4">
+        <span className="text-sm text-sea-800">Price</span>
         <span className="font-serif text-2xl">{formatIDR(selected.price_idr)}</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center rounded-full border border-bark-200">
+        <div className="flex items-center rounded-full border border-sea-200">
           <button
             type="button"
             onClick={() => setQuantity((value) => Math.max(1, value - 1))}
@@ -128,7 +128,7 @@ export function AddToCart({ product }: { product: ProductWithVariants }) {
       </div>
 
       {justAdded && (
-        <p className="flex items-center gap-2 text-sm text-bark-700" role="status">
+        <p className="flex items-center gap-2 text-sm text-sea-700" role="status">
           <Check className="h-4 w-4" />
           <Link href="/cart" className="underline underline-offset-4">
             Go to cart

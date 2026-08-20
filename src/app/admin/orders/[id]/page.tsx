@@ -43,7 +43,7 @@ export default async function AdminOrderDetailPage({
     <div>
       <Link
         href="/admin/orders"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-bark-600 hover:underline"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-sea-800 hover:underline"
       >
         <ArrowLeft className="h-3.5 w-3.5" /> All orders
       </Link>
@@ -61,12 +61,12 @@ export default async function AdminOrderDetailPage({
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
           <Panel title="Items">
-            <ul className="divide-y divide-bark-200">
+            <ul className="divide-y divide-sea-200">
               {order.order_items.map((item) => (
                 <li key={item.id} className="flex justify-between gap-4 py-3">
                   <div>
                     <p className="font-medium">{item.name_snapshot}</p>
-                    <p className="text-sm text-bark-600">
+                    <p className="text-sm text-sea-800">
                       {item.size_snapshot} × {item.quantity}
                     </p>
                   </div>
@@ -77,13 +77,13 @@ export default async function AdminOrderDetailPage({
               ))}
             </ul>
 
-            <dl className="mt-4 space-y-2 border-t border-bark-200 pt-4 text-sm">
+            <dl className="mt-4 space-y-2 border-t border-sea-200 pt-4 text-sm">
               <div className="flex justify-between">
-                <dt className="text-bark-600">Subtotal</dt>
+                <dt className="text-sea-800">Subtotal</dt>
                 <dd>{formatIDR(order.subtotal_idr)}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-bark-600">
+                <dt className="text-sea-800">
                   Shipping{order.shipping_zone ? ` (${order.shipping_zone})` : ""}
                 </dt>
                 <dd>{formatIDR(order.shipping_idr)}</dd>
@@ -96,11 +96,11 @@ export default async function AdminOrderDetailPage({
               )}
               {order.unique_code > 0 && (
                 <div className="flex justify-between">
-                  <dt className="text-bark-600">Kode unik</dt>
+                  <dt className="text-sea-800">Kode unik</dt>
                   <dd>{order.unique_code}</dd>
                 </div>
               )}
-              <div className="flex justify-between border-t border-bark-200 pt-2 font-medium">
+              <div className="flex justify-between border-t border-sea-200 pt-2 font-medium">
                 <dt>Total</dt>
                 <dd>{formatIDR(order.total_idr)}</dd>
               </div>
@@ -109,18 +109,18 @@ export default async function AdminOrderDetailPage({
 
           {order.customer_note && (
             <Panel title="Note from the customer">
-              <p className="text-sm text-bark-700">{order.customer_note}</p>
+              <p className="text-sm text-sea-700">{order.customer_note}</p>
             </Panel>
           )}
 
           <Panel title={order.channel === "pos" ? "Counter sale" : "Shipping"}>
             {order.channel === "pos" ? (
-              <p className="text-sm text-bark-600">
+              <p className="text-sm text-sea-800">
                 Sold in the shop — nothing to pack or ship. The customer took it
                 with them.
               </p>
             ) : address ? (
-              <address className="text-sm not-italic leading-relaxed text-bark-700">
+              <address className="text-sm not-italic leading-relaxed text-sea-700">
                 <strong className="text-ink">{address.recipient_name}</strong>
                 <br />
                 {address.line1}
@@ -145,11 +145,11 @@ export default async function AdminOrderDetailPage({
                 )}
               </address>
             ) : (
-              <p className="text-sm text-bark-600">No address recorded.</p>
+              <p className="text-sm text-sea-800">No address recorded.</p>
             )}
 
             {order.channel === "online" && (
-            <form action={updateOrderFulfilment} className="mt-5 space-y-4 border-t border-bark-200 pt-5">
+            <form action={updateOrderFulfilment} className="mt-5 space-y-4 border-t border-sea-200 pt-5">
               <input type="hidden" name="id" value={order.id} />
               <Field
                 label="Tracking number"
@@ -279,7 +279,7 @@ export default async function AdminOrderDetailPage({
                 </Link>
               </div>
             ) : (
-              <p className="text-sm text-bark-600">
+              <p className="text-sm text-sea-800">
                 {order.channel === "pos"
                   ? "Walk-in customer. Attach an account at the till next time to award points."
                   : `Guest checkout${order.guest_email ? ` — ${order.guest_email}` : ""}. No points awarded on guest orders.`}
@@ -295,7 +295,7 @@ export default async function AdminOrderDetailPage({
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-3">
-      <dt className="text-bark-600">{label}</dt>
+      <dt className="text-sea-800">{label}</dt>
       <dd className="truncate text-right font-medium">{value}</dd>
     </div>
   );

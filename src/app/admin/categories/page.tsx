@@ -71,7 +71,7 @@ export default async function AdminCategoriesPage() {
                           type="checkbox"
                           name="show_on_homepage"
                           defaultChecked={category.show_on_homepage}
-                          className="h-4 w-4 rounded border-bark-300"
+                          className="h-4 w-4 rounded border-sea-300"
                         />
                         Available for the homepage
                       </label>
@@ -86,7 +86,7 @@ export default async function AdminCategoriesPage() {
                   />
 
                   <details>
-                    <summary className="cursor-pointer text-sm text-bark-600">
+                    <summary className="cursor-pointer text-sm text-sea-800">
                       Search engine settings
                     </summary>
                     <div className="mt-3 space-y-3">
@@ -107,8 +107,8 @@ export default async function AdminCategoriesPage() {
                     </div>
                   </details>
 
-                  <div className="flex items-center justify-between gap-3 border-t border-bark-200 pt-4">
-                    <span className="text-xs text-bark-600">
+                  <div className="flex items-center justify-between gap-3 border-t border-sea-200 pt-4">
+                    <span className="text-xs text-sea-800">
                       {productCounts.get(category.id) ?? 0} products
                     </span>
                     <div className="flex gap-2">
@@ -119,15 +119,15 @@ export default async function AdminCategoriesPage() {
                   </div>
                 </form>
 
-                <form action={deleteCategory} className="mt-3 border-t border-bark-200 pt-3">
+                <form action={deleteCategory} className="mt-3 border-t border-sea-200 pt-3">
                   <input type="hidden" name="id" value={category.id} />
                   <button
                     type="submit"
-                    className="flex items-center gap-1.5 text-xs text-bark-600 hover:text-red-700"
+                    className="flex items-center gap-1.5 text-xs text-sea-800 hover:text-red-700"
                   >
                     <Trash2 className="h-3.5 w-3.5" /> Delete category
                   </button>
-                  <p className="mt-1 text-xs text-bark-600">
+                  <p className="mt-1 text-xs text-sea-800">
                     Products in it stay on the shop, just uncategorised.
                   </p>
                 </form>
@@ -162,7 +162,7 @@ export default async function AdminCategoriesPage() {
                 type="checkbox"
                 name="show_on_homepage"
                 defaultChecked
-                className="h-4 w-4 rounded border-bark-300"
+                className="h-4 w-4 rounded border-sea-300"
               />
               Available for the homepage
             </label>

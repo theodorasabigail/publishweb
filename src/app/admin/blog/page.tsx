@@ -9,7 +9,7 @@ import { cn, formatDateTime } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 const STATUS_STYLES: Record<string, string> = {
-  draft: "bg-bark-100 text-bark-700",
+  draft: "bg-sea-100 text-sea-700",
   scheduled: "bg-sky-100 text-sky-800",
   published: "bg-emerald-100 text-emerald-800",
 };
@@ -48,7 +48,7 @@ export default async function AdminBlogPage() {
 
       <form
         action={setFeaturedPost}
-        className="mb-5 flex flex-wrap items-end gap-3 rounded-xl border border-bark-200 bg-white p-4"
+        className="mb-5 flex flex-wrap items-end gap-3 rounded-xl border border-sea-200 bg-white p-4"
       >
         <div className="min-w-64 flex-1">
           <label className="label" htmlFor="post_id">
@@ -71,9 +71,9 @@ export default async function AdminBlogPage() {
       </form>
 
       {rows.length ? (
-        <div className="overflow-x-auto rounded-xl border border-bark-200 bg-white">
+        <div className="overflow-x-auto rounded-xl border border-sea-200 bg-white">
           <table className="w-full min-w-[680px] text-sm">
-            <thead className="border-b border-bark-200 text-left text-xs uppercase tracking-wider text-bark-600">
+            <thead className="border-b border-sea-200 text-left text-xs uppercase tracking-wider text-sea-800">
               <tr>
                 <th className="px-4 py-3 font-medium">Title</th>
                 <th className="px-4 py-3 font-medium">Category</th>
@@ -81,9 +81,9 @@ export default async function AdminBlogPage() {
                 <th className="px-4 py-3 font-medium">Publish date</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-bark-200">
+            <tbody className="divide-y divide-sea-200">
               {rows.map((post) => (
-                <tr key={post.id} className="hover:bg-bark-50">
+                <tr key={post.id} className="hover:bg-sea-50">
                   <td className="px-4 py-3">
                     <Link
                       href={`/admin/blog/${post.id}`}
@@ -95,7 +95,7 @@ export default async function AdminBlogPage() {
                       <span className="ml-2 badge bg-amber-100 text-amber-800">Pinned</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-bark-600">
+                  <td className="px-4 py-3 text-sea-800">
                     {post.blog_categories?.name ?? "—"}
                   </td>
                   <td className="px-4 py-3">
@@ -103,7 +103,7 @@ export default async function AdminBlogPage() {
                       {post.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-bark-600">
+                  <td className="px-4 py-3 text-sea-800">
                     {post.published_at ? formatDateTime(post.published_at) : "—"}
                   </td>
                 </tr>

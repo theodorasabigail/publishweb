@@ -1,5 +1,13 @@
 export type LoyaltyTier = "bronze" | "silver" | "gold";
-export type VariantSize = "100g" | "200g" | "1kg";
+/**
+ * A pack size, as the operator typed it: "200g", "250g", "12oz", "Sample".
+ *
+ * Was an enum of exactly three values, in the database as well as here, which
+ * made adding a size a code change and a deployment. Ordering comes from
+ * weight_grams instead, which is more correct anyway -- it puts a new 250g
+ * between 200g and 1kg with nobody maintaining a list.
+ */
+export type VariantSize = string;
 export type OrderStatus =
   | "pending"
   | "paid"
@@ -11,7 +19,8 @@ export type RoastingStatus = "new" | "quoted" | "accepted" | "declined" | "done"
 export type PostStatus = "draft" | "scheduled" | "published";
 export type SalesChannel = "online" | "pos";
 
-export const VARIANT_SIZES: VariantSize[] = ["100g", "200g", "1kg"];
+/** Offered as a starting point in the admin, not a limit. */
+export const SUGGESTED_SIZES = ["100g", "200g", "250g", "500g", "1kg"];
 
 export const ORDER_STATUSES: OrderStatus[] = [
   "pending",

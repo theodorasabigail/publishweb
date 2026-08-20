@@ -68,9 +68,9 @@ export function RoastingRequestForm({
       <div className="text-center">
         <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" />
         <p className="mt-4 font-serif text-xl">Request sent</p>
-        <p className="mt-2 text-sm text-bark-600">
+        <p className="mt-2 text-sm text-sea-800">
           Your reference is{" "}
-          <span className="font-medium text-bark-900">{reference}</span>. We
+          <span className="font-medium text-sea-900">{reference}</span>. We
           normally reply within one working day.
         </p>
       </div>

@@ -24,12 +24,12 @@ export default async function BlogCategoriesPage() {
 
   return (
     <div className="container-page py-14">
-      <nav className="text-sm text-bark-500">
+      <nav className="text-sm text-sea-800">
         <Link href="/blog" className="hover:underline">
           Journal
         </Link>
         <span className="mx-2">/</span>
-        <span className="text-bark-800">Categories</span>
+        <span className="text-sea-800">Categories</span>
       </nav>
 
       <h1 className="mt-4 text-4xl sm:text-5xl">Categories</h1>
@@ -44,7 +44,7 @@ export default async function BlogCategoriesPage() {
             <Link
               key={category.id}
               href={`/blog/category/${category.slug}`}
-              className="card group p-6 transition-colors hover:border-bark-400"
+              className="card group p-6 transition-colors hover:border-sea-400"
             >
               <span
                 className="inline-block h-1.5 w-10 rounded-full"
@@ -52,9 +52,9 @@ export default async function BlogCategoriesPage() {
               />
               <p className="mt-3 font-serif text-2xl">{category.name}</p>
               {category.description && (
-                <p className="mt-2 text-sm text-bark-600">{category.description}</p>
+                <p className="mt-2 text-sm text-sea-800">{category.description}</p>
               )}
-              <p className="mt-4 text-xs text-bark-500">
+              <p className="mt-4 text-xs text-sea-800">
                 {count} {count === 1 ? "post" : "posts"}
               </p>
             </Link>

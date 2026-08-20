@@ -125,7 +125,7 @@ export function ImageUploader({
           <img
             src={url}
             alt=""
-            className="h-32 w-32 rounded-lg border border-bark-200 object-cover"
+            className="h-32 w-32 rounded-lg border border-sea-200 object-cover"
           />
           <button
             type="button"
@@ -133,7 +133,7 @@ export function ImageUploader({
               setUrl("");
               setResult(null);
             }}
-            className="absolute -right-2 -top-2 rounded-full bg-white p-1 shadow ring-1 ring-bark-200 hover:bg-red-50"
+            className="absolute -right-2 -top-2 rounded-full bg-white p-1 shadow ring-1 ring-sea-200 hover:bg-red-50"
             aria-label="Remove image"
           >
             <X className="h-3.5 w-3.5" />
@@ -144,7 +144,7 @@ export function ImageUploader({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={busy}
-          className="flex h-32 w-32 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-bark-300 px-2 text-center text-xs text-bark-600 hover:border-bark-500"
+          className="flex h-32 w-32 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-sea-300 px-2 text-center text-xs text-sea-800 hover:border-sea-500"
         >
           {busy ? (
             <>
@@ -176,7 +176,7 @@ export function ImageUploader({
       )}
 
       {warning && <p className="mt-1.5 text-xs text-amber-700">{warning}</p>}
-      {hint && <p className="mt-1.5 text-xs text-bark-600">{hint}</p>}
+      {hint && <p className="mt-1.5 text-xs text-sea-800">{hint}</p>}
       {error && <p className="mt-1.5 text-xs text-red-700">{error}</p>}
     </div>
   );

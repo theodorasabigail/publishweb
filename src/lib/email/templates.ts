@@ -43,7 +43,7 @@ function shell(options: {
   const contacts: string[] = [];
   if (options.settings?.contact_email) {
     contacts.push(
-      `<a href="mailto:${esc(options.settings.contact_email)}" style="color:#6b5b4d;">${esc(options.settings.contact_email)}</a>`,
+      `<a href="mailto:${esc(options.settings.contact_email)}" style="color:#486b73;">${esc(options.settings.contact_email)}</a>`,
     );
   }
   if (options.settings?.whatsapp_number) {
@@ -52,21 +52,21 @@ function shell(options: {
 
   return `<!doctype html>
 <html lang="en">
-<body style="margin:0;padding:0;background:#f6f3ef;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1b1613;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f3ef;padding:32px 16px;">
+<body style="margin:0;padding:0;background:#fdf6f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#0f2024;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fdf6f4;padding:32px 16px;">
     <tr>
       <td align="center">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;padding:32px;">
           <tr>
             <td>
-              <p style="margin:0 0 24px;font-size:13px;letter-spacing:0.14em;text-transform:uppercase;color:#6b5b4d;">${BRAND}</p>
+              <p style="margin:0 0 24px;font-size:13px;letter-spacing:0.14em;text-transform:uppercase;color:#486b73;">${BRAND}</p>
               <h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;font-weight:600;">${esc(options.heading)}</h1>
-              <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#4a4038;">${esc(options.intro)}</p>
+              <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#35525a;">${esc(options.intro)}</p>
               ${options.body}
             </td>
           </tr>
         </table>
-        <p style="max-width:560px;margin:20px auto 0;font-size:12px;line-height:1.6;color:#8a7d70;text-align:center;">
+        <p style="max-width:560px;margin:20px auto 0;font-size:12px;line-height:1.6;color:#547680;text-align:center;">
           ${BRAND}${contacts.length ? ` &middot; ${contacts.join(" &middot; ")}` : ""}
         </p>
       </td>
@@ -85,11 +85,11 @@ function itemsTableHtml(items: OrderItem[]): string {
     .map(
       (item) => `
           <tr>
-            <td style="padding:8px 0;font-size:14px;line-height:1.5;border-bottom:1px solid #efeae4;">
+            <td style="padding:8px 0;font-size:14px;line-height:1.5;border-bottom:1px solid #e3ecee;">
               ${esc(item.name_snapshot)}<br>
-              <span style="color:#8a7d70;font-size:13px;">${esc(item.size_snapshot)} &times; ${item.quantity}</span>
+              <span style="color:#547680;font-size:13px;">${esc(item.size_snapshot)} &times; ${item.quantity}</span>
             </td>
-            <td align="right" style="padding:8px 0;font-size:14px;white-space:nowrap;border-bottom:1px solid #efeae4;">
+            <td align="right" style="padding:8px 0;font-size:14px;white-space:nowrap;border-bottom:1px solid #e3ecee;">
               ${formatIDR(item.unit_price_idr * item.quantity)}
             </td>
           </tr>`,
@@ -101,7 +101,7 @@ function itemsTableHtml(items: OrderItem[]): string {
 function totalsHtml(order: Order): string {
   const line = (label: string, value: string, strong = false) => `
           <tr>
-            <td style="padding:4px 0;font-size:${strong ? "15px" : "14px"};color:${strong ? "#1b1613" : "#4a4038"};${strong ? "font-weight:600;" : ""}">${esc(label)}</td>
+            <td style="padding:4px 0;font-size:${strong ? "15px" : "14px"};color:${strong ? "#0f2024" : "#35525a"};${strong ? "font-weight:600;" : ""}">${esc(label)}</td>
             <td align="right" style="padding:4px 0;font-size:${strong ? "15px" : "14px"};white-space:nowrap;${strong ? "font-weight:600;" : ""}">${value}</td>
           </tr>`;
 
@@ -133,7 +133,7 @@ function totalsHtml(order: Order): string {
 
 function buttonHtml(href: string, label: string): string {
   return `<p style="margin:28px 0 0;">
-          <a href="${esc(href)}" style="display:inline-block;background:#1b1613;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 22px;border-radius:8px;">${esc(label)}</a>
+          <a href="${esc(href)}" style="display:inline-block;background:#0f2024;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 22px;border-radius:8px;">${esc(label)}</a>
         </p>`;
 }
 
@@ -162,7 +162,7 @@ export function orderConfirmationEmail(input: {
 
   const points =
     order.points_awarded > 0
-      ? `<p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#4a4038;">You earned <strong>${order.points_awarded} loyalty ${order.points_awarded === 1 ? "point" : "points"}</strong> on this order.</p>`
+      ? `<p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#35525a;">You earned <strong>${order.points_awarded} loyalty ${order.points_awarded === 1 ? "point" : "points"}</strong> on this order.</p>`
       : "";
 
   const html = shell({
@@ -231,12 +231,12 @@ export function orderShippedEmail(input: {
     heading: name ? `${name}, your coffee is on its way.` : "Your coffee is on its way.",
     intro: `Order ${order.human_ref} left the roastery${via}. Use the tracking number below to follow it.`,
     settings,
-    body: `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f3ef;border-radius:8px;">
+    body: `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fdf6f4;border-radius:8px;">
           <tr>
             <td style="padding:16px 18px;">
-              <p style="margin:0 0 4px;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#8a7d70;">Tracking number</p>
+              <p style="margin:0 0 4px;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#547680;">Tracking number</p>
               <p style="margin:0;font-size:18px;font-weight:600;letter-spacing:0.02em;">${esc(trackingNumber)}</p>
-              ${courier ? `<p style="margin:6px 0 0;font-size:13px;color:#6b5b4d;">${esc(courier)}</p>` : ""}
+              ${courier ? `<p style="margin:6px 0 0;font-size:13px;color:#486b73;">${esc(courier)}</p>` : ""}
             </td>
           </tr>
         </table>

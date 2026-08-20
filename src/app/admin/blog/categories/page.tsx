@@ -18,7 +18,7 @@ export default async function AdminBlogCategoriesPage() {
     <div>
       <Link
         href="/admin/blog"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-bark-600 hover:underline"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-sea-800 hover:underline"
       >
         <ArrowLeft className="h-3.5 w-3.5" /> Journal
       </Link>
@@ -70,11 +70,11 @@ export default async function AdminBlogCategoriesPage() {
                   </button>
                 </form>
 
-                <form action={deleteBlogCategory} className="mt-3 border-t border-bark-200 pt-3">
+                <form action={deleteBlogCategory} className="mt-3 border-t border-sea-200 pt-3">
                   <input type="hidden" name="id" value={category.id} />
                   <button
                     type="submit"
-                    className="flex items-center gap-1.5 text-xs text-bark-600 hover:text-red-700"
+                    className="flex items-center gap-1.5 text-xs text-sea-800 hover:text-red-700"
                   >
                     <Trash2 className="h-3.5 w-3.5" /> Delete
                   </button>
@@ -97,7 +97,7 @@ export default async function AdminBlogCategoriesPage() {
             <Field label="Description">
               <textarea name="description" className="input min-h-16" />
             </Field>
-            <ColorPicker name="accent_color" label="Accent colour" defaultValue="#714c39" />
+            <ColorPicker name="accent_color" label="Accent colour" defaultValue="#486b73" />
             <Field label="Order">
               <input
                 type="number"

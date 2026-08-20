@@ -60,7 +60,7 @@ export async function saveBlogCategory(formData: FormData) {
     name,
     slug: slugify(text(formData, "slug") || name),
     description: optionalText(formData, "description"),
-    accent_color: text(formData, "accent_color") || "#714c39",
+    accent_color: text(formData, "accent_color") || "#486b73",
     sort_order: integer(formData, "sort_order"),
   };
 

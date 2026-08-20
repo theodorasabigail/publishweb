@@ -21,10 +21,10 @@ export function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-bark-200/70 bg-cream/90 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-sea-200/70 bg-cream/90 backdrop-blur">
       <div className="container-page flex h-16 items-center justify-between gap-4">
         <Link href="/" className="font-serif text-lg font-semibold tracking-tight">
-          Publish<span className="text-bark-500"> Coffee Roasters</span>
+          Publish<span className="text-sea-800"> Coffee Roasters</span>
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
@@ -33,10 +33,10 @@ export function SiteHeader() {
               key={item.href}
               href={item.href}
               className={cn(
-                "rounded-full px-3 py-1.5 text-sm transition-colors hover:bg-bark-100",
+                "rounded-full px-3 py-1.5 text-sm transition-colors hover:bg-sea-100",
                 pathname.startsWith(item.href)
-                  ? "bg-bark-100 font-medium text-bark-900"
-                  : "text-bark-700",
+                  ? "bg-sea-100 font-medium text-sea-900"
+                  : "text-sea-700",
               )}
             >
               {item.label}
@@ -50,7 +50,7 @@ export function SiteHeader() {
           <Link href="/cart" className="btn-ghost relative px-3" aria-label="Cart">
             <ShoppingBag className="h-4 w-4" />
             {ready && count > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-bark-800 px-1 text-[11px] font-semibold text-cream">
+              <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-sea-800 px-1 text-[11px] font-semibold text-cream">
                 {count}
               </span>
             )}
@@ -69,14 +69,14 @@ export function SiteHeader() {
       </div>
 
       {menuOpen && (
-        <nav className="border-t border-bark-200/70 bg-cream md:hidden">
+        <nav className="border-t border-sea-200/70 bg-cream md:hidden">
           <div className="container-page flex flex-col py-2">
             {NAV.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setMenuOpen(false)}
-                className="rounded-lg px-2 py-3 text-sm text-bark-800 hover:bg-bark-100"
+                className="rounded-lg px-2 py-3 text-sm text-sea-800 hover:bg-sea-100"
               >
                 {item.label}
               </Link>

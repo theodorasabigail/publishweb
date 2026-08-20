@@ -50,25 +50,25 @@ export default async function CategoryPage({
 
   return (
     <div className="container-page py-14">
-      <nav className="text-sm text-bark-500">
+      <nav className="text-sm text-sea-800">
         <Link href="/shop" className="hover:underline">
           Shop
         </Link>
         <span className="mx-2">/</span>
-        <span className="text-bark-800">{category.name}</span>
+        <span className="text-sea-800">{category.name}</span>
       </nav>
 
       <header className="mt-4 max-w-2xl">
         <h1 className="text-4xl sm:text-5xl">{category.name}</h1>
         {category.description && (
-          <p className="mt-4 text-bark-600">{category.description}</p>
+          <p className="mt-4 text-sea-800">{category.description}</p>
         )}
       </header>
 
       <nav className="mt-8 flex flex-wrap gap-2" aria-label="Product categories">
         <Link
           href="/shop"
-          className="badge border border-bark-200 bg-white text-bark-700 hover:border-bark-400"
+          className="badge border border-sea-200 bg-white text-sea-700 hover:border-sea-400"
         >
           All
         </Link>
@@ -78,8 +78,8 @@ export default async function CategoryPage({
             href={`/shop/category/${item.slug}`}
             className={
               item.id === category.id
-                ? "badge bg-bark-800 text-cream"
-                : "badge border border-bark-200 bg-white text-bark-700 hover:border-bark-400"
+                ? "badge bg-sea-800 text-cream"
+                : "badge border border-sea-200 bg-white text-sea-700 hover:border-sea-400"
             }
           >
             {item.name}

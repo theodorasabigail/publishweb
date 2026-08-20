@@ -50,7 +50,7 @@ export default async function AdminEmailPage() {
     <div>
       <Link
         href="/admin/settings"
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-bark-600 hover:underline"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-sea-800 hover:underline"
       >
         <ArrowLeft className="h-4 w-4" /> Back to settings
       </Link>
@@ -67,11 +67,11 @@ export default async function AdminEmailPage() {
               {check.done ? (
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
               ) : (
-                <Circle className="mt-0.5 h-4 w-4 shrink-0 text-bark-300" />
+                <Circle className="mt-0.5 h-4 w-4 shrink-0 text-sea-300" />
               )}
               <div>
                 <p className="text-sm font-medium">{check.label}</p>
-                <p className="text-sm text-bark-600">{check.detail}</p>
+                <p className="text-sm text-sea-800">{check.detail}</p>
               </div>
             </li>
           ))}
@@ -79,14 +79,14 @@ export default async function AdminEmailPage() {
       </Panel>
 
       <Panel title="How to switch emails on" className="mb-6">
-        <ol className="space-y-4 text-sm text-bark-700">
+        <ol className="space-y-4 text-sm text-sea-700">
           <li>
-            <strong className="text-bark-900">1. Make a Resend account.</strong>{" "}
+            <strong className="text-sea-900">1. Make a Resend account.</strong>{" "}
             Go to <span className="font-mono text-xs">resend.com</span> and sign
             up. The free plan covers far more email than this shop will send.
           </li>
           <li>
-            <strong className="text-bark-900">2. Verify your domain.</strong> In
+            <strong className="text-sea-900">2. Verify your domain.</strong> In
             Resend, go to <em>Domains</em> and add{" "}
             <span className="font-mono text-xs">publish-coffee.com</span>. It
             gives you a handful of DNS records to add wherever the domain is
@@ -95,28 +95,28 @@ export default async function AdminEmailPage() {
             does. Everything else here takes five minutes.
           </li>
           <li>
-            <strong className="text-bark-900">3. Create an API key.</strong>{" "}
+            <strong className="text-sea-900">3. Create an API key.</strong>{" "}
             Resend → <em>API Keys</em> → create one. It is shown once. It is a
             password: it goes into Vercel and nowhere else.
           </li>
           <li>
-            <strong className="text-bark-900">
+            <strong className="text-sea-900">
               4. Add two settings in Vercel.
             </strong>{" "}
             Settings → Environment Variables, the same place the Supabase keys
             already live:
-            <div className="mt-2 rounded-lg bg-bark-50 p-3 font-mono text-xs leading-relaxed">
+            <div className="mt-2 rounded-lg bg-sea-50 p-3 font-mono text-xs leading-relaxed">
               RESEND_API_KEY = re_...
               <br />
               EMAIL_FROM = Publish Coffee &lt;hello@publish-coffee.com&gt;
             </div>
           </li>
           <li>
-            <strong className="text-bark-900">5. Redeploy.</strong> Nothing
+            <strong className="text-sea-900">5. Redeploy.</strong> Nothing
             changes until you do — this catches everyone at least once.
           </li>
           <li>
-            <strong className="text-bark-900">6. Test it below.</strong>
+            <strong className="text-sea-900">6. Test it below.</strong>
           </li>
         </ol>
       </Panel>
@@ -130,25 +130,25 @@ export default async function AdminEmailPage() {
       </Panel>
 
       <Panel title="What gets sent">
-        <ul className="space-y-3 text-sm text-bark-700">
+        <ul className="space-y-3 text-sm text-sea-700">
           <li>
-            <strong className="text-bark-900">Order confirmed.</strong> Sent once,
+            <strong className="text-sea-900">Order confirmed.</strong> Sent once,
             the moment a payment is confirmed — whether that is Xendit, a bank
             transfer you matched by hand, or you marking the order paid
             yourself. Lists what they bought, what they paid, and any loyalty
             points earned.
           </li>
           <li>
-            <strong className="text-bark-900">On its way.</strong> Sent when you
+            <strong className="text-sea-900">On its way.</strong> Sent when you
             save a tracking number on an order. Correcting a number you typed
             wrong sends a fresh one; saving the same number again sends nothing.
           </li>
-          <li className="text-bark-600">
+          <li className="text-sea-800">
             Counter sales in the POS never send email — there is no address to
             send to and nobody waiting for one.
           </li>
         </ul>
-        <p className="mt-4 rounded-lg bg-bark-50 p-3 text-sm text-bark-700">
+        <p className="mt-4 rounded-lg bg-sea-50 p-3 text-sm text-sea-700">
           If email is ever broken or switched off, orders still go through
           exactly as normal. A failed email is recorded and ignored; it can
           never undo a payment.

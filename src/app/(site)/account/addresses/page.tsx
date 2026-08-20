@@ -33,12 +33,12 @@ export default async function AddressesPage() {
                     <p className="font-medium">
                       {address.recipient_name}
                       {address.is_default && (
-                        <span className="badge ml-2 bg-bark-100 text-bark-700">
+                        <span className="badge ml-2 bg-sea-100 text-sea-700">
                           Default
                         </span>
                       )}
                     </p>
-                    <address className="mt-1.5 text-sm not-italic leading-relaxed text-bark-600">
+                    <address className="mt-1.5 text-sm not-italic leading-relaxed text-sea-800">
                       {address.line1}
                       {address.line2 && <>, {address.line2}</>}
                       <br />
@@ -56,7 +56,7 @@ export default async function AddressesPage() {
                         <input type="hidden" name="id" value={address.id} />
                         <button
                           type="submit"
-                          className="rounded-lg p-2 text-bark-500 hover:bg-bark-100"
+                          className="rounded-lg p-2 text-sea-800 hover:bg-sea-100"
                           title="Make default"
                         >
                           <Star className="h-4 w-4" />
@@ -67,7 +67,7 @@ export default async function AddressesPage() {
                       <input type="hidden" name="id" value={address.id} />
                       <button
                         type="submit"
-                        className="rounded-lg p-2 text-bark-500 hover:bg-red-50 hover:text-red-700"
+                        className="rounded-lg p-2 text-sea-800 hover:bg-red-50 hover:text-red-700"
                         title="Delete"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -79,7 +79,7 @@ export default async function AddressesPage() {
             ))}
           </ul>
         ) : (
-          <p className="mt-4 card p-6 text-sm text-bark-600">
+          <p className="mt-4 card p-6 text-sm text-sea-800">
             No saved addresses yet. Add one and checkout gets a lot faster.
           </p>
         )}
@@ -130,8 +130,8 @@ export default async function AddressesPage() {
             </div>
           </div>
 
-          <label className="flex items-center gap-2 text-sm text-bark-700">
-            <input type="checkbox" name="is_default" className="rounded border-bark-300" />
+          <label className="flex items-center gap-2 text-sm text-sea-700">
+            <input type="checkbox" name="is_default" className="rounded border-sea-300" />
             Make this my default address
           </label>
 

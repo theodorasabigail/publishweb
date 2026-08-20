@@ -6,7 +6,7 @@ export default function NotFound() {
       <div className="text-center">
         <p className="font-serif text-6xl">404</p>
         <h1 className="mt-4 text-2xl">We couldn&apos;t find that page</h1>
-        <p className="mt-2 text-bark-600">
+        <p className="mt-2 text-sea-800">
           It may have been moved, or the lot may have sold out.
         </p>
         <div className="mt-8 flex justify-center gap-3">

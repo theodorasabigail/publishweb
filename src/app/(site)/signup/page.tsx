@@ -17,7 +17,7 @@ export default async function SignupPage({
   return (
     <div className="container-page max-w-md py-20">
       <h1 className="text-4xl">Create an account</h1>
-      <p className="mt-2 text-bark-600">
+      <p className="mt-2 text-sea-800">
         Keep your order history, save addresses, and start earning points on
         every paid order.
       </p>

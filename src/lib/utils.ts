@@ -57,16 +57,45 @@ export function truncate(text: string, max: number): string {
   return `${text.slice(0, max - 1).trimEnd()}…`;
 }
 
-/** Readable text colour for an operator-chosen accent. Keeps the product cards
- *  legible whatever hex gets picked in the admin. */
-export function contrastText(hex: string): "#ffffff" | "#1b1613" {
+const INK = "#0f2024";
+
+/** WCAG relative luminance. Note the gamma step — the eye is not linear in
+ *  light, and a plain channel average gets mid-tones wrong in exactly the
+ *  range most brand colours live in. */
+function relativeLuminance(r: number, g: number, b: number): number {
+  const channel = (value: number) => {
+    const c = value / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+}
+
+/**
+ * Readable text colour for an operator-chosen accent.
+ *
+ * Picks whichever of ink or white actually contrasts more, rather than
+ * guessing from a brightness threshold. The threshold version got the brand's
+ * own steel blue wrong — it read as "dark", so it took white text at 3.7:1,
+ * under the 4.5:1 floor. Comparing the two real ratios cannot make that
+ * mistake for any colour the operator picks.
+ */
+export function contrastText(hex: string): "#ffffff" | typeof INK {
   const clean = hex.replace("#", "");
   if (clean.length !== 6) return "#ffffff";
+
   const r = parseInt(clean.slice(0, 2), 16);
   const g = parseInt(clean.slice(2, 4), 16);
   const b = parseInt(clean.slice(4, 6), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.6 ? "#1b1613" : "#ffffff";
+  if ([r, g, b].some(Number.isNaN)) return "#ffffff";
+
+  const background = relativeLuminance(r, g, b);
+  const ratio = (other: number) =>
+    (Math.max(background, other) + 0.05) / (Math.min(background, other) + 0.05);
+
+  // White is 1.0; ink is dark enough that its luminance is worth computing
+  // once rather than hard-coding a number that drifts if ink changes.
+  const inkLuminance = relativeLuminance(0x0f, 0x20, 0x24);
+  return ratio(inkLuminance) >= ratio(1) ? INK : "#ffffff";
 }
 
 export function isValidHexColor(value: string): boolean {

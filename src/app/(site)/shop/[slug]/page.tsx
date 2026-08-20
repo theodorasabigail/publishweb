@@ -106,7 +106,7 @@ export default async function ProductPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <nav className="text-sm text-bark-500">
+      <nav className="text-sm text-sea-800">
         <Link href="/shop" className="hover:underline">
           Shop
         </Link>
@@ -122,7 +122,7 @@ export default async function ProductPage({
           </>
         )}
         <span className="mx-2">/</span>
-        <span className="text-bark-800">{product.name}</span>
+        <span className="text-sea-800">{product.name}</span>
       </nav>
 
       <div className="mt-6 grid gap-10 lg:grid-cols-2 lg:gap-16">
@@ -153,20 +153,20 @@ export default async function ProductPage({
 
         <div>
           {product.origin && (
-            <p className="text-xs uppercase tracking-[0.18em] text-bark-500">
+            <p className="text-xs uppercase tracking-[0.18em] text-sea-800">
               {product.origin}
             </p>
           )}
           <h1 className="mt-2 text-4xl sm:text-5xl">{product.name}</h1>
 
           {product.tasting_notes && (
-            <p className="mt-3 font-serif text-xl text-bark-700">
+            <p className="mt-3 font-serif text-xl text-sea-700">
               {product.tasting_notes}
             </p>
           )}
 
           {product.description && (
-            <p className="mt-5 leading-relaxed text-bark-700">{product.description}</p>
+            <p className="mt-5 leading-relaxed text-sea-700">{product.description}</p>
           )}
 
           <div className="mt-8">
@@ -174,17 +174,17 @@ export default async function ProductPage({
           </div>
 
           {specs.length > 0 && (
-            <dl className="mt-10 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-bark-200/70 pt-8 text-sm">
+            <dl className="mt-10 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-sea-200/70 pt-8 text-sm">
               {specs.map((spec) => (
                 <div key={spec.label}>
-                  <dt className="text-bark-500">{spec.label}</dt>
-                  <dd className="mt-0.5 font-medium text-bark-900">{spec.value}</dd>
+                  <dt className="text-sea-800">{spec.label}</dt>
+                  <dd className="mt-0.5 font-medium text-sea-900">{spec.value}</dd>
                 </div>
               ))}
             </dl>
           )}
 
-          <p className="mt-8 text-sm text-bark-600">
+          <p className="mt-8 text-sm text-sea-800">
             {price !== null && inStock
               ? "Roasted to order. Ships within 48 hours, worldwide."
               : "Currently unavailable — new lots are listed most weeks."}

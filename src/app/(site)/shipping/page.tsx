@@ -27,7 +27,7 @@ export default async function ShippingPage() {
   return (
     <div className="container-page max-w-3xl py-16">
       <h1 className="text-5xl">Shipping</h1>
-      <p className="mt-4 text-lg text-bark-600">
+      <p className="mt-4 text-lg text-sea-800">
         Flat rates by zone. What you see at checkout is what you pay — no
         adjustments afterwards.
       </p>
@@ -73,7 +73,7 @@ function ZoneTable({
       <h2 className="text-2xl">{title}</h2>
       <div className="mt-4 overflow-x-auto">
         <table className="w-full min-w-[520px] text-left text-sm">
-          <thead className="border-b border-bark-200 text-xs uppercase tracking-wider text-bark-500">
+          <thead className="border-b border-sea-200 text-xs uppercase tracking-wider text-sea-800">
             <tr>
               <th className="py-3 pr-4 font-medium">Zone</th>
               <th className="py-3 pr-4 font-medium">Up to 1kg</th>
@@ -81,11 +81,11 @@ function ZoneTable({
               <th className="py-3 font-medium">Estimate</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-bark-200/70">
+          <tbody className="divide-y divide-sea-200/70">
             {zones.map((zone) => (
               <tr key={zone.id}>
                 <td className="py-3 pr-4">
-                  <p className="font-medium text-bark-900">{zone.name}</p>
+                  <p className="font-medium text-sea-900">{zone.name}</p>
                   {zone.free_shipping_over_idr && (
                     <p className="text-xs text-emerald-700">
                       Free over {formatIDR(zone.free_shipping_over_idr)}
@@ -96,7 +96,7 @@ function ZoneTable({
                 <td className="py-3 pr-4">
                   {zone.heavy_rate_idr ? formatIDR(zone.heavy_rate_idr) : "—"}
                 </td>
-                <td className="py-3 text-bark-600">{zone.delivery_estimate ?? "—"}</td>
+                <td className="py-3 text-sea-800">{zone.delivery_estimate ?? "—"}</td>
               </tr>
             ))}
           </tbody>

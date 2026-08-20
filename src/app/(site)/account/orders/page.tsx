@@ -35,12 +35,12 @@ export default async function AccountOrdersPage() {
     <ul className="space-y-4">
       {orders.map((order) => (
         <li key={order.id} className="card overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-bark-200/70 px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sea-200/70 px-5 py-4">
             <div>
               <Link href={`/order/${order.id}`} className="font-medium hover:underline">
                 {order.human_ref}
               </Link>
-              <p className="text-sm text-bark-500">{formatDate(order.created_at)}</p>
+              <p className="text-sm text-sea-800">{formatDate(order.created_at)}</p>
             </div>
             <div className="flex items-center gap-4">
               <OrderStatusBadge status={order.status} />
@@ -48,12 +48,12 @@ export default async function AccountOrdersPage() {
             </div>
           </div>
 
-          <ul className="px-5 py-4 text-sm text-bark-700">
+          <ul className="px-5 py-4 text-sm text-sea-700">
             {order.order_items.map((item) => (
               <li key={item.id} className="flex justify-between gap-4 py-1">
                 <span>
                   {item.name_snapshot}{" "}
-                  <span className="text-bark-500">
+                  <span className="text-sea-800">
                     · {item.size_snapshot} × {item.quantity}
                   </span>
                 </span>
@@ -63,8 +63,8 @@ export default async function AccountOrdersPage() {
           </ul>
 
           {order.tracking_number && (
-            <p className="border-t border-bark-200/70 px-5 py-3 text-sm">
-              <span className="text-bark-600">Tracking:</span>{" "}
+            <p className="border-t border-sea-200/70 px-5 py-3 text-sm">
+              <span className="text-sea-800">Tracking:</span>{" "}
               <span className="font-mono">{order.tracking_number}</span>
             </p>
           )}

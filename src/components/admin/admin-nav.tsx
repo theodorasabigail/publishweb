@@ -67,8 +67,8 @@ export function AdminNav() {
             className={cn(
               "flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors",
               active
-                ? "bg-bark-800 font-medium text-cream"
-                : "text-bark-700 hover:bg-bark-100",
+                ? "bg-sea-800 font-medium text-cream"
+                : "text-sea-700 hover:bg-sea-100",
             )}
           >
             <item.icon className="h-4 w-4 shrink-0" />

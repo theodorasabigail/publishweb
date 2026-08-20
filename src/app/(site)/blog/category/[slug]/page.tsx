@@ -50,12 +50,12 @@ export default async function BlogCategoryPage({
 
   return (
     <div className="container-page py-14">
-      <nav className="text-sm text-bark-500">
+      <nav className="text-sm text-sea-800">
         <Link href="/blog" className="hover:underline">
           Journal
         </Link>
         <span className="mx-2">/</span>
-        <span className="text-bark-800">{category.name}</span>
+        <span className="text-sea-800">{category.name}</span>
       </nav>
 
       <header className="mt-4 max-w-2xl">
@@ -65,14 +65,14 @@ export default async function BlogCategoryPage({
         />
         <h1 className="mt-4 text-4xl sm:text-5xl">{category.name}</h1>
         {category.description && (
-          <p className="mt-4 text-lg text-bark-600">{category.description}</p>
+          <p className="mt-4 text-lg text-sea-800">{category.description}</p>
         )}
       </header>
 
       <nav className="mt-8 flex flex-wrap gap-2" aria-label="Post categories">
         <Link
           href="/blog"
-          className="badge border border-bark-200 bg-white text-bark-700 hover:border-bark-400"
+          className="badge border border-sea-200 bg-white text-sea-700 hover:border-sea-400"
         >
           All
         </Link>
@@ -82,8 +82,8 @@ export default async function BlogCategoryPage({
             href={`/blog/category/${item.slug}`}
             className={
               item.id === category.id
-                ? "badge bg-bark-800 text-cream"
-                : "badge border border-bark-200 bg-white text-bark-700 hover:border-bark-400"
+                ? "badge bg-sea-800 text-cream"
+                : "badge border border-sea-200 bg-white text-sea-700 hover:border-sea-400"
             }
           >
             {item.name}

@@ -65,8 +65,8 @@ export default async function OrderPage({
                 ? "Order cancelled"
                 : "Thank you — we've got your order"}
           </h1>
-          <p className="mt-2 text-bark-600">
-            Order <span className="font-medium text-bark-900">{order.human_ref}</span> ·{" "}
+          <p className="mt-2 text-sea-800">
+            Order <span className="font-medium text-sea-900">{order.human_ref}</span> ·{" "}
             {formatDateTime(order.created_at)}
           </p>
           <div className="mt-3">
@@ -78,7 +78,7 @@ export default async function OrderPage({
       {isPending && order.payment_url && (
         <div className="card mt-8 p-6">
           <h2 className="text-xl">Complete your payment</h2>
-          <p className="mt-2 text-sm text-bark-600">
+          <p className="mt-2 text-sm text-sea-800">
             Your payment page is still open. This page updates automatically once
             the payment clears.
           </p>
@@ -91,7 +91,7 @@ export default async function OrderPage({
             Pay {formatIDR(order.total_idr)}
           </a>
           {order.payment_expires_at && (
-            <p className="mt-3 text-xs text-bark-500">
+            <p className="mt-3 text-xs text-sea-800">
               Expires {formatDateTime(order.payment_expires_at)}
             </p>
           )}
@@ -101,35 +101,35 @@ export default async function OrderPage({
       {showManualInstructions && (
         <div className="card mt-8 p-6">
           <h2 className="text-xl">Transfer instructions</h2>
-          <p className="mt-2 text-sm text-bark-600">
+          <p className="mt-2 text-sm text-sea-800">
             Transfer this <strong>exact</strong> amount. The last three digits are
             your order&apos;s code — they are how we recognise your payment
             automatically.
           </p>
 
           <p className="mt-5 font-serif text-4xl">{formatIDR(order.total_idr)}</p>
-          <p className="mt-1 text-sm text-bark-500">
+          <p className="mt-1 text-sm text-sea-800">
             {formatIDR(order.total_idr - order.unique_code)} + kode unik{" "}
             {String(order.unique_code).padStart(3, "0")}
           </p>
 
           {(manual.bankName || manual.accountNumber) && (
-            <dl className="mt-6 space-y-2 rounded-xl bg-bark-50 p-4 text-sm">
+            <dl className="mt-6 space-y-2 rounded-xl bg-sea-50 p-4 text-sm">
               {manual.bankName && (
                 <div className="flex justify-between gap-4">
-                  <dt className="text-bark-600">Bank</dt>
+                  <dt className="text-sea-800">Bank</dt>
                   <dd className="font-medium">{manual.bankName}</dd>
                 </div>
               )}
               {manual.accountNumber && (
                 <div className="flex justify-between gap-4">
-                  <dt className="text-bark-600">Account number</dt>
+                  <dt className="text-sea-800">Account number</dt>
                   <dd className="font-mono font-medium">{manual.accountNumber}</dd>
                 </div>
               )}
               {manual.accountName && (
                 <div className="flex justify-between gap-4">
-                  <dt className="text-bark-600">Account name</dt>
+                  <dt className="text-sea-800">Account name</dt>
                   <dd className="font-medium">{manual.accountName}</dd>
                 </div>
               )}
@@ -145,15 +145,15 @@ export default async function OrderPage({
               <img
                 src={manual.qrisImageUrl}
                 alt="QRIS payment code"
-                className="mt-2 w-56 rounded-xl border border-bark-200"
+                className="mt-2 w-56 rounded-xl border border-sea-200"
               />
-              <p className="mt-2 text-xs text-bark-500">
+              <p className="mt-2 text-xs text-sea-800">
                 Type the exact amount above, including the last three digits.
               </p>
             </div>
           )}
 
-          <p className="mt-5 text-xs text-bark-500">
+          <p className="mt-5 text-xs text-sea-800">
             Payment is confirmed automatically, usually within a few minutes of
             the transfer landing. This page refreshes itself.
           </p>
@@ -161,16 +161,16 @@ export default async function OrderPage({
       )}
 
       <div className="card mt-8 overflow-hidden">
-        <div className="border-b border-bark-200/70 px-6 py-4">
+        <div className="border-b border-sea-200/70 px-6 py-4">
           <h2 className="text-xl">Order summary</h2>
         </div>
 
-        <ul className="divide-y divide-bark-200/70">
+        <ul className="divide-y divide-sea-200/70">
           {order.order_items.map((item) => (
             <li key={item.id} className="flex justify-between gap-4 px-6 py-4">
               <div>
                 <p className="font-medium">{item.name_snapshot}</p>
-                <p className="text-sm text-bark-500">
+                <p className="text-sm text-sea-800">
                   {item.size_snapshot} × {item.quantity}
                 </p>
               </div>
@@ -181,22 +181,22 @@ export default async function OrderPage({
           ))}
         </ul>
 
-        <dl className="space-y-2 border-t border-bark-200/70 px-6 py-4 text-sm">
+        <dl className="space-y-2 border-t border-sea-200/70 px-6 py-4 text-sm">
           <div className="flex justify-between">
-            <dt className="text-bark-600">Subtotal</dt>
+            <dt className="text-sea-800">Subtotal</dt>
             <dd>{formatIDR(order.subtotal_idr)}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-bark-600">Shipping</dt>
+            <dt className="text-sea-800">Shipping</dt>
             <dd>{order.shipping_idr === 0 ? "Free" : formatIDR(order.shipping_idr)}</dd>
           </div>
           {order.unique_code > 0 && (
             <div className="flex justify-between">
-              <dt className="text-bark-600">Kode unik</dt>
+              <dt className="text-sea-800">Kode unik</dt>
               <dd>{order.unique_code}</dd>
             </div>
           )}
-          <div className="flex justify-between border-t border-bark-200/70 pt-2 text-base font-medium">
+          <div className="flex justify-between border-t border-sea-200/70 pt-2 text-base font-medium">
             <dt>Total</dt>
             <dd>{formatIDR(order.total_idr)}</dd>
           </div>
@@ -211,7 +211,7 @@ export default async function OrderPage({
       {order.shipping_address && (
         <div className="card mt-6 p-6">
           <h2 className="text-lg">Shipping to</h2>
-          <address className="mt-3 text-sm not-italic leading-relaxed text-bark-700">
+          <address className="mt-3 text-sm not-italic leading-relaxed text-sea-700">
             {order.shipping_address.recipient_name}
             <br />
             {order.shipping_address.line1}
@@ -233,7 +233,7 @@ export default async function OrderPage({
 
           {order.tracking_number && (
             <p className="mt-4 text-sm">
-              <span className="text-bark-600">Tracking:</span>{" "}
+              <span className="text-sea-800">Tracking:</span>{" "}
               <span className="font-mono">{order.tracking_number}</span>
             </p>
           )}

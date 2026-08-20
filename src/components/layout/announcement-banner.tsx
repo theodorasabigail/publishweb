@@ -8,7 +8,7 @@ export function AnnouncementBanner({ settings }: { settings: SiteSettings }) {
 
   const content = (
     <div
-      className="bg-bark-900 bg-cover bg-center py-2.5 text-center text-sm text-cream"
+      className="bg-sea-900 bg-cover bg-center py-2.5 text-center text-sm text-cream"
       style={
         settings.banner_image
           ? { backgroundImage: `linear-gradient(rgba(43,28,22,0.75), rgba(43,28,22,0.75)), url(${settings.banner_image})` }

@@ -116,7 +116,7 @@ export function PostForm({
                   type="checkbox"
                   name="is_featured"
                   defaultChecked={post?.is_featured ?? false}
-                  className="h-4 w-4 rounded border-bark-300"
+                  className="h-4 w-4 rounded border-sea-300"
                 />
                 Feature at the top of the archive
               </label>
@@ -165,7 +165,7 @@ export function PostForm({
         </div>
       </div>
 
-      <div className="sticky bottom-0 -mx-5 border-t border-bark-200 bg-white/95 px-5 py-3 backdrop-blur sm:-mx-8 sm:px-8">
+      <div className="sticky bottom-0 -mx-5 border-t border-sea-200 bg-white/95 px-5 py-3 backdrop-blur sm:-mx-8 sm:px-8">
         <button type="submit" className="btn-primary">
           {isEdit ? "Save post" : "Create post"}
         </button>

@@ -51,7 +51,7 @@ export function TitleAndSlug({
           Web address
         </label>
         <div className="flex items-center gap-1.5">
-          <span className="shrink-0 text-xs text-bark-600">{prefix}</span>
+          <span className="shrink-0 text-xs text-sea-800">{prefix}</span>
           <input
             id={slugName}
             name={slugName}
@@ -64,7 +64,7 @@ export function TitleAndSlug({
             onBlur={(event) => setSlug(slugify(event.target.value))}
           />
         </div>
-        <p className="mt-1.5 text-xs text-bark-600">
+        <p className="mt-1.5 text-xs text-sea-800">
           Changing this breaks any existing links to the page.
         </p>
       </div>

@@ -26,7 +26,7 @@ export default async function ShopPage() {
     <div className="container-page py-14">
       <header className="max-w-2xl">
         <h1 className="text-4xl sm:text-5xl">The roast list</h1>
-        <p className="mt-4 text-bark-600">
+        <p className="mt-4 text-sea-800">
           Everything currently on the shelf. Bags are roasted to order and shipped
           within 48 hours.
         </p>
@@ -34,12 +34,12 @@ export default async function ShopPage() {
 
       {categories.length > 0 && (
         <nav className="mt-8 flex flex-wrap gap-2" aria-label="Product categories">
-          <span className="badge bg-bark-800 text-cream">All</span>
+          <span className="badge bg-sea-800 text-cream">All</span>
           {categories.map((category) => (
             <Link
               key={category.id}
               href={`/shop/category/${category.slug}`}
-              className="badge border border-bark-200 bg-white text-bark-700 hover:border-bark-400"
+              className="badge border border-sea-200 bg-white text-sea-700 hover:border-sea-400"
             >
               {category.name}
             </Link>
