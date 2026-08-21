@@ -59,7 +59,7 @@ export default async function CategoryPage({
       </nav>
 
       <header className="mt-4 max-w-2xl">
-        <h1 className="text-4xl sm:text-5xl">{category.name}</h1>
+        <h1 className="text-6xl sm:text-8xl">{category.name}</h1>
         {category.description && (
           <p className="mt-4 text-sea-800">{category.description}</p>
         )}

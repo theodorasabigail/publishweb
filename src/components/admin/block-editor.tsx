@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Eye, EyeOff, Trash2 } from "lucide-react";
+import { BlockPreview } from "@/components/admin/block-preview";
 import { ImageUploader } from "@/components/admin/image-uploader";
 import { VideoUploader } from "@/components/admin/video-uploader";
 import { Field } from "@/components/admin/ui";
@@ -61,6 +62,8 @@ export function BlockEditor({
           <MoveButton page={page} id={block.id} direction={-1} disabled={isFirst} label="Move up" />
           <MoveButton page={page} id={block.id} direction={1} disabled={isLast} label="Move down" />
         </div>
+
+        <BlockPreview type={block.block_type} />
 
         <button
           type="button"

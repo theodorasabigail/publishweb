@@ -33,21 +33,25 @@ export function SiteHeader({
 
   return (
     <header className="sticky top-0 z-40 border-b border-sea-200/70 bg-cream/90 backdrop-blur">
-      <div className="container-page flex h-16 items-center justify-between gap-4">
-        <Link href="/" className="font-serif text-lg font-semibold tracking-tight">
+      {/* A thin bar of small capitals. The nav is the quietest type on the
+          page on purpose: the wider the gap between it and a page title, the
+          more the title reads as deliberate rather than just large. */}
+      <div className="container-page flex h-14 items-center justify-between gap-6">
+        <Link href="/" className="microcaps shrink-0 text-ink">
           Publish<span className="text-sea-800"> Coffee Roasters</span>
         </Link>
 
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden items-center gap-7 md:flex">
           {nav.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                "rounded-full px-3 py-1.5 text-sm transition-colors hover:bg-sea-100",
+                // Underline, not a filled pill. The bar stays a line of text.
+                "microcaps border-b-2 pb-0.5 transition-colors",
                 pathname.startsWith(item.href)
-                  ? "bg-sea-100 font-medium text-sea-900"
-                  : "text-sea-700",
+                  ? "border-ink text-ink"
+                  : "border-transparent text-sea-800 hover:text-ink",
               )}
             >
               {item.label}
@@ -61,7 +65,7 @@ export function SiteHeader({
           <Link href="/cart" className="btn-ghost relative px-3" aria-label="Cart">
             <ShoppingBag className="h-4 w-4" />
             {ready && count > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-sea-800 px-1 text-[11px] font-semibold text-cream">
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center bg-ink px-1 text-[10px] font-semibold text-cream">
                 {count}
               </span>
             )}

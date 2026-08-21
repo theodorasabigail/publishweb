@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Mail } from "lucide-react";
 import { EmptyRow, PageHeader } from "@/components/admin/ui";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { TIER_LABELS, TIER_STYLES } from "@/lib/loyalty";
@@ -31,6 +32,11 @@ export default async function AdminCustomersPage() {
       <PageHeader
         title="Customers & loyalty"
         description="Everyone with an account, their points and their tier."
+        action={
+          <Link href="/admin/customers/subscribers" className="btn-secondary">
+            <Mail className="h-4 w-4" /> Mailing list
+          </Link>
+        }
       />
 
       {rows.length ? (

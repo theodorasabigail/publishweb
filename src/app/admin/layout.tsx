@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { PrelaunchBanner } from "@/components/admin/prelaunch-banner";
+import { SchemaCheck } from "@/components/admin/schema-check";
 import { adminFont } from "@/lib/fonts";
 import { requireAdmin } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
@@ -52,6 +53,7 @@ export default async function AdminLayout({
         </aside>
 
         <main className="min-w-0 flex-1 p-5 sm:p-8">
+          <SchemaCheck />
           <PrelaunchBanner />
           {children}
         </main>

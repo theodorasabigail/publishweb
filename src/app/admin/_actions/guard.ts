@@ -42,3 +42,37 @@ export function boolean(formData: FormData, key: string): boolean {
   const value = formData.get(key);
   return value === "on" || value === "true" || value === "1";
 }
+
+/**
+ * Turn a Postgres error into something the operator can act on.
+ *
+ * Server actions that throw surface in the browser as "Minified React error
+ * #441" — React hides the message in production so a database error cannot
+ * leak table names to the public. Correct, but useless to the one person who
+ * needs to know, so the messages that matter are translated here instead.
+ *
+ * By far the most common cause is a database that is behind the code: a
+ * migration adds a column, the site deploys, and the SQL has not been run yet.
+ * Postgres says 42703; the operator needs to be told to paste setup.sql.
+ */
+export function describeDbError(
+  error: { code?: string; message?: string } | null,
+  fallback: string,
+): string {
+  if (!error) return fallback;
+
+  if (error.code === "42703" || error.code === "42P01") {
+    return (
+      "Your database is missing something this version of the site expects. " +
+      "Open Supabase → SQL Editor, paste the contents of supabase/setup.sql " +
+      "and run it, then try again. Re-running it is safe and changes nothing " +
+      "you have already set up."
+    );
+  }
+
+  if (error.code === "23505") return "Something with that name or address already exists.";
+  if (error.code === "23514") return "One of those values is outside what is allowed.";
+  if (error.code === "23503") return "That refers to something that no longer exists.";
+
+  return fallback;
+}

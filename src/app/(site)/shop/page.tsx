@@ -27,9 +27,9 @@ export default async function ShopPage() {
 
   return (
     <div className="container-page py-14">
-      <header className="max-w-2xl">
-        <h1 className="text-4xl sm:text-5xl">The roast list</h1>
-        <p className="mt-4 text-sea-800">
+      <header className="max-w-4xl">
+        <h1 className="text-6xl sm:text-8xl">The roast list</h1>
+        <p className="mt-6 max-w-md text-sea-800">
           Every coffee on the shelf right now, whatever it is grouped under.
           Roasted to order and shipped within 48 hours.
         </p>

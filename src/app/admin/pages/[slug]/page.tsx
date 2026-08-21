@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
 import { BlockEditor } from "@/components/admin/block-editor";
+import { BlockPreview } from "@/components/admin/block-preview";
 import { EmptyRow, Field, PageHeader, Panel } from "@/components/admin/ui";
 import { addBlock, deletePage, updatePage } from "@/app/admin/_actions/blocks";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -157,12 +158,15 @@ export default async function AdminPageBlocksPage({
               <input type="hidden" name="block_type" value={definition.type} />
               <button
                 type="submit"
-                className="flex w-full items-start gap-3 rounded-lg border border-sea-200 p-4 text-left transition-colors hover:border-sea-400 hover:bg-sea-50"
+                className="flex w-full items-start gap-4 rounded-lg border border-sea-200 p-4 text-left transition-colors hover:border-sea-400 hover:bg-sea-50"
               >
-                <Plus className="mt-0.5 h-4 w-4 shrink-0 text-sea-800" />
-                <span>
-                  <span className="block font-medium">{definition.label}</span>
-                  <span className="mt-0.5 block text-sm text-sea-800">
+                <BlockPreview type={definition.type} />
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <Plus className="h-4 w-4 shrink-0 text-sea-800" />
+                    {definition.label}
+                  </span>
+                  <span className="mt-1 block text-sm text-sea-800">
                     {definition.summary}
                   </span>
                 </span>

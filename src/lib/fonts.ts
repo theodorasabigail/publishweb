@@ -45,7 +45,13 @@
 // Admin dashboard
 // ---------------------------------------------------------------------------
 
-import { Fraunces, IBM_Plex_Sans, Newsreader } from "next/font/google";
+import {
+  Archivo,
+  Fraunces,
+  IBM_Plex_Sans,
+  Instrument_Serif,
+  Newsreader,
+} from "next/font/google";
 
 /**
  * The dashboard's typeface, which is deliberately not the shop's.
@@ -110,12 +116,46 @@ export const readingFont = Newsreader({
  */
 export const journalFontClassNames = `${displayFont.variable} ${readingFont.variable}`;
 
-/**
- * Applied to <html> in the root layout.
+// ---------------------------------------------------------------------------
+// The shop
+// ---------------------------------------------------------------------------
+
+/*
+ * Until now the storefront was the one part of this site with no typeface at
+ * all. The journal had two, the dashboard had one, and the shop -- the pages
+ * people actually look at -- fell through to Georgia and whatever sans the
+ * operating system happened to offer. Every "large, tight, uppercase" heading
+ * in the block library was rendering in Georgia, which is why the result kept
+ * reading as a document rather than as a shop.
  *
- * Empty until a font is wired up, which is deliberate: `globals.css` resolves
- * `--font-brand` with an inline fallback, so the site renders correct system
- * typography today and switches over the moment this becomes
- * `brandFont.variable`.
+ * These two are placeholders with a job: hold the design honestly until the
+ * Publish font arrives. The moment `brandFont` is wired up it takes over both
+ * roles, because the variables below resolve through `--font-brand` first.
  */
-export const fontClassNames = "";
+
+/** Headlines. High-contrast, narrow, and it gets better the larger it is set —
+ *  which is what makes a 90px page title look intended rather than zoomed. */
+export const displayFace = Instrument_Serif({
+  subsets: ["latin"],
+  weight: ["400"],
+  style: ["normal", "italic"],
+  variable: "--font-display-shop",
+  display: "swap",
+});
+
+/** Everything else. A grotesque that holds its shape at 11px with wide
+ *  letterspacing, which is the whole navigation and every label on the site. */
+export const uiFace = Archivo({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-ui",
+  display: "swap",
+});
+
+/**
+ * Applied to <html> in the root layout, so both faces are available site-wide.
+ *
+ * `globals.css` still resolves `--font-brand` first, so wiring up the brand
+ * font replaces both of these everywhere without touching this line.
+ */
+export const fontClassNames = `${displayFace.variable} ${uiFace.variable}`;

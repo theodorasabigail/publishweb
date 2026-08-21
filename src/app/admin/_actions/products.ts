@@ -6,6 +6,7 @@ import { slugify } from "@/lib/utils";
 import {
   adminClient,
   boolean,
+  describeDbError,
   integer,
   optionalText,
   text,
@@ -132,7 +133,7 @@ export async function createProduct(formData: FormData) {
     throw new Error(
       error.code === "23505"
         ? "That URL slug is already taken by another product."
-        : "Could not save the product.",
+        : describeDbError(error, "Could not save the product."),
     );
   }
 
@@ -153,7 +154,7 @@ export async function updateProduct(formData: FormData) {
     throw new Error(
       error.code === "23505"
         ? "That URL slug is already taken by another product."
-        : "Could not save the product.",
+        : describeDbError(error, "Could not save the product."),
     );
   }
 
@@ -304,7 +305,7 @@ export async function bulkSetProductFlags(
   update.updated_at = new Date().toISOString();
 
   const { error } = await supabase.from("products").update(update).in("id", selection);
-  if (error) throw new Error("Could not update those products.");
+  if (error) throw new Error(describeDbError(error, "Could not update those products."));
 
   revalidateStorefront();
 }

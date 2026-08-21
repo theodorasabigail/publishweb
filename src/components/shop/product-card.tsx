@@ -29,7 +29,7 @@ export function ProductCard({ product }: { product: ProductWithVariants }) {
       className="group flex flex-col"
     >
       <div
-        className="relative aspect-[4/5] overflow-hidden"
+        className="relative aspect-square overflow-hidden"
         style={{ backgroundColor: product.accent_color }}
       >
         {product.image_url ? (
@@ -37,7 +37,7 @@ export function ProductCard({ product }: { product: ProductWithVariants }) {
             src={product.image_url}
             alt={product.image_alt ?? product.name}
             fill
-            sizes="(max-width: 768px) 50vw, 25vw"
+            sizes="(max-width: 768px) 50vw, 33vw"
             className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
           />
         ) : (

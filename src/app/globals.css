@@ -17,9 +17,9 @@
    * valid either way: system fonts until the brand font exists, brand font
    * everywhere afterwards, with no change needed in this file.
    */
-  --font-sans: var(--font-brand, ui-sans-serif), system-ui, -apple-system,
+  --font-sans: var(--font-brand, var(--font-ui)), system-ui, -apple-system,
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-serif: var(--font-brand, ui-serif), Georgia, Cambria,
+  --font-serif: var(--font-brand, var(--font-display-shop)), Georgia, Cambria,
     "Times New Roman", serif;
 }
 
@@ -30,8 +30,20 @@
   body {
     @apply bg-cream text-ink antialiased;
   }
+  /*
+   * Headings are set large and tight, and the display face is drawn for it --
+   * high contrast that resolves as elegance at 80px and as spindliness at
+   * 20px. So the negative tracking scales with the size rather than being one
+   * value everywhere, which is what stops big type looking merely enlarged.
+   */
   h1, h2, h3, h4 {
-    @apply font-serif tracking-tight;
+    @apply font-serif;
+    letter-spacing: -0.018em;
+    line-height: 1.02;
+  }
+  h3, h4 {
+    letter-spacing: -0.01em;
+    line-height: 1.15;
   }
 }
 
@@ -39,8 +51,13 @@
   .container-page {
     @apply mx-auto w-full max-w-6xl px-5 sm:px-8;
   }
+  /* Rectangles, and small letterspaced capitals inside them.
+     A rounded-full pill with sentence-case text is the single loudest signal
+     that a page was generated rather than designed -- it is the default of
+     every component kit. Shops that look like shops use rectangles. */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium
+    @apply inline-flex items-center justify-center gap-2 rounded-none px-6 py-3
+           text-[0.7rem] font-semibold uppercase tracking-[0.12em]
            transition-colors disabled:pointer-events-none disabled:opacity-50;
   }
   /* Deep teal, not coral. The coral is the louder colour and the tempting
@@ -72,10 +89,21 @@
     @apply mb-1.5 block text-sm font-medium text-sea-900;
   }
   .card {
-    @apply rounded-2xl border border-sea-200/70 bg-white;
+    @apply rounded-none border border-sea-200 bg-white;
   }
+  /* Also a rectangle, also capitals. Used for statuses, never for navigation. */
   .badge {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center rounded-none px-2 py-0.5
+           text-[0.65rem] font-semibold uppercase tracking-[0.1em];
+  }
+  .input {
+    @apply rounded-none;
+  }
+
+  /* The small letterspaced capitals that carry every label, category and
+     caption on the shop. Named, so the treatment is defined once. */
+  .microcaps {
+    @apply text-[0.7rem] font-semibold uppercase tracking-[0.14em];
   }
 }
 

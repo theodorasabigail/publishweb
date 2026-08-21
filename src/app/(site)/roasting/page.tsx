@@ -20,7 +20,7 @@ export default async function RoastingPage() {
     <div className="container-page py-14">
       <div className="grid gap-12 lg:grid-cols-[1fr_460px]">
         <div className="max-w-xl">
-          <p className="text-xs uppercase tracking-[0.2em] text-sea-800">
+          <p className="microcaps text-sea-800">
             Jasa Roasting
           </p>
           <h1 className="mt-3 text-4xl sm:text-5xl">

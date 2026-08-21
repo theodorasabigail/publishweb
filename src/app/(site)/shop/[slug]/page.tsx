@@ -128,7 +128,7 @@ export default async function ProductPage({
 
       <div className="mt-6 grid gap-10 lg:grid-cols-2 lg:gap-16">
         <div
-          className="relative aspect-square overflow-hidden rounded-3xl"
+          className="relative aspect-square overflow-hidden"
           style={{ backgroundColor: product.accent_color }}
         >
           {product.image_url ? (
