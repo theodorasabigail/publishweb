@@ -42,15 +42,16 @@ from (values
   ('ecuador-sidra-anaerobic-washed',               1),  -- white
   ('palintang-washed-java-ateng',                  2),  -- pale yellow
   ('kamojang-anaerobic-washed',                    2),  -- pale yellow
-  -- Ebi confirmed these four share one colour, described as "dark green" --
-  -- which is not one of the six swatches supplied, so the level below is a
-  -- placeholder. What is certain is that they are the SAME level as each
-  -- other; 0013 originally split them across 4 and 5, which was wrong.
+  -- Ebi confirmed these four share one orange. This originally split them
+  -- across levels 4 and 5, reading two different oranges off the artwork where
+  -- there is only one.
   ('genteng-sumedang-anaerobic-natural',           5),
   ('patuha-natural-typica',                        5),
   ('kertasari-natural-java',                       5),
   ('sukawangi-sumedang-natural-excelsa',           5),
-  -- Not mentioned either way; still read as orange from the artwork.
+  -- Red Honey, and the only coffee still on the lighter orange. Not confirmed
+  -- either way; grouped separately because a honey process sits between a
+  -- washed and a natural, which is what level 4 is for.
   ('mt-patuha-red-honey',                          4),
   ('aceh-bener-meriah-anaerobic-natural-gayo-1',   6),  -- purple
   ('ecuador-sidra-anaerobic-honey-co2',            6),  -- purple

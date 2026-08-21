@@ -1844,15 +1844,16 @@ from (values
   ('ecuador-sidra-anaerobic-washed',               1),  -- white
   ('palintang-washed-java-ateng',                  2),  -- pale yellow
   ('kamojang-anaerobic-washed',                    2),  -- pale yellow
-  -- Ebi confirmed these four share one colour, described as "dark green" --
-  -- which is not one of the six swatches supplied, so the level below is a
-  -- placeholder. What is certain is that they are the SAME level as each
-  -- other; 0013 originally split them across 4 and 5, which was wrong.
+  -- Ebi confirmed these four share one orange. This originally split them
+  -- across levels 4 and 5, reading two different oranges off the artwork where
+  -- there is only one.
   ('genteng-sumedang-anaerobic-natural',           5),
   ('patuha-natural-typica',                        5),
   ('kertasari-natural-java',                       5),
   ('sukawangi-sumedang-natural-excelsa',           5),
-  -- Not mentioned either way; still read as orange from the artwork.
+  -- Red Honey, and the only coffee still on the lighter orange. Not confirmed
+  -- either way; grouped separately because a honey process sits between a
+  -- washed and a natural, which is what level 4 is for.
   ('mt-patuha-red-honey',                          4),
   ('aceh-bener-meriah-anaerobic-natural-gayo-1',   6),  -- purple
   ('ecuador-sidra-anaerobic-honey-co2',            6),  -- purple
@@ -2052,17 +2053,17 @@ where slug = 'puntang-extended-natural'
 -- 3. Sukawangi Sumedang Natural Excelsa belongs with the other three.
 --
 -- Ebi confirmed that Kertasari, Patuha (TRT) Typica, Sukawangi Sumedang
--- Excelsa and Genteng Anaerobic Natural all share one colour, described as
--- "dark green" -- which is not among the six swatches supplied, so the level
--- itself is still open. What is settled is that the four are the SAME as each
--- other, and 0013 originally split them across two levels.
+-- Excelsa and Genteng Anaerobic Natural all share one orange. 0013 split them
+-- across levels 4 and 5, reading two different oranges off artwork that has
+-- only one.
 --
 -- Only Sukawangi was on the wrong side of that split, so it is the only row
 -- that needs moving. Guarded on the old value, so a later choice in the admin
 -- survives re-running this file.
 --
--- Mt. Patuha Red Honey is deliberately left at 4: it was not mentioned, and
--- the artwork read as a different orange from the four above.
+-- Mt. Patuha Red Honey is deliberately left at 4. It was not named in that
+-- group, and a honey process genuinely sits between a washed and a natural --
+-- which is what the lighter orange is for. Worth confirming.
 -- --------------------------------------------------------------------------
 update public.products
 set flavour_level = 5

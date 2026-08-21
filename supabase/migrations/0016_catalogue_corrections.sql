@@ -57,17 +57,17 @@ where slug = 'puntang-extended-natural'
 -- 3. Sukawangi Sumedang Natural Excelsa belongs with the other three.
 --
 -- Ebi confirmed that Kertasari, Patuha (TRT) Typica, Sukawangi Sumedang
--- Excelsa and Genteng Anaerobic Natural all share one colour, described as
--- "dark green" -- which is not among the six swatches supplied, so the level
--- itself is still open. What is settled is that the four are the SAME as each
--- other, and 0013 originally split them across two levels.
+-- Excelsa and Genteng Anaerobic Natural all share one orange. 0013 split them
+-- across levels 4 and 5, reading two different oranges off artwork that has
+-- only one.
 --
 -- Only Sukawangi was on the wrong side of that split, so it is the only row
 -- that needs moving. Guarded on the old value, so a later choice in the admin
 -- survives re-running this file.
 --
--- Mt. Patuha Red Honey is deliberately left at 4: it was not mentioned, and
--- the artwork read as a different orange from the four above.
+-- Mt. Patuha Red Honey is deliberately left at 4. It was not named in that
+-- group, and a honey process genuinely sits between a washed and a natural --
+-- which is what the lighter orange is for. Worth confirming.
 -- --------------------------------------------------------------------------
 update public.products
 set flavour_level = 5
