@@ -32,54 +32,17 @@ values
 on conflict (slug) do nothing;
 
 -- --------------------------------------------------------------------------
--- Products + variants
+-- No demo products.
+--
+-- There were five here once -- Gayo Arunika, Kintamani Lestari, Toraja Sapan,
+-- Terbit Blend, Malam Decaf. They were useful before there was a real
+-- catalogue and actively unhelpful after it: a shop with invented coffees in
+-- it cannot be trusted at a glance, and every screen had to be read twice to
+-- work out which rows were real.
+--
+-- The real lineup is seeded in 0011. 0017 clears these five from any database
+-- that already has them.
 -- --------------------------------------------------------------------------
-with c as (select slug, id from public.categories)
-insert into public.products
-  (slug, name, description, origin, process, roast_level, varietal, masl, tasting_notes,
-   category_id, accent_color, is_featured, sort_order)
-values
-  ('gayo-arunika', 'Gayo Arunika',
-   'Our anchor lot from the Gayo highlands. Wet-hulled in the traditional Sumatran way, then roasted a touch past first crack to keep the body heavy and the finish clean.',
-   'Aceh Tengah, Sumatra', 'Wet Hulled', 'Medium', 'Ateng, Timtim', '1400–1600',
-   'Dark chocolate, cedar, brown sugar',
-   (select id from c where slug = 'single-origin'), '#486b73', true, 1),
-
-  ('kintamani-lestari', 'Kintamani Lestari',
-   'Grown alongside citrus trees on the slopes of Mount Batur, which is exactly what it tastes like. Fully washed and dried on raised beds.',
-   'Kintamani, Bali', 'Fully Washed', 'Light-Medium', 'Kartika, S795', '1200–1500',
-   'Mandarin, jasmine, golden syrup',
-   (select id from c where slug = 'filter'), '#dab0b0', true, 2),
-
-  ('toraja-sapan', 'Toraja Sapan',
-   'A high-grown Sulawesi lot with the structure to hold up in a long brew. Quiet acidity, long sweet finish.',
-   'Tana Toraja, Sulawesi', 'Semi Washed', 'Medium', 'S795, Typica', '1500–1750',
-   'Baking spice, dried fig, dark cocoa',
-   (select id from c where slug = 'single-origin'), '#486b73', false, 3),
-
-  ('terbit-blend', 'Terbit Blend',
-   'Our everyday espresso. Sumatra for the body, Bali for the lift. Designed to taste like itself through a flat white.',
-   'Blend — Sumatra & Bali', 'Blend', 'Medium-Dark', 'Various', '1200–1600',
-   'Milk chocolate, toasted almond, red plum',
-   (select id from c where slug = 'espresso'), '#638c97', true, 4),
-
-  ('malam-decaf', 'Malam Decaf',
-   'Sugarcane-process decaf from Java. For the second pot, the late shift, and everyone who wants the ritual without the rest of it.',
-   'Java Barat', 'Sugarcane EA Decaf', 'Medium', 'Lini S', '1300–1500',
-   'Cocoa nib, roasted hazelnut, raisin',
-   (select id from c where slug = 'house-blend'), '#a7a4b5', false, 5)
-on conflict (slug) do nothing;
-
-insert into public.product_variants (product_id, size, price_idr, stock, weight_grams)
-select p.id, v.size, v.price, v.stock, v.grams
-from public.products p
-cross join (values
-  ('100g'::variant_size, 68000,  40, 130),
-  ('200g'::variant_size, 125000, 30, 240),
-  ('1kg'::variant_size,  560000, 12, 1100)
-) as v(size, price, stock, grams)
-where p.slug in ('gayo-arunika','kintamani-lestari','toraja-sapan','terbit-blend','malam-decaf')
-on conflict (product_id, size) do nothing;
 
 -- --------------------------------------------------------------------------
 -- Blog

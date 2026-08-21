@@ -23,20 +23,6 @@
 -- ===========================================================================
 
 -- --------------------------------------------------------------------------
--- Retire the demo coffees.
---
--- Deactivated rather than deleted: any of them may already be attached to a
--- test order, and an order must never lose the product it was for. They vanish
--- from the shop and stay visible in the admin, where they can be deleted by
--- hand once the operator is sure.
--- --------------------------------------------------------------------------
-update public.products
-set is_active = false, is_featured = false
-where slug in (
-  'gayo-arunika', 'kintamani-lestari', 'toraja-sapan', 'terbit-blend', 'malam-decaf'
-);
-
--- --------------------------------------------------------------------------
 -- The coffees.
 -- --------------------------------------------------------------------------
 insert into public.products

@@ -20,7 +20,7 @@
 -- rather than duplicated, the example content is skipped if it already exists,
 -- and your own settings are never overwritten.
 --
--- Generated from 16 migrations:
+-- Generated from 17 migrations:
 --   0001_init.sql
 --   0002_functions_rls.sql
 --   0003_seed.sql
@@ -37,6 +37,7 @@
 --   0014_page_blocks.sql
 --   0015_newsletter_resend.sql
 --   0016_catalogue_corrections.sql
+--   0017_remove_demo_products.sql
 -- ===========================================================================
 
 
@@ -845,54 +846,17 @@ values
 on conflict (slug) do nothing;
 
 -- --------------------------------------------------------------------------
--- Products + variants
+-- No demo products.
+--
+-- There were five here once -- Gayo Arunika, Kintamani Lestari, Toraja Sapan,
+-- Terbit Blend, Malam Decaf. They were useful before there was a real
+-- catalogue and actively unhelpful after it: a shop with invented coffees in
+-- it cannot be trusted at a glance, and every screen had to be read twice to
+-- work out which rows were real.
+--
+-- The real lineup is seeded in 0011. 0017 clears these five from any database
+-- that already has them.
 -- --------------------------------------------------------------------------
-with c as (select slug, id from public.categories)
-insert into public.products
-  (slug, name, description, origin, process, roast_level, varietal, masl, tasting_notes,
-   category_id, accent_color, is_featured, sort_order)
-values
-  ('gayo-arunika', 'Gayo Arunika',
-   'Our anchor lot from the Gayo highlands. Wet-hulled in the traditional Sumatran way, then roasted a touch past first crack to keep the body heavy and the finish clean.',
-   'Aceh Tengah, Sumatra', 'Wet Hulled', 'Medium', 'Ateng, Timtim', '1400–1600',
-   'Dark chocolate, cedar, brown sugar',
-   (select id from c where slug = 'single-origin'), '#486b73', true, 1),
-
-  ('kintamani-lestari', 'Kintamani Lestari',
-   'Grown alongside citrus trees on the slopes of Mount Batur, which is exactly what it tastes like. Fully washed and dried on raised beds.',
-   'Kintamani, Bali', 'Fully Washed', 'Light-Medium', 'Kartika, S795', '1200–1500',
-   'Mandarin, jasmine, golden syrup',
-   (select id from c where slug = 'filter'), '#dab0b0', true, 2),
-
-  ('toraja-sapan', 'Toraja Sapan',
-   'A high-grown Sulawesi lot with the structure to hold up in a long brew. Quiet acidity, long sweet finish.',
-   'Tana Toraja, Sulawesi', 'Semi Washed', 'Medium', 'S795, Typica', '1500–1750',
-   'Baking spice, dried fig, dark cocoa',
-   (select id from c where slug = 'single-origin'), '#486b73', false, 3),
-
-  ('terbit-blend', 'Terbit Blend',
-   'Our everyday espresso. Sumatra for the body, Bali for the lift. Designed to taste like itself through a flat white.',
-   'Blend — Sumatra & Bali', 'Blend', 'Medium-Dark', 'Various', '1200–1600',
-   'Milk chocolate, toasted almond, red plum',
-   (select id from c where slug = 'espresso'), '#638c97', true, 4),
-
-  ('malam-decaf', 'Malam Decaf',
-   'Sugarcane-process decaf from Java. For the second pot, the late shift, and everyone who wants the ritual without the rest of it.',
-   'Java Barat', 'Sugarcane EA Decaf', 'Medium', 'Lini S', '1300–1500',
-   'Cocoa nib, roasted hazelnut, raisin',
-   (select id from c where slug = 'house-blend'), '#a7a4b5', false, 5)
-on conflict (slug) do nothing;
-
-insert into public.product_variants (product_id, size, price_idr, stock, weight_grams)
-select p.id, v.size, v.price, v.stock, v.grams
-from public.products p
-cross join (values
-  ('100g'::variant_size, 68000,  40, 130),
-  ('200g'::variant_size, 125000, 30, 240),
-  ('1kg'::variant_size,  560000, 12, 1100)
-) as v(size, price, stock, grams)
-where p.slug in ('gayo-arunika','kintamani-lestari','toraja-sapan','terbit-blend','malam-decaf')
-on conflict (product_id, size) do nothing;
 
 -- --------------------------------------------------------------------------
 -- Blog
@@ -1645,20 +1609,6 @@ comment on column public.product_variants.size is
 -- ===========================================================================
 
 -- --------------------------------------------------------------------------
--- Retire the demo coffees.
---
--- Deactivated rather than deleted: any of them may already be attached to a
--- test order, and an order must never lose the product it was for. They vanish
--- from the shop and stay visible in the admin, where they can be deleted by
--- hand once the operator is sure.
--- --------------------------------------------------------------------------
-update public.products
-set is_active = false, is_featured = false
-where slug in (
-  'gayo-arunika', 'kintamani-lestari', 'toraja-sapan', 'terbit-blend', 'malam-decaf'
-);
-
--- --------------------------------------------------------------------------
 -- The coffees.
 -- --------------------------------------------------------------------------
 insert into public.products
@@ -2076,4 +2026,45 @@ update public.products
 set flavour_level = 5
 where slug = 'sukawangi-sumedang-natural-excelsa'
   and flavour_level = 4;
+
+
+-- ###########################################################################
+-- ## 0017_remove_demo_products.sql
+-- ###########################################################################
+
+-- ===========================================================================
+-- Publish Coffee Roasters -- remove the demo coffees
+--
+-- Gayo Arunika, Kintamani Lestari, Toraja Sapan, Terbit Blend and Malam Decaf
+-- were placeholders from before there was a real catalogue. 0003 no longer
+-- creates them; this removes them from a database that already has them, so
+-- the shop and the admin show only the actual lineup.
+--
+-- Deleted outright rather than hidden. Hidden products still fill the admin
+-- list, still have to be read past, and are exactly the thing that makes an
+-- operator unsure which rows are real -- which is the problem being solved.
+--
+-- Order history is unaffected, and that is by design rather than by luck:
+-- order_items carry their own name, size and price snapshots, and their
+-- foreign keys are `on delete set null` precisely so a discontinued coffee can
+-- never rewrite or invalidate a receipt. A past order keeps saying exactly
+-- what was bought and for how much.
+--
+-- Variants go with the product through `on delete cascade`.
+--
+-- Run this in Supabase -> SQL Editor, after 0016.
+-- ===========================================================================
+
+-- Clear them out of the homepage picker first. site_settings holds an array of
+-- category ids, not product ids, so nothing to do there -- but the featured
+-- post reference is the same shape of problem, and a product id lingering in a
+-- settings array would survive the delete and point at nothing.
+delete from public.products
+where slug in (
+  'gayo-arunika',
+  'kintamani-lestari',
+  'toraja-sapan',
+  'terbit-blend',
+  'malam-decaf'
+);
 
