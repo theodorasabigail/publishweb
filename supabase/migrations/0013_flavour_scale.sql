@@ -42,19 +42,24 @@ from (values
   ('ecuador-sidra-anaerobic-washed',               1),  -- white
   ('palintang-washed-java-ateng',                  2),  -- pale yellow
   ('kamojang-anaerobic-washed',                    2),  -- pale yellow
-  ('mt-patuha-red-honey',                          4),  -- orange
-  ('sukawangi-sumedang-natural-excelsa',           4),  -- orange
-  ('genteng-sumedang-anaerobic-natural',           5),  -- deep orange
-  ('patuha-natural-typica',                        5),  -- deep orange
-  ('kertasari-natural-java',                       5),  -- deep orange
+  -- Ebi confirmed these four share one colour, described as "dark green" --
+  -- which is not one of the six swatches supplied, so the level below is a
+  -- placeholder. What is certain is that they are the SAME level as each
+  -- other; 0013 originally split them across 4 and 5, which was wrong.
+  ('genteng-sumedang-anaerobic-natural',           5),
+  ('patuha-natural-typica',                        5),
+  ('kertasari-natural-java',                       5),
+  ('sukawangi-sumedang-natural-excelsa',           5),
+  -- Not mentioned either way; still read as orange from the artwork.
+  ('mt-patuha-red-honey',                          4),
   ('aceh-bener-meriah-anaerobic-natural-gayo-1',   6),  -- purple
   ('ecuador-sidra-anaerobic-honey-co2',            6),  -- purple
   ('hacienda-la-papaya-b7-anaerobic-120hr',        6),  -- purple
 
-  -- Inferred from the process, not seen on the artwork. Worth a second look.
-  ('mami-estate-natural-komasti',                  5),  -- natural
-  ('puntang-extended-natural',                     5),  -- extended natural
-  ('panama-totumas-typica-washed',                 1)   -- washed
+  -- Not on the artwork. Puntang was confirmed by Ebi directly; Panama is
+  -- still inferred from the process and worth a look.
+  ('puntang-extended-natural',                     6),
+  ('panama-totumas-typica-washed',                 1)
 ) as v(slug, level)
 where p.slug = v.slug
   and p.flavour_level is null;

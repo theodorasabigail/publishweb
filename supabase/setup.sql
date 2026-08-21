@@ -20,7 +20,7 @@
 -- rather than duplicated, the example content is skipped if it already exists,
 -- and your own settings are never overwritten.
 --
--- Generated from 15 migrations:
+-- Generated from 16 migrations:
 --   0001_init.sql
 --   0002_functions_rls.sql
 --   0003_seed.sql
@@ -36,6 +36,7 @@
 --   0013_flavour_scale.sql
 --   0014_page_blocks.sql
 --   0015_newsletter_resend.sql
+--   0016_catalogue_corrections.sql
 -- ===========================================================================
 
 
@@ -1615,7 +1616,7 @@ comment on column public.product_variants.size is
 -- ===========================================================================
 -- Publish Coffee Roasters -- the real roast list
 --
--- Ebi's actual catalogue, from the price sheet: 17 coffees across five
+-- Ebi's actual catalogue, from the price sheet: 16 coffees across five
 -- origins, in whatever pack sizes each one is offered in. Only possible after
 -- 0010 made `size` free text -- this list uses 15g, 45g, 75g, 150g, 300g and
 -- 1kg, none of which the old enum allowed.
@@ -1659,9 +1660,6 @@ values
   -- Jawa Timur
   ('mami-estate-waved-natural-komasti', 'Mami Estate Waved Natural Komasti',
    'Jawa Timur', 'Waved Natural', 'Komasti', '#486b73', true, true, 1),
-  ('mami-estate-natural-komasti', 'Mami Estate Natural Komasti',
-   'Jawa Timur', 'Natural', 'Komasti', '#486b73', true, false, 2),
-
   -- Jawa Barat
   ('palintang-washed-java-ateng', 'Palintang Washed Java Ateng',
    'Jawa Barat', 'Washed', 'Java Ateng', '#638c97', true, false, 3),
@@ -1715,9 +1713,6 @@ from (values
   ('mami-estate-waved-natural-komasti', '75gr',  105000, 110),
   ('mami-estate-waved-natural-komasti', '150gr', 185000, 190),
   ('mami-estate-waved-natural-komasti', '300gr', 350000, 350),
-  ('mami-estate-natural-komasti',       '75gr',  105000, 110),
-  ('mami-estate-natural-komasti',       '150gr', 185000, 190),
-  ('mami-estate-natural-komasti',       '300gr', 350000, 350),
 
   -- Jawa Barat
   ('palintang-washed-java-ateng',        '75gr',   75000, 110),
@@ -1849,19 +1844,24 @@ from (values
   ('ecuador-sidra-anaerobic-washed',               1),  -- white
   ('palintang-washed-java-ateng',                  2),  -- pale yellow
   ('kamojang-anaerobic-washed',                    2),  -- pale yellow
-  ('mt-patuha-red-honey',                          4),  -- orange
-  ('sukawangi-sumedang-natural-excelsa',           4),  -- orange
-  ('genteng-sumedang-anaerobic-natural',           5),  -- deep orange
-  ('patuha-natural-typica',                        5),  -- deep orange
-  ('kertasari-natural-java',                       5),  -- deep orange
+  -- Ebi confirmed these four share one colour, described as "dark green" --
+  -- which is not one of the six swatches supplied, so the level below is a
+  -- placeholder. What is certain is that they are the SAME level as each
+  -- other; 0013 originally split them across 4 and 5, which was wrong.
+  ('genteng-sumedang-anaerobic-natural',           5),
+  ('patuha-natural-typica',                        5),
+  ('kertasari-natural-java',                       5),
+  ('sukawangi-sumedang-natural-excelsa',           5),
+  -- Not mentioned either way; still read as orange from the artwork.
+  ('mt-patuha-red-honey',                          4),
   ('aceh-bener-meriah-anaerobic-natural-gayo-1',   6),  -- purple
   ('ecuador-sidra-anaerobic-honey-co2',            6),  -- purple
   ('hacienda-la-papaya-b7-anaerobic-120hr',        6),  -- purple
 
-  -- Inferred from the process, not seen on the artwork. Worth a second look.
-  ('mami-estate-natural-komasti',                  5),  -- natural
-  ('puntang-extended-natural',                     5),  -- extended natural
-  ('panama-totumas-typica-washed',                 1)   -- washed
+  -- Not on the artwork. Puntang was confirmed by Ebi directly; Panama is
+  -- still inferred from the process and worth a look.
+  ('puntang-extended-natural',                     6),
+  ('panama-totumas-typica-washed',                 1)
 ) as v(slug, level)
 where p.slug = v.slug
   and p.flavour_level is null;
@@ -1987,4 +1987,85 @@ alter table public.newsletter_subscribers
 
 create index if not exists newsletter_unsynced_idx
   on public.newsletter_subscribers(synced_at) where synced_at is null;
+
+
+-- ###########################################################################
+-- ## 0016_catalogue_corrections.sql
+-- ###########################################################################
+
+-- ===========================================================================
+-- Publish Coffee Roasters -- corrections to the seeded catalogue
+--
+-- Two things 0011 and 0013 got wrong, confirmed by Ebi against the real
+-- lineup. Both are already fixed for a fresh install; this exists for a
+-- database that ran the earlier version.
+--
+-- Every statement here is conditional on the *specific wrong value*, not just
+-- on the row. That matters because setup.sql gets re-run: an unconditional
+-- update would quietly undo a deliberate change made in the admin every time
+-- the file was pasted again. Written this way, a correction applies once and
+-- then never touches the row again.
+--
+-- Run this in Supabase -> SQL Editor, after 0015.
+-- ===========================================================================
+
+-- --------------------------------------------------------------------------
+-- 1. Mami Estate Natural Komasti (the plain one) is not sold.
+--
+-- Only the Waved Natural is. The plain one was seeded from a price sheet row
+-- that turned out not to be a live product.
+--
+-- Deleted only if nothing was ever ordered against it. If an order does exist
+-- the product stays and is merely hidden, because deleting it would leave that
+-- order pointing at nothing -- order_items keep their own snapshots, but a
+-- reader following the link would find a hole where the coffee used to be.
+-- --------------------------------------------------------------------------
+update public.products
+set is_active = false, is_featured = false
+where slug = 'mami-estate-natural-komasti';
+
+delete from public.products
+where slug = 'mami-estate-natural-komasti'
+  and not exists (
+    select 1
+    from public.order_items oi
+    join public.product_variants pv on pv.id = oi.variant_id
+    where pv.product_id = products.id
+  )
+  and not exists (
+    select 1 from public.order_items oi where oi.product_id = products.id
+  );
+
+-- --------------------------------------------------------------------------
+-- 2. Puntang Extended Natural is level 6, not 5.
+--
+-- It was never visible on the packaging artwork, so 0013 inferred it from the
+-- process. Ebi confirmed purple. Guarded on the old value so a later change in
+-- the admin is never overwritten by re-running this file.
+-- --------------------------------------------------------------------------
+update public.products
+set flavour_level = 6
+where slug = 'puntang-extended-natural'
+  and flavour_level = 5;
+
+-- --------------------------------------------------------------------------
+-- 3. Sukawangi Sumedang Natural Excelsa belongs with the other three.
+--
+-- Ebi confirmed that Kertasari, Patuha (TRT) Typica, Sukawangi Sumedang
+-- Excelsa and Genteng Anaerobic Natural all share one colour, described as
+-- "dark green" -- which is not among the six swatches supplied, so the level
+-- itself is still open. What is settled is that the four are the SAME as each
+-- other, and 0013 originally split them across two levels.
+--
+-- Only Sukawangi was on the wrong side of that split, so it is the only row
+-- that needs moving. Guarded on the old value, so a later choice in the admin
+-- survives re-running this file.
+--
+-- Mt. Patuha Red Honey is deliberately left at 4: it was not mentioned, and
+-- the artwork read as a different orange from the four above.
+-- --------------------------------------------------------------------------
+update public.products
+set flavour_level = 5
+where slug = 'sukawangi-sumedang-natural-excelsa'
+  and flavour_level = 4;
 

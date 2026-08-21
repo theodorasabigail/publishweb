@@ -1,7 +1,7 @@
 -- ===========================================================================
 -- Publish Coffee Roasters -- the real roast list
 --
--- Ebi's actual catalogue, from the price sheet: 17 coffees across five
+-- Ebi's actual catalogue, from the price sheet: 16 coffees across five
 -- origins, in whatever pack sizes each one is offered in. Only possible after
 -- 0010 made `size` free text -- this list uses 15g, 45g, 75g, 150g, 300g and
 -- 1kg, none of which the old enum allowed.
@@ -45,9 +45,6 @@ values
   -- Jawa Timur
   ('mami-estate-waved-natural-komasti', 'Mami Estate Waved Natural Komasti',
    'Jawa Timur', 'Waved Natural', 'Komasti', '#486b73', true, true, 1),
-  ('mami-estate-natural-komasti', 'Mami Estate Natural Komasti',
-   'Jawa Timur', 'Natural', 'Komasti', '#486b73', true, false, 2),
-
   -- Jawa Barat
   ('palintang-washed-java-ateng', 'Palintang Washed Java Ateng',
    'Jawa Barat', 'Washed', 'Java Ateng', '#638c97', true, false, 3),
@@ -101,9 +98,6 @@ from (values
   ('mami-estate-waved-natural-komasti', '75gr',  105000, 110),
   ('mami-estate-waved-natural-komasti', '150gr', 185000, 190),
   ('mami-estate-waved-natural-komasti', '300gr', 350000, 350),
-  ('mami-estate-natural-komasti',       '75gr',  105000, 110),
-  ('mami-estate-natural-komasti',       '150gr', 185000, 190),
-  ('mami-estate-natural-komasti',       '300gr', 350000, 350),
 
   -- Jawa Barat
   ('palintang-washed-java-ateng',        '75gr',   75000, 110),
