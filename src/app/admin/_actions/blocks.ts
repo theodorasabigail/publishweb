@@ -213,3 +213,122 @@ export async function deletePage(formData: FormData) {
   revalidatePath("/", "layout");
   revalidatePath("/admin/pages");
 }
+
+/**
+ * Turn a built-in page into the blocks that reproduce it.
+ *
+ * The alternative was adding an editable field to every component for every
+ * sentence, forever — and every new sentence would need another field, another
+ * column and another deploy. This inverts it: the page becomes blocks once,
+ * and from then on every word is already editable because blocks are editable.
+ *
+ * The blocks are seeded with the wording currently on the page, so pressing
+ * this changes nothing a visitor can see. It only changes who can edit it.
+ *
+ * Refuses if blocks already exist, because the honest failure here is silently
+ * doubling a page someone had already started building.
+ */
+export async function convertPageToBlocks(formData: FormData) {
+  const { supabase } = await adminClient();
+  const slug = text(formData, "page");
+
+  const starter = STARTER_BLOCKS[slug];
+  if (!starter) throw new Error("That page cannot be rebuilt from blocks yet.");
+
+  const { data: existing } = await supabase
+    .from("page_blocks")
+    .select("id")
+    .eq("page", slug)
+    .limit(1);
+
+  if ((existing ?? []).length) {
+    throw new Error(
+      "This page already has blocks. Delete them first, or add what you need by hand.",
+    );
+  }
+
+  const { error } = await supabase.from("page_blocks").insert(
+    starter.map((block, index) => ({
+      page: slug,
+      block_type: block.type,
+      sort_order: index,
+      // Switched on: these reproduce what the page already shows, so leaving
+      // them off would blank the page the moment replace mode is set.
+      is_active: true,
+      content: block.content,
+    })),
+  );
+  if (error) throw new Error(describeDbError(error, "Could not rebuild that page."));
+
+  await supabase
+    .from("pages")
+    .update({ blocks_mode: "replace", updated_at: new Date().toISOString() })
+    .eq("slug", slug);
+
+  revalidatePath("/", "layout");
+  revalidatePage(slug);
+}
+
+/**
+ * What each built-in page becomes.
+ *
+ * Deliberately the same words the page ships with, so the conversion is
+ * invisible from the outside and the operator edits from where they already
+ * are rather than from a blank page.
+ */
+const STARTER_BLOCKS: Record<
+  string,
+  { type: string; content: Record<string, string> }[]
+> = {
+  home: [
+    {
+      type: "features",
+      content: {
+        icon1: "flame",
+        title1: "Roasted to order",
+        body1: "Bags go out within 48 hours of coming off the drum.",
+        icon2: "package",
+        title2: "Three sizes",
+        body2: "100g to try, 200g for the week, 1kg for the caf\u00e9.",
+        icon3: "globe",
+        title3: "Ships worldwide",
+        body3: "Flat-rate international zones, no surprise fees at checkout.",
+      },
+    },
+    {
+      type: "products",
+      content: {
+        heading: "On the shelf",
+        categoryId: "featured",
+        limit: "4",
+        ctaLabel: "See everything",
+        ctaHref: "/shop",
+      },
+    },
+    {
+      type: "categories",
+      content: { heading: "Browse by style", linkLabel: "Browse" },
+    },
+    {
+      type: "split",
+      content: {
+        side: "right",
+        tone: "dark",
+        eyebrow: "Jasa Roasting",
+        heading: "Bring us your green beans.",
+        body: "We roast to order for caf\u00e9s, small brands, and anyone with a sack of green coffee and nowhere to roast it.",
+        ctaLabel: "Ask for a quote",
+        ctaHref: "/roasting",
+      },
+    },
+    {
+      type: "posts",
+      content: {
+        heading: "From the Journal",
+        limit: "3",
+        ctaLabel: "All writing",
+        ctaHref: "/blog",
+      },
+    },
+  ],
+};

@@ -1,14 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
+import { ArrowLeft, ExternalLink, Plus, Wand2 } from "lucide-react";
 import { BlockEditor } from "@/components/admin/block-editor";
 import { BlockPreview } from "@/components/admin/block-preview";
 import { EmptyRow, Field, PageHeader, Panel } from "@/components/admin/ui";
-import { addBlock, deletePage, updatePage } from "@/app/admin/_actions/blocks";
+import {
+  addBlock,
+  convertPageToBlocks,
+  deletePage,
+  updatePage,
+} from "@/app/admin/_actions/blocks";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   BLOCK_DEFINITIONS,
   BUILT_IN_COPY,
+  CONVERTIBLE_PAGES,
   BUILT_IN_PAGES,
   type PageBlock,
   type PageRecord,
@@ -198,6 +204,29 @@ export default async function AdminPageBlocksPage({
             </code>{" "}
             in Supabase and reload. Blocks below work either way.
           </p>
+        </Panel>
+      )}
+
+      {/* The one-press way out of hardcoded copy. Only offered where there is
+          something to convert and nothing would be trampled. */}
+      {CONVERTIBLE_PAGES.includes(slug) && !blocks.length && (
+        <Panel title="Make every word on this page editable" className="mb-6">
+          <p className="text-sm text-sea-800">
+            Parts of this page are still written into the site rather than into
+            your database — the three short points, the section headings, the
+            roasting invitation. This rebuilds the page as blocks containing
+            exactly the words already on it, then hands it over to them.
+          </p>
+          <p className="mt-3 text-sm text-sea-800">
+            Visitors see no change. The difference is that afterwards you can
+            edit all of it, reorder it, or take pieces out.
+          </p>
+          <form action={convertPageToBlocks} className="mt-4">
+            <input type="hidden" name="page" value={slug} />
+            <button type="submit" className="btn-primary py-2 text-xs">
+              <Wand2 className="h-4 w-4" /> Rebuild this page from blocks
+            </button>
+          </form>
         </Panel>
       )}
 

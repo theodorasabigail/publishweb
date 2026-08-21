@@ -1,7 +1,19 @@
 import Image from "next/image";
 import Link from "next/link";
+import {
+  Clock,
+  Coffee,
+  Flame,
+  Globe,
+  Leaf,
+  type LucideIcon,
+  Package,
+  Sparkles,
+  Truck,
+} from "lucide-react";
+import { PostCard } from "@/components/blog/post-card";
 import { ProductCard } from "@/components/shop/product-card";
-import { getProducts } from "@/lib/queries";
+import { getCategories, getProducts, getPublishedPosts } from "@/lib/queries";
 import { isBlockEmpty, type PageBlock } from "@/lib/blocks";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +55,12 @@ async function Block({ block }: { block: PageBlock }) {
       return <TextBlock content={c} />;
     case "products":
       return <ProductsBlock content={c} />;
+    case "categories":
+      return <CategoriesBlock content={c} />;
+    case "posts":
+      return <PostsBlock content={c} />;
+    case "features":
+      return <FeaturesBlock content={c} />;
     case "rule":
       return (
         <div className="container-page py-10">
@@ -377,6 +395,148 @@ async function ProductsBlock({ content }: { content: Content }) {
       <div className="mt-8 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
         {products.map((product) => (
           <ProductCard key={product.id} product={product} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The icon set a "short points" block can draw from.
+ *
+ * Resolved here rather than passed as a component, because a block's content is
+ * plain jsonb: an icon has to survive a round trip through the database as a
+ * string, and only a fixed map can turn one back into something drawable.
+ */
+const ICONS: Record<string, LucideIcon> = {
+  flame: Flame,
+  package: Package,
+  globe: Globe,
+  coffee: Coffee,
+  truck: Truck,
+  leaf: Leaf,
+  clock: Clock,
+  sparkles: Sparkles,
+};
+
+function FeaturesBlock({ content }: { content: Content }) {
+  const points = [1, 2, 3, 4]
+    .map((n) => ({
+      icon: ICONS[content[`icon${n}`] ?? ""],
+      title: content[`title${n}`],
+      body: content[`body${n}`],
+    }))
+    .filter((point) => point.title);
+
+  if (!points.length) return null;
+
+  return (
+    <section className="border-y border-sea-200 bg-white py-14">
+      <div className="container-page">
+        {content.heading && (
+          <h2 className="mb-10 text-center text-xs font-semibold uppercase tracking-[0.16em] text-ink">
+            {content.heading}
+          </h2>
+        )}
+        <div
+          className={cn(
+            "grid gap-x-10 gap-y-8",
+            points.length === 2 && "sm:grid-cols-2",
+            points.length === 3 && "sm:grid-cols-3",
+            points.length >= 4 && "sm:grid-cols-2 lg:grid-cols-4",
+          )}
+        >
+          {points.map((point, index) => (
+            <div key={index} className="flex gap-3.5">
+              {point.icon && (
+                <point.icon className="mt-0.5 h-4 w-4 shrink-0 text-sea-800" />
+              )}
+              <div>
+                <p className="microcaps text-ink">{point.title}</p>
+                {point.body && (
+                  <p className="mt-2 text-sm leading-relaxed text-sea-800">
+                    {point.body}
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+async function CategoriesBlock({ content }: { content: Content }) {
+  const categories = await getCategories();
+  // Only ones with something in them. A card promising a selection and
+  // delivering an empty page is worse than not offering the card.
+  const products = await getProducts();
+  const used = categories.filter((category) =>
+    products.some((product) => product.category_id === category.id),
+  );
+  if (!used.length) return null;
+
+  return (
+    <section className="border-y border-sea-200 bg-white py-16 sm:py-20">
+      <div className="container-page">
+        {content.heading && (
+          <h2 className="text-3xl uppercase sm:text-4xl">{content.heading}</h2>
+        )}
+        {content.body && (
+          <p className="mt-4 max-w-xl whitespace-pre-line text-sea-800">
+            {content.body}
+          </p>
+        )}
+
+        <div className="mt-10 grid gap-px bg-sea-200 sm:grid-cols-2 lg:grid-cols-3">
+          {used.map((category) => (
+            <Link
+              key={category.id}
+              href={`/shop/category/${category.slug}`}
+              className="group bg-cream p-7 transition-colors hover:bg-white"
+            >
+              <p className="text-xl group-hover:underline group-hover:underline-offset-4">
+                {category.name}
+              </p>
+              {category.description && (
+                <p className="mt-2.5 line-clamp-3 text-sm leading-relaxed text-sea-800">
+                  {category.description}
+                </p>
+              )}
+              <span className="microcaps mt-5 inline-block border-b border-ink/30 pb-0.5 text-ink">
+                {content.linkLabel || "Browse"}
+              </span>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+async function PostsBlock({ content }: { content: Content }) {
+  const limit = Math.min(Math.max(Number(content.limit) || 3, 1), 8);
+  const posts = await getPublishedPosts({ limit });
+  if (!posts.length) return null;
+
+  return (
+    <section className="container-page py-16 sm:py-20">
+      <div className="flex flex-wrap items-baseline justify-between gap-4">
+        {content.heading && (
+          <h2 className="text-3xl uppercase sm:text-4xl">{content.heading}</h2>
+        )}
+        <Link
+          href={content.ctaHref || "/blog"}
+          className="microcaps border-b border-ink/30 pb-0.5 text-ink hover:border-ink"
+        >
+          {content.ctaLabel || "All writing"}
+        </Link>
+      </div>
+
+      <div className="mt-10 grid gap-x-10 gap-y-12 sm:grid-cols-3">
+        {posts.map((post) => (
+          <PostCard key={post.id} post={post} />
         ))}
       </div>
     </section>
