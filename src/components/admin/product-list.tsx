@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ArrowDown, ArrowUp, GripVertical, Search, Star } from "lucide-react";
 import { reorderProducts } from "@/app/admin/_actions/products";
 import { BulkBar, SavedFlash } from "@/components/admin/bulk-bar";
-import { FLAVOUR_SWATCH_RING, flavourFor } from "@/lib/flavour";
+import { FLAVOUR_SWATCH_RING, flavourFor, productColour } from "@/lib/flavour";
 import type { Category, ProductWithVariants } from "@/lib/types";
 import { cn, formatIDR } from "@/lib/utils";
 
@@ -206,19 +206,14 @@ export function ProductList({
                 )}
               />
 
+              {/* The flavour colour itself, not a separate accent with a dot
+                  on it. One colour system, and it is the one on the bag. */}
               <span
-                className="relative h-9 w-9 shrink-0 rounded-lg"
-                style={{ backgroundColor: product.accent_color }}
+                className="h-9 w-9 shrink-0 rounded-lg"
+                style={{ backgroundColor: productColour(product), border: FLAVOUR_SWATCH_RING }}
+                title={flavour ? flavour.label : "No flavour colour set"}
                 aria-hidden
-              >
-                {flavour && (
-                  <span
-                    className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full"
-                    style={{ backgroundColor: flavour.hex, border: FLAVOUR_SWATCH_RING }}
-                    title={flavour.label}
-                  />
-                )}
-              </span>
+              />
 
               <div className="min-w-0 flex-1">
                 <Link

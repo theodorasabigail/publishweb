@@ -16,6 +16,11 @@
  * printed on bags. A shop that could drift out of step with the packaging
  * would be worse than no scale at all. What products sit at which level is
  * entirely editable, in the admin.
+ *
+ * The hexes below are sampled from Publish's own swatch sheet and are the one
+ * thing here worth checking against the real artwork files — a screenshot is
+ * a photograph of a colour, not the colour. If the printer's values differ,
+ * these six lines are the only place to change them and everything follows.
  */
 
 export interface FlavourLevel {
@@ -30,37 +35,37 @@ export const FLAVOUR_LEVELS: FlavourLevel[] = [
   {
     level: 1,
     label: "Delicate",
-    hex: "#fbf9fd",
+    hex: "#fdfbff",
     description: "Clean and gentle. Washed lots, floral and tea-like.",
   },
   {
     level: 2,
     label: "Light",
-    hex: "#f7f0a0",
+    hex: "#f6efa6",
     description: "Bright and easy-going, with soft citrus and sweetness.",
   },
   {
     level: 3,
     label: "Balanced",
-    hex: "#f0d055",
+    hex: "#ecd15e",
     description: "Sweet and rounded. The middle of the range.",
   },
   {
     level: 4,
     label: "Fruity",
-    hex: "#e8a02e",
+    hex: "#e2971f",
     description: "Ripe and juicy, with the fruit well forward.",
   },
   {
     level: 5,
     label: "Bold",
-    hex: "#e07a20",
+    hex: "#db7521",
     description: "Big, syrupy and intense. Naturals at full volume.",
   },
   {
     level: 6,
     label: "Experimental",
-    hex: "#c9a4ee",
+    hex: "#c9a6ef",
     description:
       "The most heavily processed lots. Unusual, distinctive, and not for everyone.",
   },
@@ -77,4 +82,23 @@ export function flavourFor(level: number | null | undefined): FlavourLevel | nul
  * therefore carries a hairline; it is only visible on the pale end, which is
  * exactly where it is needed.
  */
-export const FLAVOUR_SWATCH_RING = "1px solid rgba(15, 32, 36, 0.18)";
+export const FLAVOUR_SWATCH_RING_COLOR = "rgba(15,32,36,0.18)";
+export const FLAVOUR_SWATCH_RING = `1px solid ${FLAVOUR_SWATCH_RING_COLOR}`;
+
+/**
+ * The colour a product is shown in.
+ *
+ * The flavour level when it has one, and only then the operator-chosen accent.
+ *
+ * There were two colour systems competing here: `accent_color`, an arbitrary
+ * per-product colour from the original spec, and the flavour scale, which
+ * actually means something and is printed on the bag. A card in one colour
+ * with a small dot in the other told the customer nothing and quietly
+ * contradicted the packaging. The meaningful one wins.
+ */
+export function productColour(product: {
+  flavour_level: number | null;
+  accent_color: string;
+}): string {
+  return flavourFor(product.flavour_level)?.hex ?? product.accent_color;
+}

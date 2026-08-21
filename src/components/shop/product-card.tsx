@@ -2,11 +2,21 @@ import Image from "next/image";
 import Link from "next/link";
 import { lowestPrice, totalStock } from "@/lib/product";
 import type { ProductWithVariants } from "@/lib/types";
-import { FLAVOUR_SWATCH_RING, flavourFor } from "@/lib/flavour";
+import {
+  FLAVOUR_SWATCH_RING,
+  FLAVOUR_SWATCH_RING_COLOR,
+  flavourFor,
+  productColour,
+} from "@/lib/flavour";
 import { contrastText, formatIDR } from "@/lib/utils";
 
 /**
  * A coffee in a grid.
+ *
+ * The ground it sits on is its flavour colour — the same one printed on the
+ * bag — so the shop and the packaging agree at a glance. Level 1 is very
+ * nearly white, so the panel carries a hairline; it is invisible on the deeper
+ * colours and load-bearing on the pale end.
  *
  * No border, no shadow, no rounded panel. The picture is the card: it sits on
  * a flat field of the coffee's own colour and runs to the edges of its cell,
@@ -21,7 +31,8 @@ export function ProductCard({ product }: { product: ProductWithVariants }) {
   const stock = totalStock(product);
   const flavour = flavourFor(product.flavour_level);
   const soldOut = stock <= 0;
-  const textColor = contrastText(product.accent_color);
+  const colour = productColour(product);
+  const textColor = contrastText(colour);
 
   return (
     <Link
@@ -30,7 +41,12 @@ export function ProductCard({ product }: { product: ProductWithVariants }) {
     >
       <div
         className="relative aspect-square overflow-hidden"
-        style={{ backgroundColor: product.accent_color }}
+        style={{
+          backgroundColor: colour,
+          // Inset rather than a border, so the hairline does not change the
+          // square the photograph has to fill.
+          boxShadow: `inset 0 0 0 1px ${FLAVOUR_SWATCH_RING_COLOR}`,
+        }}
       >
         {product.image_url ? (
           <Image
