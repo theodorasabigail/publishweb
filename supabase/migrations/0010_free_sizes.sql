@@ -30,9 +30,14 @@ drop type if exists variant_size;
 -- That was survivable with three fixed sizes whose weights were filled in by
 -- the form; with sizes the operator invents, an unfilled weight is a real
 -- possibility and a wrong shipping quote is a real cost.
-alter table public.product_variants
-  add constraint product_variants_weight_positive
-  check (weight_grams > 0) not valid;
+-- Postgres has no ADD CONSTRAINT IF NOT EXISTS, and this file is meant to be
+-- pasted again whenever the site gains a feature. Unguarded, the second run
+-- fails here -- which is exactly what happened. Same guard as 0006 uses.
+do $$ begin
+  alter table public.product_variants
+    add constraint product_variants_weight_positive
+    check (weight_grams > 0) not valid;
+exception when duplicate_object then null; end $$;
 
 -- `not valid` above means existing rows are left alone rather than blocking
 -- the migration; this fixes them, and then the constraint holds for everything
@@ -51,6 +56,8 @@ where weight_grams <= 0;
 
 alter table public.product_variants
   validate constraint product_variants_weight_positive;
+-- `validate constraint` on an already-valid constraint is a no-op, so this one
+-- needs no guard.
 
 comment on column public.product_variants.size is
   'Free text, shown to the customer as-is. Ordering comes from weight_grams.';
