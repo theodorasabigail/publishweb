@@ -184,7 +184,7 @@ function SplitBlock({ content }: { content: Content }) {
             <Eyebrow tone={dark ? "dark" : undefined}>{content.eyebrow}</Eyebrow>
           )}
           {content.heading && (
-            <h2 className="mt-5 text-4xl uppercase leading-[0.95] tracking-[-0.02em] sm:text-5xl">
+            <h2 className="mt-5 text-5xl uppercase sm:text-6xl">
               {content.heading}
             </h2>
           )}
@@ -245,7 +245,7 @@ function FullImageBlock({ content }: { content: Content }) {
           <div className={cn("max-w-xl", content.align === "center" && "mx-auto")}>
             {content.eyebrow && <Eyebrow tone="dark">{content.eyebrow}</Eyebrow>}
             {content.heading && (
-              <h2 className="mt-4 text-5xl uppercase leading-[0.92] tracking-[-0.02em] text-cream sm:text-7xl">
+              <h2 className="mt-4 text-6xl uppercase text-cream sm:text-8xl">
                 {content.heading}
               </h2>
             )}
@@ -267,7 +267,7 @@ function StatementBlock({ content }: { content: Content }) {
     <section className="container-page py-24 text-center sm:py-32">
       {content.eyebrow && <Eyebrow>{content.eyebrow}</Eyebrow>}
       {content.heading && (
-        <h2 className="mx-auto mt-6 max-w-4xl whitespace-pre-line text-4xl uppercase leading-[0.95] tracking-[-0.02em] sm:text-6xl">
+        <h2 className="mx-auto mt-6 max-w-4xl whitespace-pre-line text-5xl uppercase sm:text-7xl">
           {content.heading}
         </h2>
       )}
@@ -333,7 +333,7 @@ function TextBlock({ content }: { content: Content }) {
     <section className="container-page py-16 sm:py-20">
       <div className="mx-auto max-w-2xl">
         {content.heading && (
-          <h2 className="text-2xl sm:text-3xl">{content.heading}</h2>
+          <h2 className="text-3xl uppercase sm:text-4xl">{content.heading}</h2>
         )}
         {content.body && (
           <p className="mt-5 whitespace-pre-line leading-relaxed text-sea-800">

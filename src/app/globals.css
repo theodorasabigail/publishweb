@@ -19,8 +19,11 @@
    */
   --font-sans: var(--font-brand, var(--font-ui)), system-ui, -apple-system,
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-serif: var(--font-brand, var(--font-display-shop)), Georgia, Cambria,
-    "Times New Roman", serif;
+  /* Headings resolve to the same family as everything else. The difference
+     between a headline and a label is width and weight, set below, not a
+     second typeface. */
+  --font-serif: var(--font-brand, var(--font-ui)), system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
 }
 
 @layer base {
@@ -31,18 +34,26 @@
     @apply bg-cream text-ink antialiased;
   }
   /*
-   * Headings are set large and tight, and the display face is drawn for it --
-   * high contrast that resolves as elegance at 80px and as spindliness at
-   * 20px. So the negative tracking scales with the size rather than being one
-   * value everywhere, which is what stops big type looking merely enlarged.
+   * Headlines: expanded and heavy, set tight.
+   *
+   * The width axis is doing the work that a second typeface would otherwise
+   * do. Wide letterforms at 96px read as deliberate and built; the same family
+   * at normal width and 11px in the navigation reads as quiet. Same font, two
+   * completely different voices.
+   *
+   * Negative tracking scales down as the type gets smaller, because tracking
+   * that flatters a headline closes up a subheading.
    */
   h1, h2, h3, h4 {
     @apply font-serif;
-    letter-spacing: -0.018em;
-    line-height: 1.02;
+    font-weight: 700;
+    font-variation-settings: "wdth" 112;
+    letter-spacing: -0.03em;
+    line-height: 0.98;
   }
   h3, h4 {
-    letter-spacing: -0.01em;
+    font-variation-settings: "wdth" 105;
+    letter-spacing: -0.015em;
     line-height: 1.15;
   }
 }
