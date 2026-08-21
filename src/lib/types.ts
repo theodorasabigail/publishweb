@@ -306,6 +306,8 @@ export interface SiteSettings {
   coming_soon_body: string | null;
   coming_soon_note: string | null;
   coming_soon_contact_line: string | null;
+  /** Resend audience the mailing list is mirrored into. */
+  resend_audience_id: string | null;
   /** How large a courier overcharge has to be before it is worth flagging. */
   courier_variance_alert_idr: number;
   updated_at: string;

@@ -63,6 +63,7 @@ export const FALLBACK_SETTINGS: SiteSettings = {
   coming_soon_body: null,
   coming_soon_note: null,
   coming_soon_contact_line: null,
+  resend_audience_id: null,
   courier_variance_alert_idr: 10000,
   updated_at: new Date().toISOString(),
 };

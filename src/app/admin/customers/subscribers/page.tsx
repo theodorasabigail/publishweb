@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { EmptyRow, PageHeader, Panel, StatCard } from "@/components/admin/ui";
+import { NewsletterComposer } from "@/components/admin/newsletter-composer";
 import { SubscriberExport } from "@/components/admin/subscriber-export";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatDate } from "@/lib/utils";
@@ -12,6 +13,7 @@ interface Subscriber {
   email: string;
   source: string | null;
   created_at: string;
+  synced_at: string | null;
 }
 
 /**
@@ -23,12 +25,18 @@ interface Subscriber {
  */
 export default async function AdminSubscribersPage() {
   const supabase = createAdminClient();
-  const { data } = await supabase
-    .from("newsletter_subscribers")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const [{ data }, { data: settingsRow }] = await Promise.all([
+    supabase
+      .from("newsletter_subscribers")
+      .select("*")
+      .order("created_at", { ascending: false }),
+    supabase.from("site_settings").select("resend_audience_id").eq("id", true).maybeSingle(),
+  ]);
 
   const subscribers = (data ?? []) as Subscriber[];
+  const audienceId = (settingsRow as { resend_audience_id: string | null } | null)
+    ?.resend_audience_id;
+  const unsynced = subscribers.filter((row) => !row.synced_at).length;
 
   // react-hooks/purity assumes a client component that may re-render. This is
   // an async Server Component marked force-dynamic: it runs once per request,
@@ -82,18 +90,22 @@ export default async function AdminSubscribersPage() {
         )}
       </Panel>
 
-      <Panel title="Sending to this list" className="mt-6">
-        <p className="text-sm text-sea-800">
-          The shop does not send newsletters itself, on purpose — bulk email
-          needs unsubscribe handling, bounce handling and sender reputation, and
-          doing that badly gets your domain blocked for the receipts that
-          actually matter.
-        </p>
-        <p className="mt-3 text-sm text-sea-800">
-          Export the list above and load it into something built for it. Your
-          Resend account can do broadcasts, or Buttondown and MailerLite have
-          free tiers at this size. Say the word and this can post new
-          subscribers to one of them automatically.
+      <Panel
+        title="Write to the list"
+        description="Sent through Resend, the same account your order receipts use."
+        className="mt-6"
+      >
+        <NewsletterComposer
+          connected={Boolean(audienceId)}
+          subscriberCount={subscribers.length}
+          unsyncedCount={unsynced}
+        />
+        <p className="mt-6 border-t border-sea-200 pt-4 text-xs text-sea-800">
+          Resend does the sending, which means it also handles the unsubscribe
+          link, bounces and anyone who has opted out — the parts that, done
+          badly, get your domain blocked for the order receipts that actually
+          matter. Their free plan covers 3,000 emails a month and 100 a day, so
+          one send to a few hundred people is comfortably inside it.
         </p>
       </Panel>
     </div>
