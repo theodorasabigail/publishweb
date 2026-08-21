@@ -1,5 +1,5 @@
 -- ===========================================================================
--- Publish Coffee Roasters -- complete database setup
+-- Publish Coffee Roasters -- the database
 -- PT Aroma Pulau Arunika
 --
 -- THIS FILE IS GENERATED. Do not edit it by hand.
@@ -8,43 +8,32 @@
 -- ---------------------------------------------------------------------------
 -- HOW TO USE THIS
 --
--- Setting up a brand new Supabase project:
---   Copy this entire file, paste it into Supabase -> SQL Editor, click Run.
---   That is the whole database. You should see "Success. No rows returned."
+-- Copy the whole file, paste it into Supabase -> SQL Editor, press Run.
+-- You should see "Success. No rows returned."
 --
--- Already have the site running:
---   Do NOT use this file. Run only the new numbered files from
---   supabase/migrations/ that you have not run before.
+-- Run it whenever the site tells you your database needs updating. Run it
+-- again after that, and again -- it is designed to be pasted repeatedly.
 --
--- Running this twice is safe: tables, functions and policies are replaced
--- rather than duplicated, the example content is skipped if it already exists,
--- and your own settings are never overwritten.
+-- ---------------------------------------------------------------------------
+-- WHAT THIS FILE WILL NOT DO
 --
--- Generated from 18 migrations:
---   0001_init.sql
---   0002_functions_rls.sql
---   0003_seed.sql
---   0004_media_usage.sql
---   0005_pos.sql
---   0006_shipping_subsidy.sql
---   0007_shipping_origin.sql
---   0008_courier_tracking.sql
---   0009_email_notifications.sql
---   0010_free_sizes.sql
---   0011_catalogue.sql
---   0012_coming_soon_text.sql
---   0013_flavour_scale.sql
---   0014_page_blocks.sql
---   0015_newsletter_resend.sql
---   0016_catalogue_corrections.sql
---   0017_remove_demo_products.sql
---   0018_editable_pages.sql
+-- It contains no coffees, no prices, no categories and no writing. Not "it is
+-- careful with them" -- it does not contain them at all, so there is nothing
+-- here that could overwrite what you have set up. Everything it does is add
+-- structure that is missing and leave alone everything that is already there.
+--
+-- The one exception is named and bounded: it deletes six placeholder coffees
+-- by name, left behind by earlier versions of this project. Those six slugs
+-- are written out in full below and cannot match anything real.
+--
+-- Starting content -- the first coffees, shipping rates and sample posts --
+-- lives in supabase/starter-content.sql, which is run once on a brand-new
+-- project and never again.
 -- ===========================================================================
 
-
--- ###########################################################################
--- ## 0001_init.sql
--- ###########################################################################
+-- ===========================================================================
+-- migrations/0001_init.sql
+-- ===========================================================================
 
 -- ===========================================================================
 -- Publish Coffee Roasters -- initial schema
@@ -380,10 +369,9 @@ create table if not exists public.newsletter_subscribers (
   created_at timestamptz not null default now()
 );
 
-
--- ###########################################################################
--- ## 0002_functions_rls.sql
--- ###########################################################################
+-- ===========================================================================
+-- migrations/0002_functions_rls.sql
+-- ===========================================================================
 
 -- ===========================================================================
 -- Publish Coffee Roasters -- triggers, helper functions, Row Level Security
@@ -808,114 +796,41 @@ create policy "media: admin write" on storage.objects
   for all using (bucket_id = 'media' and public.is_admin())
   with check (bucket_id = 'media' and public.is_admin());
 
-
--- ###########################################################################
--- ## 0003_seed.sql
--- ###########################################################################
-
 -- ===========================================================================
--- Publish Coffee Roasters -- starter data
---
--- Safe to run on a fresh project. Everything here is editable later from the
--- Admin Dashboard; none of it needs to be changed in SQL.
+-- migrations/0003_housekeeping.sql
 -- ===========================================================================
 
--- --------------------------------------------------------------------------
--- Shipping zones (flat rate, v1). Rates are padded on purpose -- see docs.
--- --------------------------------------------------------------------------
-insert into public.shipping_zones
-  (code, name, country_codes, is_domestic, base_rate_idr, threshold_grams, heavy_rate_idr, free_shipping_over_idr, delivery_estimate, sort_order)
-values
-  ('id-jawa',    'Indonesia — Jawa',        array['ID'], true,   18000, 1000,  30000, 500000, '1–3 hari kerja',  1),
-  ('id-luar',    'Indonesia — luar Jawa',   array['ID'], true,   32000, 1000,  55000, 750000, '2–6 hari kerja',  2),
-  ('sea',        'Southeast Asia',          array['SG','MY','TH','VN','PH','BN','KH','LA','MM'], false, 180000, 1000, 300000, null, '5–10 business days', 3),
-  ('apac',       'Asia-Pacific',            array['AU','NZ','JP','KR','TW','HK','CN','IN'],      false, 260000, 1000, 420000, null, '7–14 business days', 4),
-  ('europe',     'Europe & UK',             array['GB','IE','DE','FR','NL','BE','ES','IT','PT','SE','NO','DK','FI','PL','CH','AT','CZ'], false, 340000, 1000, 540000, null, '8–16 business days', 5),
-  ('north-america', 'North America',        array['US','CA','MX'], false, 360000, 1000, 570000, null, '8–16 business days', 6),
-  ('rest',       'Rest of world',           array[]::text[],       false, 420000, 1000, 660000, null, '10–21 business days', 7)
-on conflict (code) do nothing;
-
--- --------------------------------------------------------------------------
--- Product categories
--- --------------------------------------------------------------------------
-insert into public.categories (slug, name, description, show_on_homepage, sort_order)
-values
-  ('single-origin', 'Single Origin', 'One farm, one lot, one story. Rotating micro-lots from across the archipelago.', true, 1),
-  ('house-blend', 'House Blends', 'Built for milk, built for repeatability. The bags we drink every morning.', true, 2),
-  ('filter', 'Filter Roast', 'Lighter, brighter, developed for pourover and immersion.', true, 3),
-  ('espresso', 'Espresso Roast', 'Sweet, dense, forgiving under pressure.', true, 4)
-on conflict (slug) do nothing;
-
--- --------------------------------------------------------------------------
--- No demo products.
+-- ===========================================================================
+-- Publish Coffee Roasters -- housekeeping
 --
--- There were five here once -- Gayo Arunika, Kintamani Lestari, Toraja Sapan,
--- Terbit Blend, Malam Decaf. They were useful before there was a real
--- catalogue and actively unhelpful after it: a shop with invented coffees in
--- it cannot be trusted at a glance, and every screen had to be read twice to
--- work out which rows were real.
+-- Removes placeholder coffees that earlier versions of this project created.
+-- Nothing here creates anything, and the five names are hard-coded, so it can
+-- only ever remove those exact rows and can never touch a real product.
 --
--- The real lineup is seeded in 0011. 0017 clears these five from any database
--- that already has them.
--- --------------------------------------------------------------------------
+-- Order history is safe: order_items carry their own name, size and price
+-- snapshots and their foreign keys are `on delete set null`, precisely so a
+-- discontinued coffee cannot rewrite a receipt.
+--
+-- Everything that used to live in this file -- shipping zones, categories,
+-- sample posts, the catalogue -- moved to supabase/content/, which is run once
+-- on a new project and never again. That is what makes re-running the setup
+-- file provably unable to touch your products, prices or writing.
+-- ===========================================================================
 
--- --------------------------------------------------------------------------
--- Blog
--- --------------------------------------------------------------------------
-insert into public.blog_categories (slug, name, description, accent_color, sort_order)
-values
-  ('roasting-notes', 'Roasting Notes', 'What came off the drum this week, and why it tastes the way it does.', '#486b73', 1),
-  ('origin', 'Origin', 'Farms, washing stations, and the people we buy from.', '#638c97', 2),
-  ('brewing', 'Brewing', 'Recipes, ratios, and arguments about water.', '#dab0b0', 3),
-  ('shop-journal', 'Shop Journal', 'Everything else that happens in a roastery.', '#486b73', 4)
-on conflict (slug) do nothing;
+delete from public.products
+where slug in (
+  'gayo-arunika',
+  'kintamani-lestari',
+  'toraja-sapan',
+  'terbit-blend',
+  'malam-decaf',
+  -- Seeded from a price-sheet row that turned out not to be a live product.
+  'mami-estate-natural-komasti'
+);
 
-insert into public.blog_posts
-  (slug, title, excerpt, body, author_name, blog_category_id, tags, status, is_featured, published_at)
-values
-  ('why-we-wet-hull',
-   'Why we still wet-hull',
-   'Wet-hulling is the process most likely to get a Sumatran coffee disqualified from a cupping table. We keep buying it anyway.',
-   E'Wet-hulling — *giling basah* — is the process most likely to get a Sumatran coffee thrown out of a specialty cupping table. The parchment comes off at a much higher moisture content than anywhere else in the world, the beans go a strange jade colour, and the resulting cup rarely does the bright, clean, fruit-forward thing that scores well.\n\nWe keep buying it anyway.\n\n## What actually happens\n\nIn a washed process, coffee dries inside its parchment down to about 11% moisture before hulling. In Aceh, the parchment is stripped at somewhere between 30 and 50%. The bean is soft. It deforms. It picks up the character of everything around it while it finishes drying in the open.\n\nThat is the whole argument against it, and it is a fair one. It is also the entire reason the coffee tastes like cedar and dark chocolate and old bookshelves instead of like every other washed coffee on the shelf.\n\n## The roasting problem\n\nA wet-hulled lot arrives less dense and less uniform than a washed one. Push it the way you would push a Kenyan and you get scorched tips and a hollow middle. We take the charge temperature down, stretch the Maillard phase, and drop about forty seconds past first crack.\n\nThe goal is not to make it taste clean. The goal is to make it taste like the best possible version of what it already is.',
-   'Ebi', (select id from public.blog_categories where slug = 'roasting-notes'),
-   array['sumatra','process','roasting'], 'published', true, now() - interval '6 days'),
-
-  ('water-is-the-recipe',
-   'Water is the recipe',
-   'You can buy a better grinder or you can fix your water. One of those is Rp 8.000.',
-   E'Every brewing guide starts with the grind. We would like to make a case for starting one step earlier.\n\nCoffee is about 98.5% water by weight. The mineral content of that water decides how much of the coffee actually dissolves, and in what order. Jakarta tap water, run through a basic filter jug, is usually too hard — it pulls the bitter compounds forward and flattens everything above them.\n\n## A starting point\n\nAim for roughly 70–100 ppm total dissolved solids, with the hardness sitting a little below the alkalinity. In practice, in Indonesia, that means:\n\n- Start with a low-mineral bottled water as your base\n- Cut it with a small amount of harder mineral water until the cup opens up\n- Keep the ratio written down, because you will forget it\n\nThat is the whole trick. Same beans, same grinder, same hands — a different cup.',
-   'Ebi', (select id from public.blog_categories where slug = 'brewing'),
-   array['brewing','water','pourover'], 'published', false, now() - interval '3 days'),
-
-  ('kintamani-harvest-2026',
-   'Notes from the Kintamani harvest',
-   'Three days on the slopes of Batur with the growers behind the Lestari lot.',
-   E'The road up to Kintamani is a series of switchbacks through citrus groves, which turns out to be relevant.\n\nCoffee here is almost never planted alone. It grows under and beside tangerine trees, and the growers we buy from will tell you plainly that the fruit trees are the reliable income and the coffee is the one that pays attention.\n\n## The washing station\n\nThe Lestari lot is fully washed and dried on raised beds, which is not the regional default. It takes longer and it costs more, and it is the reason the cup is as clean as it is.\n\nWe committed to the same lot for a third year running. Consistency is worth more to us than chasing a novel micro-lot every season.',
-   'Ebi', (select id from public.blog_categories where slug = 'origin'),
-   array['bali','origin','harvest'], 'published', false, now() - interval '1 day')
-on conflict (slug) do nothing;
-
--- --------------------------------------------------------------------------
--- Homepage presentation defaults
--- --------------------------------------------------------------------------
-update public.site_settings
-   set hero_title = 'Coffee, published.',
-       hero_subtitle = 'A small roastery in Indonesia. Rotating single origins, blends we actually drink, and a custom roasting service for your own green beans.',
-       homepage_category_ids = array(
-         select id from public.categories where show_on_homepage order by sort_order
-       ),
-       featured_post_id = (select id from public.blog_posts where slug = 'why-we-wet-hull'),
-       seo_description = 'Small-batch Indonesian coffee roasters. Single origin, blends, and custom roasting from PT Aroma Pulau Arunika.',
-       contact_email = 'halo@publishcoffee.com'
- -- Only seed these on a fresh project. Without this guard, re-running the
- -- setup file would reset a hero the operator had already rewritten.
- where id = true
-   and hero_subtitle is null;
-
-
--- ###########################################################################
--- ## 0004_media_usage.sql
--- ###########################################################################
+-- ===========================================================================
+-- migrations/0004_media_usage.sql
+-- ===========================================================================
 
 -- ===========================================================================
 -- Publish Coffee Roasters -- media storage reporting
@@ -1004,10 +919,9 @@ revoke all on public.referenced_media from anon, authenticated;
 revoke all on function public.media_storage_usage() from anon, authenticated;
 revoke all on function public.unused_media() from anon, authenticated;
 
-
--- ###########################################################################
--- ## 0005_pos.sql
--- ###########################################################################
+-- ===========================================================================
+-- migrations/0005_pos.sql
+-- ===========================================================================
 
 -- ===========================================================================
 -- Publish Coffee Roasters -- counter sales (POS)
@@ -1243,10 +1157,9 @@ revoke all on function public.record_pos_sale(jsonb, text, integer, uuid, uuid, 
 revoke all on function public.sales_summary(timestamptz, timestamptz) from anon, authenticated;
 revoke all on function public.product_sales_report(timestamptz, timestamptz) from anon, authenticated;
 
-
--- ###########################################################################
--- ## 0006_shipping_subsidy.sql
--- ###########################################################################
+-- ===========================================================================
+-- migrations/0006_shipping_subsidy.sql
+-- ===========================================================================
 
 -- ===========================================================================
 -- Publish Coffee Roasters -- partial shipping subsidies
@@ -1327,10 +1240,9 @@ $$;
 
 revoke all on function public.shipping_summary(timestamptz, timestamptz) from anon, authenticated;
 
-
--- ###########################################################################
--- ## 0007_shipping_origin.sql
--- ###########################################################################
+-- ===========================================================================
+-- migrations/0007_shipping_origin.sql
+-- ===========================================================================
 
 -- ===========================================================================
 -- Publish Coffee Roasters -- where parcels ship from
@@ -1361,10 +1273,9 @@ alter table public.site_settings
 comment on column public.site_settings.origin_area_code is
   'Provider-specific pickup area identifier, if the courier API needs one.';
 
-
--- ###########################################################################
--- ## 0008_courier_tracking.sql
--- ###########################################################################
+-- ===========================================================================
+-- migrations/0008_courier_tracking.sql
+-- ===========================================================================
 
 -- ===========================================================================
 -- Publish Coffee Roasters -- courier tracking and webhook events
@@ -1478,10 +1389,9 @@ $$;
 
 revoke all on function public.courier_price_variances(timestamptz, timestamptz) from anon, authenticated;
 
-
--- ###########################################################################
--- ## 0009_email_notifications.sql
--- ###########################################################################
+-- ===========================================================================
+-- migrations/0009_email_notifications.sql
+-- ===========================================================================
 
 -- ===========================================================================
 -- Publish Coffee Roasters -- transactional email bookkeeping
@@ -1511,10 +1421,9 @@ comment on column public.orders.confirmation_email_sent_at is
 comment on column public.orders.shipped_email_tracking is
   'The tracking number the customer was last emailed. A different value means a correction worth re-sending.';
 
-
--- ###########################################################################
--- ## 0010_free_sizes.sql
--- ###########################################################################
+-- ===========================================================================
+-- migrations/0010_free_sizes.sql
+-- ===========================================================================
 
 -- ===========================================================================
 -- Publish Coffee Roasters -- sizes the operator controls
@@ -1580,154 +1489,9 @@ alter table public.product_variants
 comment on column public.product_variants.size is
   'Free text, shown to the customer as-is. Ordering comes from weight_grams.';
 
-
--- ###########################################################################
--- ## 0011_catalogue.sql
--- ###########################################################################
-
 -- ===========================================================================
--- Publish Coffee Roasters -- the real roast list
---
--- Ebi's actual catalogue, from the price sheet: 16 coffees across five
--- origins, in whatever pack sizes each one is offered in. Only possible after
--- 0010 made `size` free text -- this list uses 15g, 45g, 75g, 150g, 300g and
--- 1kg, none of which the old enum allowed.
---
--- The regions on the price sheet -- Jawa Timur, Jawa Barat, Africa, Sumatra,
--- Latin America -- are recorded as each product's ORIGIN, not as categories.
--- They describe where a coffee is from, which is a fact about the coffee;
--- categories are how the shop chooses to group things for a visitor, and that
--- is a separate decision the operator should make later in the admin.
---
--- Every insert is `on conflict (slug) do nothing`, so running this twice adds
--- nothing and, more importantly, never overwrites a price edited in the admin
--- after the fact. To genuinely reset one, delete it in the admin first.
---
--- Prices are exactly as supplied. Stock is 0 -- nothing is sellable until it
--- is counted in, which is the honest starting state for a roastery.
---
--- Run this in Supabase -> SQL Editor, after 0010.
+-- migrations/0012_coming_soon_text.sql
 -- ===========================================================================
-
--- --------------------------------------------------------------------------
--- The coffees.
--- --------------------------------------------------------------------------
-insert into public.products
-  (slug, name, origin, process, varietal, accent_color, is_active, is_featured, sort_order)
-values
-  -- Jawa Timur
-  ('mami-estate-waved-natural-komasti', 'Mami Estate Waved Natural Komasti',
-   'Jawa Timur', 'Waved Natural', 'Komasti', '#486b73', true, true, 1),
-  -- Jawa Barat
-  ('palintang-washed-java-ateng', 'Palintang Washed Java Ateng',
-   'Jawa Barat', 'Washed', 'Java Ateng', '#638c97', true, false, 3),
-  ('genteng-sumedang-anaerobic-natural', 'Genteng Sumedang Anaerobic Natural Mixed Varieties',
-   'Jawa Barat', 'Anaerobic Natural', 'Mixed Varieties', '#638c97', true, false, 4),
-  ('mt-patuha-red-honey', 'Mt. Patuha Red Honey Mixed Varieties',
-   'Jawa Barat', 'Red Honey', 'Mixed Varieties', '#638c97', true, true, 5),
-  ('patuha-natural-typica', 'Patuha Natural Typica',
-   'Jawa Barat', 'Natural', 'Typica', '#638c97', true, false, 6),
-  ('kamojang-anaerobic-washed', 'Kamojang Anaerobic Washed',
-   'Jawa Barat', 'Anaerobic Washed', null, '#638c97', true, false, 7),
-  ('kertasari-natural-java', 'Kertasari Natural Java',
-   'Jawa Barat', 'Natural', 'Java', '#638c97', true, false, 8),
-  ('sukawangi-sumedang-natural-excelsa', 'Sukawangi Sumedang Natural Excelsa',
-   'Jawa Barat', 'Natural', 'Excelsa', '#638c97', true, false, 9),
-  ('puntang-extended-natural', 'Puntang Extended Natural Mixed Varieties',
-   'Jawa Barat', 'Extended Natural', 'Mixed Varieties', '#638c97', true, false, 10),
-
-  -- Africa
-  ('ethiopia-bensa-daye-mountain-decaf', 'Ethiopia Bensa Daye Mountain Decaf Washed',
-   'Africa', 'Washed Decaf', null, '#a7a4b5', true, false, 11),
-
-  -- Sumatra
-  ('aceh-bener-meriah-anaerobic-natural-gayo-1', 'Aceh Bener Meriah Anaerobic Natural Gayo 1',
-   'Sumatra', 'Anaerobic Natural', 'Gayo 1', '#dab0b0', true, true, 12),
-
-  -- Latin America
-  ('panama-totumas-typica-washed', 'Panama Totumas Typica Washed',
-   'Latin America', 'Washed', 'Typica', '#ee8a7a', true, false, 13),
-  ('ecuador-sidra-anaerobic-washed', 'Ecuador Sidra Anaerobic Washed',
-   'Latin America', 'Anaerobic Washed', 'Sidra', '#ee8a7a', true, false, 14),
-  ('ecuador-sidra-anaerobic-honey-co2', 'Ecuador Sidra Anaerobic Honey CO2',
-   'Latin America', 'Anaerobic Honey CO2', 'Sidra', '#ee8a7a', true, false, 15),
-  ('hacienda-la-papaya-b7-anaerobic-120hr', 'Hacienda La Papaya B7 Anaerobic 120HR',
-   'Latin America', 'Anaerobic 120HR', 'B7', '#ee8a7a', true, false, 16)
-on conflict (slug) do nothing;
-
--- --------------------------------------------------------------------------
--- Pack sizes and prices.
---
--- Only the sizes each coffee is actually offered in: the price sheet has gaps,
--- and a gap means "we do not sell that size", not "price it at zero".
---
--- Shipping weight is the pack plus its packaging -- proportionally heavier on
--- the small sample sizes, where a 15 g bag is mostly bag.
--- --------------------------------------------------------------------------
-insert into public.product_variants (product_id, size, price_idr, stock, weight_grams, is_active)
-select p.id, v.size, v.price_idr, 0, v.weight_grams, true
-from (values
-  -- Jawa Timur
-  ('mami-estate-waved-natural-komasti', '75gr',  105000, 110),
-  ('mami-estate-waved-natural-komasti', '150gr', 185000, 190),
-  ('mami-estate-waved-natural-komasti', '300gr', 350000, 350),
-
-  -- Jawa Barat
-  ('palintang-washed-java-ateng',        '75gr',   75000, 110),
-  ('palintang-washed-java-ateng',        '150gr', 140000, 190),
-  ('palintang-washed-java-ateng',        '300gr', 250000, 350),
-  ('genteng-sumedang-anaerobic-natural', '75gr',   82500, 110),
-  ('genteng-sumedang-anaerobic-natural', '150gr', 150000, 190),
-  ('genteng-sumedang-anaerobic-natural', '300gr', 285000, 350),
-  ('mt-patuha-red-honey',                '75gr',   88000, 110),
-  ('mt-patuha-red-honey',                '150gr', 165000, 190),
-  ('mt-patuha-red-honey',                '300gr', 304000, 350),
-  ('patuha-natural-typica',              '75gr',   90750, 110),
-  ('patuha-natural-typica',              '150gr', 175000, 190),
-  ('patuha-natural-typica',              '300gr', 332500, 350),
-  ('kamojang-anaerobic-washed',          '75gr',   95000, 110),
-  ('kamojang-anaerobic-washed',          '150gr', 160000, 190),
-  ('kamojang-anaerobic-washed',          '300gr', 300000, 350),
-  ('kertasari-natural-java',             '75gr',   96250, 110),
-  ('kertasari-natural-java',             '150gr', 180000, 190),
-  ('kertasari-natural-java',             '300gr', 342000, 350),
-  ('sukawangi-sumedang-natural-excelsa', '75gr',  104500, 110),
-  ('sukawangi-sumedang-natural-excelsa', '150gr', 175000, 190),
-  ('sukawangi-sumedang-natural-excelsa', '300gr', 345000, 350),
-  ('puntang-extended-natural',           '75gr',  108000, 110),
-  ('puntang-extended-natural',           '150gr', 180000, 190),
-  ('puntang-extended-natural',           '300gr', 322000, 350),
-
-  -- Africa
-  ('ethiopia-bensa-daye-mountain-decaf', '15gr',   82500,  45),
-  ('ethiopia-bensa-daye-mountain-decaf', '45gr',  190000,  80),
-  ('ethiopia-bensa-daye-mountain-decaf', '75gr',  295000, 110),
-
-  -- Sumatra
-  ('aceh-bener-meriah-anaerobic-natural-gayo-1', '75gr',   82500,  110),
-  ('aceh-bener-meriah-anaerobic-natural-gayo-1', '150gr', 150000,  190),
-  ('aceh-bener-meriah-anaerobic-natural-gayo-1', '300gr', 285000,  350),
-  ('aceh-bener-meriah-anaerobic-natural-gayo-1', '1KG',   375000, 1100),
-
-  -- Latin America
-  ('panama-totumas-typica-washed',          '15gr', 140000,  45),
-  ('ecuador-sidra-anaerobic-washed',        '15gr',  75000,  45),
-  ('ecuador-sidra-anaerobic-washed',        '45gr', 170000,  80),
-  ('ecuador-sidra-anaerobic-washed',        '75gr', 250000, 110),
-  ('ecuador-sidra-anaerobic-honey-co2',     '15gr',  80000,  45),
-  ('ecuador-sidra-anaerobic-honey-co2',     '45gr', 180000,  80),
-  ('ecuador-sidra-anaerobic-honey-co2',     '75gr', 250000, 110),
-  ('hacienda-la-papaya-b7-anaerobic-120hr', '15gr',  88000,  45),
-  ('hacienda-la-papaya-b7-anaerobic-120hr', '45gr', 200000,  80),
-  ('hacienda-la-papaya-b7-anaerobic-120hr', '75gr', 315000, 110)
-) as v(product_slug, size, price_idr, weight_grams)
-join public.products p on p.slug = v.product_slug
-on conflict (product_id, size) do nothing;
-
-
--- ###########################################################################
--- ## 0012_coming_soon_text.sql
--- ###########################################################################
 
 -- ===========================================================================
 -- Publish Coffee Roasters -- editable coming-soon page
@@ -1753,10 +1517,9 @@ alter table public.site_settings
 comment on column public.site_settings.coming_soon_title is
   'Pre-launch page wording. Null falls back to the built-in copy, so clearing a field restores it rather than emptying the page.';
 
-
--- ###########################################################################
--- ## 0013_flavour_scale.sql
--- ###########################################################################
+-- ===========================================================================
+-- migrations/0013_flavour_scale.sql
+-- ===========================================================================
 
 -- ===========================================================================
 -- Publish Coffee Roasters -- the flavour colour scale
@@ -1782,53 +1545,9 @@ comment on column public.products.flavour_level is
 create index if not exists products_flavour_level_idx
   on public.products(flavour_level) where flavour_level is not null;
 
--- --------------------------------------------------------------------------
--- Starting assignments for the current lineup.
---
--- Read off the packaging artwork. Where a coffee was legible there its colour
--- is used directly; where it was not, the level is inferred from the process
--- in its name, which is the same signal the artwork encodes. Those inferences
--- are marked, and all of it is editable in the admin -- this is a starting
--- point so nothing launches uncoloured, not a decision.
---
--- Only fills empty values, so re-running never overwrites a correction.
--- --------------------------------------------------------------------------
-update public.products p
-set flavour_level = v.level
-from (values
-  -- Read directly from the artwork
-  ('mami-estate-waved-natural-komasti',            1),  -- white
-  ('ethiopia-bensa-daye-mountain-decaf',           1),  -- white
-  ('ecuador-sidra-anaerobic-washed',               1),  -- white
-  ('palintang-washed-java-ateng',                  2),  -- pale yellow
-  ('kamojang-anaerobic-washed',                    2),  -- pale yellow
-  -- Ebi confirmed these four share one orange. This originally split them
-  -- across levels 4 and 5, reading two different oranges off the artwork where
-  -- there is only one.
-  ('genteng-sumedang-anaerobic-natural',           5),
-  ('patuha-natural-typica',                        5),
-  ('kertasari-natural-java',                       5),
-  ('sukawangi-sumedang-natural-excelsa',           5),
-  -- Red Honey, and the only coffee still on the lighter orange. Not confirmed
-  -- either way; grouped separately because a honey process sits between a
-  -- washed and a natural, which is what level 4 is for.
-  ('mt-patuha-red-honey',                          4),
-  ('aceh-bener-meriah-anaerobic-natural-gayo-1',   6),  -- purple
-  ('ecuador-sidra-anaerobic-honey-co2',            6),  -- purple
-  ('hacienda-la-papaya-b7-anaerobic-120hr',        6),  -- purple
-
-  -- Not on the artwork. Puntang was confirmed by Ebi directly; Panama is
-  -- still inferred from the process and worth a look.
-  ('puntang-extended-natural',                     6),
-  ('panama-totumas-typica-washed',                 1)
-) as v(slug, level)
-where p.slug = v.slug
-  and p.flavour_level is null;
-
-
--- ###########################################################################
--- ## 0014_page_blocks.sql
--- ###########################################################################
+-- ===========================================================================
+-- migrations/0014_page_blocks.sql
+-- ===========================================================================
 
 -- ===========================================================================
 -- Publish Coffee Roasters -- page blocks
@@ -1916,10 +1635,9 @@ create policy "pages: admin all" on public.pages
 comment on table public.page_blocks is
   'Operator-arranged page sections. Block shapes are defined in src/lib/blocks.ts.';
 
-
--- ###########################################################################
--- ## 0015_newsletter_resend.sql
--- ###########################################################################
+-- ===========================================================================
+-- migrations/0015_newsletter_resend.sql
+-- ===========================================================================
 
 -- ===========================================================================
 -- Publish Coffee Roasters -- connecting the mailing list to Resend
@@ -1947,132 +1665,9 @@ alter table public.newsletter_subscribers
 create index if not exists newsletter_unsynced_idx
   on public.newsletter_subscribers(synced_at) where synced_at is null;
 
-
--- ###########################################################################
--- ## 0016_catalogue_corrections.sql
--- ###########################################################################
-
 -- ===========================================================================
--- Publish Coffee Roasters -- corrections to the seeded catalogue
---
--- Two things 0011 and 0013 got wrong, confirmed by Ebi against the real
--- lineup. Both are already fixed for a fresh install; this exists for a
--- database that ran the earlier version.
---
--- Every statement here is conditional on the *specific wrong value*, not just
--- on the row. That matters because setup.sql gets re-run: an unconditional
--- update would quietly undo a deliberate change made in the admin every time
--- the file was pasted again. Written this way, a correction applies once and
--- then never touches the row again.
---
--- Run this in Supabase -> SQL Editor, after 0015.
+-- migrations/0018_editable_pages.sql
 -- ===========================================================================
-
--- --------------------------------------------------------------------------
--- 1. Mami Estate Natural Komasti (the plain one) is not sold.
---
--- Only the Waved Natural is. The plain one was seeded from a price sheet row
--- that turned out not to be a live product.
---
--- Deleted only if nothing was ever ordered against it. If an order does exist
--- the product stays and is merely hidden, because deleting it would leave that
--- order pointing at nothing -- order_items keep their own snapshots, but a
--- reader following the link would find a hole where the coffee used to be.
--- --------------------------------------------------------------------------
-update public.products
-set is_active = false, is_featured = false
-where slug = 'mami-estate-natural-komasti';
-
-delete from public.products
-where slug = 'mami-estate-natural-komasti'
-  and not exists (
-    select 1
-    from public.order_items oi
-    join public.product_variants pv on pv.id = oi.variant_id
-    where pv.product_id = products.id
-  )
-  and not exists (
-    select 1 from public.order_items oi where oi.product_id = products.id
-  );
-
--- --------------------------------------------------------------------------
--- 2. Puntang Extended Natural is level 6, not 5.
---
--- It was never visible on the packaging artwork, so 0013 inferred it from the
--- process. Ebi confirmed purple. Guarded on the old value so a later change in
--- the admin is never overwritten by re-running this file.
--- --------------------------------------------------------------------------
-update public.products
-set flavour_level = 6
-where slug = 'puntang-extended-natural'
-  and flavour_level = 5;
-
--- --------------------------------------------------------------------------
--- 3. Sukawangi Sumedang Natural Excelsa belongs with the other three.
---
--- Ebi confirmed that Kertasari, Patuha (TRT) Typica, Sukawangi Sumedang
--- Excelsa and Genteng Anaerobic Natural all share one orange. 0013 split them
--- across levels 4 and 5, reading two different oranges off artwork that has
--- only one.
---
--- Only Sukawangi was on the wrong side of that split, so it is the only row
--- that needs moving. Guarded on the old value, so a later choice in the admin
--- survives re-running this file.
---
--- Mt. Patuha Red Honey is deliberately left at 4. It was not named in that
--- group, and a honey process genuinely sits between a washed and a natural --
--- which is what the lighter orange is for. Worth confirming.
--- --------------------------------------------------------------------------
-update public.products
-set flavour_level = 5
-where slug = 'sukawangi-sumedang-natural-excelsa'
-  and flavour_level = 4;
-
-
--- ###########################################################################
--- ## 0017_remove_demo_products.sql
--- ###########################################################################
-
--- ===========================================================================
--- Publish Coffee Roasters -- remove the demo coffees
---
--- Gayo Arunika, Kintamani Lestari, Toraja Sapan, Terbit Blend and Malam Decaf
--- were placeholders from before there was a real catalogue. 0003 no longer
--- creates them; this removes them from a database that already has them, so
--- the shop and the admin show only the actual lineup.
---
--- Deleted outright rather than hidden. Hidden products still fill the admin
--- list, still have to be read past, and are exactly the thing that makes an
--- operator unsure which rows are real -- which is the problem being solved.
---
--- Order history is unaffected, and that is by design rather than by luck:
--- order_items carry their own name, size and price snapshots, and their
--- foreign keys are `on delete set null` precisely so a discontinued coffee can
--- never rewrite or invalidate a receipt. A past order keeps saying exactly
--- what was bought and for how much.
---
--- Variants go with the product through `on delete cascade`.
---
--- Run this in Supabase -> SQL Editor, after 0016.
--- ===========================================================================
-
--- Clear them out of the homepage picker first. site_settings holds an array of
--- category ids, not product ids, so nothing to do there -- but the featured
--- post reference is the same shape of problem, and a product id lingering in a
--- settings array would survive the delete and point at nothing.
-delete from public.products
-where slug in (
-  'gayo-arunika',
-  'kintamani-lestari',
-  'toraja-sapan',
-  'terbit-blend',
-  'malam-decaf'
-);
-
-
--- ###########################################################################
--- ## 0018_editable_pages.sql
--- ###########################################################################
 
 -- ===========================================================================
 -- Publish Coffee Roasters -- every page becomes an editable page
@@ -2139,4 +1734,3 @@ comment on column public.pages.blocks_mode is
   'append = blocks render under the built-in page. replace = blocks are the whole page.';
 comment on column public.pages.heading is
   'Overrides the page''s own heading. Null uses the built-in wording.';
-

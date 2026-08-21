@@ -1,23 +1,34 @@
-# Migrations
+# supabase/
 
-These numbered files are the source of truth for the database schema. Each one
-is applied once, in order.
+Two files get pasted into Supabase. Everything else here builds them.
 
-**For setting up a new Supabase project, do not use these.** Use
-`../setup.sql` — a single generated file containing all of them, which is what
-`docs/OPERATOR_SETUP.md` tells the operator to paste.
+| File | When | What it does |
+|---|---|---|
+| `setup.sql` | Whenever the admin says the database needs updating. As often as you like. | Adds structure that is missing. Contains no coffees, prices, categories or writing. |
+| `starter-content.sql` | **Once**, on a brand-new project, after `setup.sql`. | Adds the starting coffees, shipping rates, categories and sample posts. |
 
-## Adding a migration
+## Why they are separate
 
-1. Add the next numbered file here (`0006_whatever.sql`).
-2. Run `npm run build:sql` to regenerate `../setup.sql`.
-3. Commit both.
+`setup.sql` is pasted again every time the site gains a feature, so the
+question that matters is not "is it careful with my content" but "can it touch
+my content at all". Splitting content out makes the answer no — there is
+nothing in the file that could.
 
-`setup.sql` is generated, never edited by hand. Regenerating it is what keeps a
-one-paste install identical to a step-by-step one.
+`starter-content.sql` is the opposite and says so at the top. Its statements
+skip rows that already exist, so re-running will not overwrite a price you
+changed — but it *would* bring back a coffee you deliberately deleted, because
+from its point of view a missing row is one it has not added yet.
 
-## Applying a migration to a site that is already running
+## Editing
 
-Run only the new numbered files, in order, in the Supabase SQL editor. Do not
-re-run `setup.sql` expecting it to upgrade anything — it is safe to run, but it
-is written for a fresh project.
+- Structure → `migrations/*.sql`, numbered, each one additive and re-runnable.
+- Starting content → `content/*.sql`.
+
+Then `npm run build:sql`, which regenerates both pasted files.
+
+## The one thing setup.sql removes
+
+`0003_housekeeping.sql` deletes six placeholder coffees left by earlier
+versions of this project, by name. The slugs are written out in full; they
+cannot match a real product. Order history is unaffected — order lines carry
+their own name, size and price snapshots.

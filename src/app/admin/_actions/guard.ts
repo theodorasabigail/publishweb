@@ -65,8 +65,8 @@ export function describeDbError(
     return (
       "Your database is missing something this version of the site expects. " +
       "Open Supabase → SQL Editor, paste the contents of supabase/setup.sql " +
-      "and run it, then try again. Re-running it is safe and changes nothing " +
-      "you have already set up."
+      "and run it, then try again. That file is structure only — it contains " +
+      "no coffees, prices or writing, so it cannot overwrite anything."
     );
   }
 

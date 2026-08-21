@@ -144,9 +144,9 @@ export async function SchemaCheck() {
         <li>3. Run it, then reload this page</li>
       </ol>
       <p className="mt-3 text-xs text-amber-800">
-        Running it again is safe. It adds only what is missing and changes
-        nothing you have already set up — your coffees, prices, orders and
-        settings are untouched.
+        Running it again is safe, by construction: that file contains no
+        coffees, prices or writing at all, so there is nothing in it that could
+        overwrite what you have set up.
       </p>
     </div>
   );

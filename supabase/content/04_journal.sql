@@ -1,48 +1,10 @@
 -- ===========================================================================
--- Publish Coffee Roasters -- starter data
+-- Starting journal sections and posts
 --
--- Safe to run on a fresh project. Everything here is editable later from the
--- Admin Dashboard; none of it needs to be changed in SQL.
+-- Three sample posts, so the journal is not an empty page on day one. They
+-- are written to be replaced: delete them in Admin -> Journal once there is
+-- real writing to put there.
 -- ===========================================================================
-
--- --------------------------------------------------------------------------
--- Shipping zones (flat rate, v1). Rates are padded on purpose -- see docs.
--- --------------------------------------------------------------------------
-insert into public.shipping_zones
-  (code, name, country_codes, is_domestic, base_rate_idr, threshold_grams, heavy_rate_idr, free_shipping_over_idr, delivery_estimate, sort_order)
-values
-  ('id-jawa',    'Indonesia — Jawa',        array['ID'], true,   18000, 1000,  30000, 500000, '1–3 hari kerja',  1),
-  ('id-luar',    'Indonesia — luar Jawa',   array['ID'], true,   32000, 1000,  55000, 750000, '2–6 hari kerja',  2),
-  ('sea',        'Southeast Asia',          array['SG','MY','TH','VN','PH','BN','KH','LA','MM'], false, 180000, 1000, 300000, null, '5–10 business days', 3),
-  ('apac',       'Asia-Pacific',            array['AU','NZ','JP','KR','TW','HK','CN','IN'],      false, 260000, 1000, 420000, null, '7–14 business days', 4),
-  ('europe',     'Europe & UK',             array['GB','IE','DE','FR','NL','BE','ES','IT','PT','SE','NO','DK','FI','PL','CH','AT','CZ'], false, 340000, 1000, 540000, null, '8–16 business days', 5),
-  ('north-america', 'North America',        array['US','CA','MX'], false, 360000, 1000, 570000, null, '8–16 business days', 6),
-  ('rest',       'Rest of world',           array[]::text[],       false, 420000, 1000, 660000, null, '10–21 business days', 7)
-on conflict (code) do nothing;
-
--- --------------------------------------------------------------------------
--- Product categories
--- --------------------------------------------------------------------------
-insert into public.categories (slug, name, description, show_on_homepage, sort_order)
-values
-  ('single-origin', 'Single Origin', 'One farm, one lot, one story. Rotating micro-lots from across the archipelago.', true, 1),
-  ('house-blend', 'House Blends', 'Built for milk, built for repeatability. The bags we drink every morning.', true, 2),
-  ('filter', 'Filter Roast', 'Lighter, brighter, developed for pourover and immersion.', true, 3),
-  ('espresso', 'Espresso Roast', 'Sweet, dense, forgiving under pressure.', true, 4)
-on conflict (slug) do nothing;
-
--- --------------------------------------------------------------------------
--- No demo products.
---
--- There were five here once -- Gayo Arunika, Kintamani Lestari, Toraja Sapan,
--- Terbit Blend, Malam Decaf. They were useful before there was a real
--- catalogue and actively unhelpful after it: a shop with invented coffees in
--- it cannot be trusted at a glance, and every screen had to be read twice to
--- work out which rows were real.
---
--- The real lineup is seeded in 0011. 0017 clears these five from any database
--- that already has them.
--- --------------------------------------------------------------------------
 
 -- --------------------------------------------------------------------------
 -- Blog
@@ -80,19 +42,3 @@ values
    array['bali','origin','harvest'], 'published', false, now() - interval '1 day')
 on conflict (slug) do nothing;
 
--- --------------------------------------------------------------------------
--- Homepage presentation defaults
--- --------------------------------------------------------------------------
-update public.site_settings
-   set hero_title = 'Coffee, published.',
-       hero_subtitle = 'A small roastery in Indonesia. Rotating single origins, blends we actually drink, and a custom roasting service for your own green beans.',
-       homepage_category_ids = array(
-         select id from public.categories where show_on_homepage order by sort_order
-       ),
-       featured_post_id = (select id from public.blog_posts where slug = 'why-we-wet-hull'),
-       seo_description = 'Small-batch Indonesian coffee roasters. Single origin, blends, and custom roasting from PT Aroma Pulau Arunika.',
-       contact_email = 'halo@publishcoffee.com'
- -- Only seed these on a fresh project. Without this guard, re-running the
- -- setup file would reset a hero the operator had already rewritten.
- where id = true
-   and hero_subtitle is null;
