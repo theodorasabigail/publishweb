@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { JournalMasthead } from "@/components/blog/journal-masthead";
+import { PageBlocks } from "@/components/blocks/page-blocks";
+import { blocksReplacePage, pageCopy } from "@/lib/blocks";
 import { journalFontClassNames } from "@/lib/fonts";
 import { PostCard } from "@/components/blog/post-card";
 import { EmptyState } from "@/components/empty-state";
 import {
   getAllTags,
   getBlogCategories,
+  getPageContext,
   getPublishedPosts,
   getSiteSettings,
 } from "@/lib/queries";
@@ -30,12 +33,19 @@ export const metadata: Metadata = {
 };
 
 export default async function BlogIndexPage() {
-  const [posts, categories, tags, settings] = await Promise.all([
+  const [posts, categories, tags, settings, { page, blocks }] = await Promise.all([
     getPublishedPosts(),
     getBlogCategories(),
     getAllTags(),
     getSiteSettings(),
+    getPageContext("blog"),
   ]);
+
+  if (blocksReplacePage(page, blocks.length)) {
+    return <PageBlocks blocks={blocks} />;
+  }
+
+  const copy = pageCopy("blog", page);
 
   // The operator pins one post from the admin; otherwise the newest leads.
   const lead =
@@ -56,7 +66,8 @@ export default async function BlogIndexPage() {
       <JournalMasthead
         categories={categories}
         active="all"
-        tagline="What we are roasting, where it came from, and what we got wrong last week. Written by the people at the drum."
+        title={copy.heading}
+        tagline={copy.intro}
       />
 
       {!posts.length ? (
@@ -96,6 +107,8 @@ export default async function BlogIndexPage() {
           )}
         </>
       )}
+
+      <PageBlocks blocks={blocks} />
 
       {tags.length > 0 && (
         <section className="mt-20 border-t border-sea-200 pt-8">

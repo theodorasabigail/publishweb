@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageBlocks } from "@/components/blocks/page-blocks";
-import { getPageBlocks, getSiteSettings } from "@/lib/queries";
+import { blocksReplacePage } from "@/lib/blocks";
+import { getPageContext, getSiteSettings } from "@/lib/queries";
 
 /*
  * Revalidation is a backstop, not the update mechanism: every admin action
@@ -19,10 +20,14 @@ export const metadata: Metadata = {
 };
 
 export default async function AboutPage() {
-  const [settings, blocks] = await Promise.all([
+  const [settings, { page, blocks }] = await Promise.all([
     getSiteSettings(),
-    getPageBlocks("about"),
+    getPageContext("about"),
   ]);
+
+  if (blocksReplacePage(page, blocks.length)) {
+    return <PageBlocks blocks={blocks} />;
+  }
   const whatsapp = settings.whatsapp_number?.replace(/[^0-9]/g, "");
 
   return (

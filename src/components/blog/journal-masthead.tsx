@@ -13,18 +13,20 @@ import type { BlogCategory } from "@/lib/types";
 export function JournalMasthead({
   categories,
   active,
+  title = "The Journal",
   tagline,
 }: {
   categories: BlogCategory[];
   /** Slug of the current section, or "all" on the index. */
   active?: string;
+  title?: string;
   tagline?: string;
 }) {
   return (
     <header className="border-b border-ink pb-4">
       <div className="border-b border-sea-200 pb-8 pt-4 text-center">
         <Link href="/blog" className="inline-block">
-          <h1 className="text-5xl sm:text-7xl">The Journal</h1>
+          <h1 className="text-5xl sm:text-7xl">{title}</h1>
         </Link>
         {tagline && (
           <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-sea-800">

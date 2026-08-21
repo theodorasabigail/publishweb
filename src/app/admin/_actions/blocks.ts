@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { blockDefinition, type PageBlock } from "@/lib/blocks";
-import { adminClient, boolean, integer, text } from "./guard";
+import { adminClient, boolean, describeDbError, integer, text } from "./guard";
 
 /**
  * Blocks are stored as jsonb, so nothing about the shape of `content` is
@@ -23,10 +23,16 @@ function contentFor(type: string, formData: FormData): Record<string, string> {
 }
 
 /** Revalidate wherever this page is actually served from. */
+const BUILT_IN_ROUTES: Record<string, string> = {
+  home: "/",
+  shop: "/shop",
+  roasting: "/roasting",
+  blog: "/blog",
+  about: "/about",
+};
+
 function revalidatePage(page: string) {
-  if (page === "home") revalidatePath("/");
-  else if (page === "about") revalidatePath("/about");
-  else revalidatePath(`/p/${page}`);
+  revalidatePath(BUILT_IN_ROUTES[page] ?? `/p/${page}`);
   revalidatePath("/admin/pages");
   revalidatePath(`/admin/pages/${page}`);
 }
@@ -134,10 +140,10 @@ export async function createPage(formData: FormData) {
   if (!title) throw new Error("A page needs a name.");
 
   const slug = slugify(text(formData, "slug") || title);
-  // These are page identifiers, not slugs of a custom page; letting one be
-  // created would make two different things answer to the same name.
-  if (["home", "about"].includes(slug)) {
-    throw new Error("That name is already used by a built-in page.");
+  // These name routes that already exist. A custom page sharing one would make
+  // two different things answer to the same name, and only one could win.
+  if (slug in BUILT_IN_ROUTES) {
+    throw new Error("That name is already used by a page of the site.");
   }
 
   const { error } = await supabase.from("pages").insert({ title, slug });
@@ -152,29 +158,51 @@ export async function createPage(formData: FormData) {
 
 export async function updatePage(formData: FormData) {
   const { supabase } = await adminClient();
-  const id = text(formData, "id");
   const slug = text(formData, "slug");
+  const mode = text(formData, "blocks_mode") === "replace" ? "replace" : "append";
 
-  await supabase
-    .from("pages")
-    .update({
-      title: text(formData, "title"),
-      seo_title: text(formData, "seo_title") || null,
-      seo_description: text(formData, "seo_description") || null,
-      is_published: boolean(formData, "is_published"),
-      show_in_nav: boolean(formData, "show_in_nav"),
-      nav_order: integer(formData, "nav_order", 0),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id);
+  const patch: Record<string, unknown> = {
+    title: text(formData, "title"),
+    seo_title: text(formData, "seo_title") || null,
+    seo_description: text(formData, "seo_description") || null,
+    show_in_nav: boolean(formData, "show_in_nav"),
+    nav_order: integer(formData, "nav_order", 0),
+    blocks_mode: mode,
+    // Null rather than "" when cleared, so the page falls back to the wording
+    // it ships with instead of rendering an empty heading.
+    heading: text(formData, "heading") || null,
+    intro: text(formData, "intro") || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  // A built-in page is a route in the code. Unpublishing one would leave the
+  // route answering with nothing, so that switch is not offered for them and
+  // is not accepted here either.
+  if (!boolean(formData, "is_built_in")) {
+    patch.is_published = boolean(formData, "is_published");
+  }
+
+  const { error } = await supabase.from("pages").update(patch).eq("slug", slug);
+  if (error) {
+    throw new Error(
+      describeDbError(error, "Could not save that page."),
+    );
+  }
 
   revalidatePath("/", "layout");
-  revalidatePath(`/p/${slug}`);
+  revalidatePage(slug);
 }
 
 export async function deletePage(formData: FormData) {
   const { supabase } = await adminClient();
   const slug = text(formData, "slug");
+
+  // The five built-in pages are routes in the code. Deleting the row would not
+  // remove the page, it would just strip its wording and its menu entry and
+  // then reappear the next time the setup file runs.
+  if (slug in BUILT_IN_ROUTES) {
+    throw new Error("That page is part of the site and cannot be deleted.");
+  }
 
   // Blocks are keyed by slug rather than by a foreign key, so they have to go
   // explicitly or they would linger invisibly and reappear if the slug were

@@ -11,11 +11,13 @@ export default async function AdminPagesPage() {
   const supabase = createAdminClient();
 
   const [{ data: pageRows }, { data: blockRows }] = await Promise.all([
-    supabase.from("pages").select("*").order("title"),
+    supabase.from("pages").select("*").order("nav_order"),
     supabase.from("page_blocks").select("page, is_active"),
   ]);
 
-  const pages = (pageRows ?? []) as PageRecord[];
+  const allPages = (pageRows ?? []) as PageRecord[];
+  const pages = allPages.filter((page) => !page.is_built_in);
+  const byslug = new Map(allPages.map((page) => [page.slug, page]));
   const blocks = (blockRows ?? []) as { page: string; is_active: boolean }[];
 
   const countFor = (slug: string) => blocks.filter((b) => b.page === slug).length;
@@ -26,28 +28,41 @@ export default async function AdminPagesPage() {
     <div>
       <PageHeader
         title="Pages"
-        description="Build a page out of blocks — a picture and some words, a full-width video, a row of coffees. Add them, reorder them, turn them off."
+        description="Every page on the site. Rewrite its wording, decide whether your blocks add to it or replace it entirely, and set what appears in the top menu."
       />
 
-      <Panel title="Your main pages" className="mb-6">
+      <Panel
+        title="The site’s pages"
+        description="These always exist. You can rename them in the menu, rewrite them, or hand them over to blocks."
+        className="mb-6"
+      >
         <div className="divide-y divide-sea-200">
-          {BUILT_IN_PAGES.map((page) => (
-            <Link
-              key={page.slug}
-              href={`/admin/pages/${page.slug}`}
-              className="flex items-center gap-4 py-3 hover:bg-sea-50"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="font-medium">{page.title}</p>
-                <p className="text-sm text-sea-800">
-                  {countFor(page.slug)
-                    ? `${liveFor(page.slug)} of ${countFor(page.slug)} blocks showing`
-                    : "No blocks yet"}
-                </p>
-              </div>
-              <span className="text-sm text-sea-800">{page.href}</span>
-            </Link>
-          ))}
+          {BUILT_IN_PAGES.map((builtIn) => {
+            const record = byslug.get(builtIn.slug);
+            return (
+              <Link
+                key={builtIn.slug}
+                href={`/admin/pages/${builtIn.slug}`}
+                className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 hover:bg-sea-50"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">{record?.title ?? builtIn.title}</p>
+                  <p className="text-sm text-sea-800">
+                    {countFor(builtIn.slug)
+                      ? `${liveFor(builtIn.slug)} of ${countFor(builtIn.slug)} blocks showing`
+                      : "No blocks yet"}
+                  </p>
+                </div>
+                {record?.blocks_mode === "replace" && (
+                  <span className="badge bg-sea-900 text-cream">Built from blocks</span>
+                )}
+                {record?.show_in_nav && (
+                  <span className="badge bg-sea-100 text-sea-800">In menu</span>
+                )}
+                <span className="text-sm text-sea-800">{builtIn.href}</span>
+              </Link>
+            );
+          })}
         </div>
       </Panel>
 

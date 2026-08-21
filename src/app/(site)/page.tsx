@@ -6,9 +6,10 @@ import { EmptyState } from "@/components/empty-state";
 import { ProductCard } from "@/components/shop/product-card";
 import { PageBlocks } from "@/components/blocks/page-blocks";
 import { isSupabaseConfigured } from "@/lib/env";
+import { blocksReplacePage } from "@/lib/blocks";
 import {
   getCategories,
-  getPageBlocks,
+  getPageContext,
   getProducts,
   getPublishedPosts,
   getSiteSettings,
@@ -25,14 +26,19 @@ export const revalidate = 3600;
 export default async function HomePage() {
   if (!isSupabaseConfigured()) return <NotConnectedYet />;
 
-  const [settings, categories, featured, latest, posts, blocks] = await Promise.all([
+  const [settings, categories, featured, latest, posts, { page, blocks }] = await Promise.all([
     getSiteSettings(),
     getCategories(),
     getProducts({ featuredOnly: true, limit: 4 }),
     getProducts({ limit: 8 }),
     getPublishedPosts({ limit: 3 }),
-    getPageBlocks("home"),
+    getPageContext("home"),
   ]);
+
+  // Blocks can replace the whole homepage rather than sit under it.
+  if (blocksReplacePage(page, blocks.length)) {
+    return <PageBlocks blocks={blocks} />;
+  }
 
   // The operator picks which categories appear here, and in what order.
   const homepageCategories = settings.homepage_category_ids.length

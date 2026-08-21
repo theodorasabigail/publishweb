@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { RoastingRequestForm } from "@/components/shop/roasting-form";
 import { getSession } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
-import { getSiteSettings } from "@/lib/queries";
+import { PageBlocks } from "@/components/blocks/page-blocks";
+import { blocksReplacePage, pageCopy } from "@/lib/blocks";
+import { getPageContext, getSiteSettings } from "@/lib/queries";
 
 export const metadata: Metadata = {
   title: "Jasa Roasting — custom roasting service",
@@ -12,9 +14,18 @@ export const metadata: Metadata = {
 };
 
 export default async function RoastingPage() {
-  const settings = await getSiteSettings();
+  const [settings, { page, blocks }] = await Promise.all([
+    getSiteSettings(),
+    getPageContext("roasting"),
+  ]);
   const session = isSupabaseConfigured() ? await getSession() : null;
   const whatsapp = settings.whatsapp_number?.replace(/[^0-9]/g, "");
+
+  if (blocksReplacePage(page, blocks.length)) {
+    return <PageBlocks blocks={blocks} />;
+  }
+
+  const copy = pageCopy("roasting", page);
 
   return (
     <div className="container-page py-14">
@@ -23,14 +34,12 @@ export default async function RoastingPage() {
           <p className="microcaps text-sea-800">
             Jasa Roasting
           </p>
-          <h1 className="mt-3 text-4xl sm:text-5xl">
-            Your green beans, our drum.
-          </h1>
-          <p className="mt-5 leading-relaxed text-sea-700">
-            We roast to order for cafés, small brands, and anyone with a sack of
-            green coffee and nowhere to roast it. Every job is quoted
-            individually — volume, origin and target profile all move the number.
-          </p>
+          <h1 className="mt-3 text-4xl sm:text-5xl">{copy.heading}</h1>
+          {copy.intro && (
+            <p className="mt-5 whitespace-pre-line leading-relaxed text-sea-700">
+              {copy.intro}
+            </p>
+          )}
 
           <div className="mt-10 space-y-6">
             {[
@@ -96,6 +105,7 @@ export default async function RoastingPage() {
           </div>
         </div>
       </div>
+      <PageBlocks blocks={blocks} />
     </div>
   );
 }

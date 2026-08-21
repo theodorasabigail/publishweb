@@ -274,6 +274,37 @@ export async function getPageBySlug(
 }
 
 /**
+ * A built-in page's row, plus its blocks, in one place.
+ *
+ * Every built-in page needs the same three things, and every one of them has
+ * to keep working when the row does not exist -- before 0018 has been run, or
+ * if someone deletes it. Null everywhere means "behave exactly as before".
+ */
+export const getPageContext = cache(
+  async (
+    slug: string,
+  ): Promise<{ page: PageRecord | null; blocks: PageBlock[] }> => {
+    if (!isSupabaseConfigured()) return { page: null, blocks: [] };
+
+    const supabase = createStaticClient();
+    const [{ data: pageRow }, { data: blockRows }] = await Promise.all([
+      supabase.from("pages").select("*").eq("slug", slug).maybeSingle(),
+      supabase
+        .from("page_blocks")
+        .select("*")
+        .eq("page", slug)
+        .eq("is_active", true)
+        .order("sort_order"),
+    ]);
+
+    return {
+      page: (pageRow as PageRecord | null) ?? null,
+      blocks: (blockRows ?? []) as PageBlock[],
+    };
+  },
+);
+
+/**
  * Pages the operator has chosen to put in the menu.
  *
  * Cached per request because the site layout needs it on every page render,
@@ -290,3 +321,33 @@ export const getNavPages = cache(async (): Promise<PageRecord[]> => {
     .order("nav_order");
   return (data ?? []) as PageRecord[];
 });
+
+/**
+ * The top menu.
+ *
+ * Built from the pages table, so renaming, reordering or hiding a menu item is
+ * something the operator does rather than something that needs a deploy.
+ *
+ * Falls back to the built-in list when the table has nothing to say -- before
+ * 0018 has run, or if every page has been hidden. A site with no navigation at
+ * all is a worse outcome than a site with the default navigation, so an empty
+ * result is treated as "not configured" rather than as "deliberately empty".
+ */
+export async function getNavigation(): Promise<
+  { href: string; label: string }[]
+> {
+  const pages = await getNavPages();
+  if (!pages.length) {
+    return [
+      { href: "/shop", label: "Shop" },
+      { href: "/roasting", label: "Jasa Roasting" },
+      { href: "/blog", label: "Journal" },
+      { href: "/about", label: "About" },
+    ];
+  }
+
+  return pages.map((page) => ({
+    href: page.href ?? `/p/${page.slug}`,
+    label: page.title,
+  }));
+}

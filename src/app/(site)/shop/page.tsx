@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { ShopBrowser } from "@/components/shop/shop-browser";
-import { getCategories, getProducts } from "@/lib/queries";
+import { PageBlocks } from "@/components/blocks/page-blocks";
+import { blocksReplacePage, pageCopy } from "@/lib/blocks";
+import { getCategories, getPageContext, getProducts } from "@/lib/queries";
 
 /*
  * Revalidation is a backstop, not the update mechanism: every admin action
@@ -23,19 +25,34 @@ export const metadata: Metadata = {
 };
 
 export default async function ShopPage() {
-  const [products, categories] = await Promise.all([getProducts(), getCategories()]);
+  const [products, categories, { page, blocks }] = await Promise.all([
+    getProducts(),
+    getCategories(),
+    getPageContext("shop"),
+  ]);
+
+  // The operator can hand the whole page over to their blocks. Only takes
+  // effect when there are blocks, so "replace" can never render nothing.
+  if (blocksReplacePage(page, blocks.length)) {
+    return <PageBlocks blocks={blocks} />;
+  }
+
+  const copy = pageCopy("shop", page);
 
   return (
     <div className="container-page py-14">
       <header className="max-w-4xl">
-        <h1 className="text-6xl uppercase sm:text-8xl">The roast list</h1>
-        <p className="mt-6 max-w-md text-sea-800">
-          Every coffee on the shelf right now, whatever it is grouped under.
-          Roasted to order and shipped within 48 hours.
-        </p>
+        <h1 className="text-6xl uppercase sm:text-8xl">{copy.heading}</h1>
+        {copy.intro && (
+          <p className="mt-6 max-w-md whitespace-pre-line text-sea-800">
+            {copy.intro}
+          </p>
+        )}
       </header>
 
       <ShopBrowser products={products} categories={categories} />
+
+      <PageBlocks blocks={blocks} />
     </div>
   );
 }

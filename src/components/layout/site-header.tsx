@@ -8,25 +8,19 @@ import { AccountLink } from "@/components/layout/account-link";
 import { useCart } from "@/components/cart-provider";
 import { cn } from "@/lib/utils";
 
-const NAV = [
-  { href: "/shop", label: "Shop" },
-  { href: "/roasting", label: "Jasa Roasting" },
-  { href: "/blog", label: "Journal" },
-  { href: "/about", label: "About" },
-];
-
 /**
- * The operator's own pages sit after the fixed ones rather than among them.
+ * The menu comes from the pages table, passed in by the layout.
  *
- * They are passed in from the layout, which reads them once per render pass,
- * because this is a client component and a database call cannot happen here.
+ * Nothing is hard-coded here any more: renaming an item, reordering it, hiding
+ * it or adding one is something the operator does in Admin -> Pages rather
+ * than something that needs a deploy. The layout supplies a sensible default
+ * when the table has nothing to say, so this can never render an empty bar.
  */
 export function SiteHeader({
-  extraNav = [],
+  nav,
 }: {
-  extraNav?: { href: string; label: string }[];
+  nav: { href: string; label: string }[];
 }) {
-  const nav = [...NAV, ...extraNav];
   const pathname = usePathname();
   const { count, ready } = useCart();
   const [menuOpen, setMenuOpen] = useState(false);

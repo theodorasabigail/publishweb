@@ -237,13 +237,84 @@ export interface PageRecord {
   is_published: boolean;
   show_in_nav: boolean;
   nav_order: number;
+  /** Built-in pages answer at their own route; custom ones at /p/<slug>. */
+  href: string | null;
+  is_built_in: boolean;
+  blocks_mode: "append" | "replace";
+  /** Null means "use the wording the page ships with". */
+  heading: string | null;
+  intro: string | null;
   created_at: string;
   updated_at: string;
 }
 
-/** Pages that exist whether or not the operator adds blocks to them. */
+/**
+ * The wording each built-in page ships with.
+ *
+ * Every page reads its own entry and lets the database override it, so a page
+ * nobody has edited looks exactly as it always did, and clearing a field in
+ * the admin restores this rather than leaving a blank heading.
+ */
+export const BUILT_IN_COPY: Record<string, { heading: string; intro: string }> = {
+  shop: {
+    heading: "The roast list",
+    intro:
+      "Every coffee on the shelf right now, whatever it is grouped under. Roasted to order and shipped within 48 hours.",
+  },
+  roasting: {
+    heading: "Your green beans, our drum.",
+    intro:
+      "We roast to order for caf\u00e9s, small brands, and anyone with a sack of green coffee and nowhere to roast it. Every job is quoted individually \u2014 volume, origin and target profile all move the number.",
+  },
+  about: {
+    heading: "",
+    intro: "",
+  },
+  home: {
+    heading: "",
+    intro: "",
+  },
+  blog: {
+    heading: "The Journal",
+    intro:
+      "What we are roasting, where it came from, and what we got wrong last week. Written by the people at the drum.",
+  },
+};
+
+/** Heading and intro for a built-in page, operator override winning. */
+export function pageCopy(
+  slug: string,
+  page: PageRecord | null,
+): { heading: string; intro: string } {
+  const shipped = BUILT_IN_COPY[slug] ?? { heading: "", intro: "" };
+  return {
+    heading: page?.heading?.trim() || shipped.heading,
+    intro: page?.intro?.trim() || shipped.intro,
+  };
+}
+
+/** True when the operator has handed this page over to its blocks. */
+export function blocksReplacePage(
+  page: PageRecord | null,
+  blockCount: number,
+): boolean {
+  // Replace mode with no blocks would render an empty page, which is never
+  // what someone meant — so it only takes effect once there is something to
+  // put there.
+  return page?.blocks_mode === "replace" && blockCount > 0;
+}
+
+/**
+ * Pages that exist in code as well as in the database.
+ *
+ * Listed here so the admin still works before 0018 has been run, and so a page
+ * can never be deleted out of existence while its route keeps answering.
+ */
 export const BUILT_IN_PAGES = [
-  { slug: "home", title: "Homepage", href: "/" },
+  { slug: "home", title: "Home", href: "/" },
+  { slug: "shop", title: "Shop", href: "/shop" },
+  { slug: "roasting", title: "Jasa Roasting", href: "/roasting" },
+  { slug: "blog", title: "Journal", href: "/blog" },
   { slug: "about", title: "About", href: "/about" },
 ];
 
