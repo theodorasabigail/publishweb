@@ -32,3 +32,21 @@ Then `npm run build:sql`, which regenerates both pasted files.
 versions of this project, by name. The slugs are written out in full; they
 cannot match a real product. Order history is unaffected — order lines carry
 their own name, size and price snapshots.
+
+## Re-runnability and function shapes
+
+`create or replace function` cannot change a function's **return type**. So when
+a later migration changes what a function returns, the earlier migration that
+created it has to stop conflicting with the newer shape — otherwise the second
+paste of `setup.sql` fails partway through, on a file that has not changed.
+
+Two of these exist, both caused by `0019` widening `channel` from an enum to
+text:
+
+- `sales_summary` — `0005` now declares `channel` as text and casts on the way
+  out, which is correct whichever type the column is.
+- `product_sales_report` — `0019` gives it an extra column, so `0005` drops it
+  before creating it.
+
+If you change what an existing function returns, check that `setup.sql` still
+applies twice in a row against a database that has already had it once.

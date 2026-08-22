@@ -40,10 +40,15 @@ export function ProductList({
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return items.filter((product) => {
-      const stock = (product.product_variants ?? []).reduce((sum, v) => sum + v.stock, 0);
+      // Availability, not shelf count: a bag held by an unpaid manual order
+      // cannot be sold, which is what this filter is asking about.
+      const available = (product.product_variants ?? []).reduce(
+        (sum, v) => sum + v.available,
+        0,
+      );
       if (show === "live" && !product.is_active) return false;
       if (show === "hidden" && product.is_active) return false;
-      if (show === "out" && stock > 0) return false;
+      if (show === "out" && available > 0) return false;
       if (!needle) return true;
       return [product.name, product.origin, product.process, product.varietal, product.categories?.name]
         .filter(Boolean)
@@ -173,6 +178,10 @@ export function ProductList({
             (sum, v) => sum + v.stock,
             0,
           );
+          const held = (product.product_variants ?? []).reduce(
+            (sum, v) => sum + v.reserved,
+            0,
+          );
 
           return (
             <li
@@ -237,6 +246,14 @@ export function ProductList({
                 >
                   {stock} in stock
                 </p>
+                {held > 0 && (
+                  <p
+                    className="text-xs text-amber-700"
+                    title="Held by orders that are agreed but not yet paid."
+                  >
+                    {held} held · {stock - held} free
+                  </p>
+                )}
               </div>
 
               <div className="flex shrink-0 items-center gap-1.5">

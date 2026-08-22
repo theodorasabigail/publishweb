@@ -2,7 +2,13 @@ import Link from "next/link";
 import { EmptyRow, PageHeader } from "@/components/admin/ui";
 import { OrderStatusBadge } from "@/components/status-badge";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { ORDER_STATUSES, type Order, type OrderStatus } from "@/lib/types";
+import {
+  CHANNEL_LABELS,
+  ORDER_STATUSES,
+  type Order,
+  type OrderStatus,
+  type SalesChannel,
+} from "@/lib/types";
 import { cn, formatDateTime, formatIDR } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +25,8 @@ export default async function AdminOrdersPage({
 }) {
   const { status, channel } = await searchParams;
   const active = status && ORDER_STATUSES.includes(status as OrderStatus) ? status : "all";
+  const activeChannel =
+    channel && channel in CHANNEL_LABELS ? (channel as SalesChannel) : "all";
 
   const supabase = createAdminClient();
   let query = supabase
@@ -28,7 +36,6 @@ export default async function AdminOrdersPage({
     .limit(200);
 
   if (active !== "all") query = query.eq("status", active);
-  const activeChannel = channel === "pos" || channel === "online" ? channel : "all";
   if (activeChannel !== "all") query = query.eq("channel", activeChannel);
 
   const { data } = await query;
@@ -38,14 +45,13 @@ export default async function AdminOrdersPage({
     <div>
       <PageHeader
         title="Orders"
-        description="Move an order along as you roast, pack and ship it."
+        description="Every order in one place, wherever it came from — the website, the counter, or a message. Move each one along as you roast, pack and ship it."
       />
 
       <nav className="mb-3 flex flex-wrap gap-2" aria-label="Sales channel">
         {[
           { value: "all", label: "Everywhere" },
-          { value: "online", label: "Website" },
-          { value: "pos", label: "Shop counter" },
+          ...Object.entries(CHANNEL_LABELS).map(([value, label]) => ({ value, label })),
         ].map((option) => (
           <Link
             key={option.value}
@@ -113,6 +119,7 @@ export default async function AdminOrdersPage({
                   </td>
                   <td className="px-4 py-3 text-sea-800">
                     {order.shipping_address?.recipient_name ??
+                      order.channel_reference ??
                       (order.channel === "pos" ? "Walk-in" : "—")}
                     {!order.user_id && order.channel === "online" && (
                       <span className="ml-1.5 text-xs text-sea-800">(guest)</span>
@@ -120,25 +127,34 @@ export default async function AdminOrdersPage({
                   </td>
                   <td className="px-4 py-3">
                     <span
-                      className={
-                        order.channel === "pos"
-                          ? "badge bg-sea-100 text-sea-800"
-                          : "badge bg-sky-100 text-sky-800"
-                      }
+                      className={cn(
+                        "badge",
+                        order.channel === "online"
+                          ? "bg-sky-100 text-sky-800"
+                          : order.channel === "pos"
+                            ? "bg-sea-100 text-sea-800"
+                            : "bg-amber-100 text-amber-900",
+                      )}
                     >
-                      {order.channel === "pos" ? "Shop" : "Website"}
+                      {CHANNEL_LABELS[order.channel] ?? order.channel}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sea-800">
-                    {order.channel === "pos"
-                      ? "—"
-                      : order.shipping_address?.city ?? "—"}
-                    {order.channel === "online" && order.shipping_address?.country
+                    {order.shipping_address?.city ?? "—"}
+                    {order.shipping_address?.country
                       ? `, ${order.shipping_address.country}`
                       : ""}
                   </td>
                   <td className="px-4 py-3">
                     <OrderStatusBadge status={order.status} />
+                    {order.stock_reserved_at && (
+                      <span
+                        className="ml-1.5 text-xs text-amber-700"
+                        title="This order is holding stock that is not on sale on the website."
+                      >
+                        holding stock
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right font-medium">
                     {formatIDR(order.total_idr)}

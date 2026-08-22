@@ -33,9 +33,21 @@ everything a real payment does — it takes stock down and awards loyalty points
 Only use it when you have genuinely confirmed the money arrived. Doing it twice
 is safe; the second time changes nothing.
 
+**Cancelling** an unpaid order puts its coffee back on the shelf. Cancelling one
+that was already paid does not — that coffee has left the building, and undoing
+it is a refund and a fresh stock count, which is a decision for you rather than
+something the site should guess at.
+
 ## Selling in the shop
 
-**Admin → Counter sales.** This is the till.
+**Admin → Counter sales.** This is the till, and it has two modes across the
+top: **Counter sale** for someone standing in front of you, and **Manual order**
+for one that came in over WhatsApp, Instagram or a marketplace.
+
+Both use the same product grid and the same basket. Only the questions on the
+right differ.
+
+### Counter sale
 
 Tap a size to add it to the sale; tap again for a second bag. The total is the
 big number at the bottom. Pick how they paid, then press the green button.
@@ -56,16 +68,54 @@ If something is out of stock, the till says so and refuses the sale rather than
 letting you sell what you do not have. If that happens and you know the stock
 figure is wrong, fix it in **Products** and ring the sale up again.
 
+### Manual order — WhatsApp, Instagram, a marketplace
+
+Switch to **Manual order** and build the basket the same way. Then answer three
+questions the counter never has to ask:
+
+- **Came in through** — WhatsApp, Instagram, Marketplace or somewhere else, plus
+  their number or handle. That is what lets you find the conversation again in a
+  fortnight when they ask where it is.
+- **Collecting or Shipping** — Shipping opens an address form. If you attached a
+  customer who has ordered before, their saved addresses appear above it as
+  one-tap buttons. There is also a box for the shipping you agreed with them,
+  since a chat order is often a negotiated price rather than a table rate.
+- **Not paid yet or Already paid** — the important one, below.
+
+Press the button and the order appears in **Orders** alongside the website
+ones, with the same statuses and the same tracking-number box.
+
+### Coffee that is held but not yet sold
+
+An order agreed on WhatsApp is usually paid later. Between the two, the site
+**holds** that coffee: it stays on your shelf and in your stock figure, but the
+website will not sell it to anybody else, and neither will the till.
+
+You will see this in three places:
+
+- On the till, a size shows `3 left` and `2 held` underneath.
+- In **Products**, a coffee shows `10 in stock` and `2 held · 8 free`.
+- In **Orders**, the order itself is tagged **holding stock**.
+
+A hold ends one of two ways. Mark the order **Paid** and it becomes a real
+stock reduction. **Cancel** it and the coffee goes back on the shelf. Nothing
+expires on its own, on purpose — a hold is a promise you made to a customer,
+and the site should not quietly break it. The cost is that an order nobody ever
+chases keeps its coffee off the website indefinitely, so it is worth glancing
+down the **Awaiting payment** list every couple of weeks and cancelling the ones
+that clearly fell through.
+
 ## Seeing how the business is doing
 
 **Admin → Sales.** Today, the last 7 days, or the last 30.
 
-- **Total takings**, split into **shop** and **online**, so you can see which
-  side is carrying the month.
+- **Total takings**, split into **shop**, **online** and **by hand**, so you can
+  see which side is carrying the month. The by-hand card only appears once there
+  is something in it.
 - **Cash to count** — what should be in the drawer. Count the drawer against
   this at the end of the day; if they disagree, something was rung up wrong.
-- **What sold** — every coffee and size, with shop and web columns side by
-  side. This is the roasting list for next week.
+- **What sold** — every coffee and size, with shop, web and by-hand columns side
+  by side. This is the roasting list for next week.
 
 ## Adding a coffee
 

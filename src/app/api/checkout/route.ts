@@ -86,10 +86,12 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
-    if (variant.stock < item.quantity) {
+    // `available`, not `stock`: coffee an unpaid manual order is holding is
+    // not ours to sell twice.
+    if (variant.available < item.quantity) {
       return NextResponse.json(
         {
-          error: `Only ${variant.stock} × ${variant.products.name} (${variant.size}) left in stock.`,
+          error: `Only ${variant.available} × ${variant.products.name} (${variant.size}) left in stock.`,
         },
         { status: 409 },
       );

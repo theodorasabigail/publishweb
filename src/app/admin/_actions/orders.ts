@@ -15,7 +15,8 @@ export async function updateOrderStatus(formData: FormData) {
   }
 
   // Marking an order paid by hand must behave exactly like a webhook: same
-  // stock decrement, same loyalty award, same idempotency.
+  // stock decrement, same loyalty award, same idempotency. On a manual order
+  // it is also what turns a hold on stock into a real decrement.
   if (status === "paid") {
     const { error } = await supabase.rpc("mark_order_paid", {
       p_order_id: id,
@@ -24,6 +25,14 @@ export async function updateOrderStatus(formData: FormData) {
     });
     if (error) throw new Error("Could not mark the order paid.");
     await sendOrderConfirmation(id);
+  } else if (status === "cancelled") {
+    // Cancelling has to put back any stock the order was holding, or a
+    // WhatsApp order that fell through keeps that coffee off the website
+    // forever. Only the *hold* comes back: once an order has been paid the
+    // coffee has left the building, and reversing that is a refund and a
+    // fresh stock count, not a status change.
+    const { error } = await supabase.rpc("cancel_order", { p_order_id: id });
+    if (error) throw new Error("Could not cancel the order.");
   } else {
     const { error } = await supabase.from("orders").update({ status }).eq("id", id);
     if (error) throw new Error("Could not update the order.");
@@ -37,6 +46,10 @@ export async function updateOrderStatus(formData: FormData) {
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${id}`);
   revalidatePath(`/order/${id}`);
+  // Paying or cancelling moves what the shop can sell, so the storefront's
+  // stock counts are now stale.
+  revalidatePath("/");
+  revalidatePath("/shop");
 }
 
 export async function updateOrderFulfilment(formData: FormData) {

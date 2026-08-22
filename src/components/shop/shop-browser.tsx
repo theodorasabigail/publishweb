@@ -38,7 +38,7 @@ function fromPrice(product: ProductWithVariants): number | null {
 }
 
 function inStock(product: ProductWithVariants): boolean {
-  return (product.product_variants ?? []).some((v) => v.stock > 0);
+  return (product.product_variants ?? []).some((v) => v.available > 0);
 }
 
 /**
