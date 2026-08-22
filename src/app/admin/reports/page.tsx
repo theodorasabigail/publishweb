@@ -2,6 +2,7 @@ import Link from "next/link";
 import { EmptyRow, PageHeader, Panel, StatCard } from "@/components/admin/ui";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/env";
+import { CHANNEL_LABELS, type SalesChannel } from "@/lib/types";
 import { cn, formatIDR } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -52,7 +53,7 @@ export default async function ReportsPage({
     ]);
 
   const summary = (summaryRows ?? []) as {
-    channel: "online" | "pos";
+    channel: SalesChannel;
     payment_method: string;
     order_count: number;
     gross_idr: number;
@@ -64,6 +65,7 @@ export default async function ReportsPage({
     gross_idr: number;
     online_units: number;
     pos_units: number;
+    manual_units: number;
   }[];
 
   const shippingRowsTyped = (shippingRows ?? []) as {
@@ -81,7 +83,13 @@ export default async function ReportsPage({
   const posTotal = summary
     .filter((row) => row.channel === "pos")
     .reduce((sum, row) => sum + Number(row.gross_idr), 0);
-  const onlineTotal = total - posTotal;
+  const onlineTotal = summary
+    .filter((row) => row.channel === "online")
+    .reduce((sum, row) => sum + Number(row.gross_idr), 0);
+  // Everything that was neither rung up at the counter nor placed on the site:
+  // WhatsApp, Instagram, a marketplace. Its own number, because "shop plus
+  // online" stopped being the whole business.
+  const manualTotal = total - posTotal - onlineTotal;
   const cashTotal = summary
     .filter((row) => row.payment_method === "cash")
     .reduce((sum, row) => sum + Number(row.gross_idr), 0);
@@ -111,10 +119,18 @@ export default async function ReportsPage({
         ))}
       </nav>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div
+        className={cn(
+          "grid gap-4 sm:grid-cols-2",
+          manualTotal > 0 ? "lg:grid-cols-5" : "lg:grid-cols-4",
+        )}
+      >
         <StatCard label="Total takings" value={formatIDR(total)} hint={`${orderCount} sales`} />
         <StatCard label="In the shop" value={formatIDR(posTotal)} />
         <StatCard label="Online" value={formatIDR(onlineTotal)} />
+        {manualTotal > 0 && (
+          <StatCard label="By hand" value={formatIDR(manualTotal)} hint="WhatsApp, Instagram" />
+        )}
         <StatCard
           label="Cash to count"
           value={formatIDR(cashTotal)}
@@ -179,8 +195,8 @@ export default async function ReportsPage({
               <tbody className="divide-y divide-sea-200">
                 {summary.map((row) => (
                   <tr key={`${row.channel}-${row.payment_method}`}>
-                    <td className="py-2.5 capitalize">
-                      {row.channel === "pos" ? "Shop" : "Website"}
+                    <td className="py-2.5">
+                      {CHANNEL_LABELS[row.channel] ?? row.channel}
                     </td>
                     <td className="py-2.5 capitalize text-sea-800">
                       {row.payment_method}
@@ -198,7 +214,7 @@ export default async function ReportsPage({
           )}
         </Panel>
 
-        <Panel title="What sold" description="Both channels combined — what to roast next.">
+        <Panel title="What sold" description="Every channel combined — what to roast next.">
           {bySize.length ? (
             <table className="w-full text-sm">
               <thead className="text-left text-xs uppercase tracking-wider text-sea-800">
@@ -206,6 +222,7 @@ export default async function ReportsPage({
                   <th className="pb-2 font-medium">Coffee</th>
                   <th className="pb-2 text-right font-medium">Shop</th>
                   <th className="pb-2 text-right font-medium">Web</th>
+                  <th className="pb-2 text-right font-medium">By hand</th>
                   <th className="pb-2 text-right font-medium">Total</th>
                 </tr>
               </thead>
@@ -218,6 +235,7 @@ export default async function ReportsPage({
                     </td>
                     <td className="py-2.5 text-right text-sea-800">{row.pos_units}</td>
                     <td className="py-2.5 text-right text-sea-800">{row.online_units}</td>
+                    <td className="py-2.5 text-right text-sea-800">{row.manual_units}</td>
                     <td className="py-2.5 text-right font-medium">{row.units_sold}</td>
                   </tr>
                 ))}

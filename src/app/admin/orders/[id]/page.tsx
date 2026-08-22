@@ -5,7 +5,13 @@ import { Field, PageHeader, Panel } from "@/components/admin/ui";
 import { OrderStatusBadge } from "@/components/status-badge";
 import { updateOrderFulfilment, updateOrderStatus } from "@/app/admin/_actions/orders";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { ORDER_STATUSES, type OrderWithItems, type Profile } from "@/lib/types";
+import {
+  CHANNEL_LABELS,
+  CHANNEL_REFERENCE_LABELS,
+  ORDER_STATUSES,
+  type OrderWithItems,
+  type Profile,
+} from "@/lib/types";
 import { formatDateTime, formatIDR } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +44,11 @@ export default async function AdminOrderDetailPage({
   }
 
   const address = order.shipping_address;
+  // What separates "there is something to pack" from "the customer has it" is
+  // whether an address was recorded, not which channel the order came from.
+  // A WhatsApp order can be either.
+  const ships = Boolean(address);
+  const isManual = order.channel !== "online";
 
   return (
     <div>
@@ -51,9 +62,11 @@ export default async function AdminOrderDetailPage({
       <PageHeader
         title={order.human_ref}
         description={
-          order.channel === "pos"
-            ? `Sold at the counter, ${formatDateTime(order.created_at)}`
-            : `Placed online, ${formatDateTime(order.created_at)}`
+          order.channel === "online"
+            ? `Placed online, ${formatDateTime(order.created_at)}`
+            : order.channel === "pos"
+              ? `Sold at the counter, ${formatDateTime(order.created_at)}`
+              : `Taken by hand via ${CHANNEL_LABELS[order.channel]}, ${formatDateTime(order.created_at)}`
         }
         action={<OrderStatusBadge status={order.status} />}
       />
@@ -113,11 +126,12 @@ export default async function AdminOrderDetailPage({
             </Panel>
           )}
 
-          <Panel title={order.channel === "pos" ? "Counter sale" : "Shipping"}>
-            {order.channel === "pos" ? (
+          <Panel title={ships ? "Shipping" : "Collected"}>
+            {!ships ? (
               <p className="text-sm text-sea-800">
-                Sold in the shop — nothing to pack or ship. The customer took it
-                with them.
+                {order.channel === "pos"
+                  ? "Sold in the shop — nothing to pack or ship. The customer took it with them."
+                  : "No address on this one, so the customer is collecting it. Nothing to pack."}
               </p>
             ) : address ? (
               <address className="text-sm not-italic leading-relaxed text-sea-700">
@@ -148,7 +162,7 @@ export default async function AdminOrderDetailPage({
               <p className="text-sm text-sea-800">No address recorded.</p>
             )}
 
-            {order.channel === "online" && (
+            {ships && (
             <form action={updateOrderFulfilment} className="mt-5 space-y-4 border-t border-sea-200 pt-5">
               <input type="hidden" name="id" value={order.id} />
               <Field
@@ -178,6 +192,20 @@ export default async function AdminOrderDetailPage({
         </div>
 
         <div className="space-y-6">
+          {isManual && (
+            <Panel title="Where this came from">
+              <dl className="space-y-2 text-sm">
+                <Row label="Channel" value={CHANNEL_LABELS[order.channel]} />
+                {order.channel_reference && (
+                  <Row
+                    label={CHANNEL_REFERENCE_LABELS[order.channel] ?? "Reference"}
+                    value={order.channel_reference}
+                  />
+                )}
+              </dl>
+            </Panel>
+          )}
+
           <Panel title="Move this order along">
             <form action={updateOrderStatus} className="space-y-3">
               <input type="hidden" name="id" value={order.id} />
@@ -198,6 +226,16 @@ export default async function AdminOrderDetailPage({
                 Setting this to <strong>paid</strong> does everything a real
                 payment does: it takes the stock down and awards loyalty points.
                 Only use it when you have confirmed the money arrived.
+              </p>
+            )}
+
+            {order.stock_reserved_at && (
+              <p className="mt-3 rounded-lg bg-sea-50 p-3 text-xs text-sea-800">
+                This order is <strong>holding its coffee</strong> since{" "}
+                {formatDateTime(order.stock_reserved_at)} — the website will not
+                sell it to anyone else. Marking it paid turns that hold into a
+                real stock reduction; cancelling puts the coffee back on the
+                shelf.
               </p>
             )}
           </Panel>
@@ -282,7 +320,9 @@ export default async function AdminOrderDetailPage({
               <p className="text-sm text-sea-800">
                 {order.channel === "pos"
                   ? "Walk-in customer. Attach an account at the till next time to award points."
-                  : `Guest checkout${order.guest_email ? ` — ${order.guest_email}` : ""}. No points awarded on guest orders.`}
+                  : isManual
+                    ? "No account attached, so no points were awarded. Attaching one when you write the order down is what earns them."
+                    : `Guest checkout${order.guest_email ? ` — ${order.guest_email}` : ""}. No points awarded on guest orders.`}
               </p>
             )}
           </Panel>

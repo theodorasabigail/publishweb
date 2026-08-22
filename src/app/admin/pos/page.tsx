@@ -3,6 +3,7 @@ import { PosTerminal } from "@/components/admin/pos-terminal";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/env";
 import { getSiteSettings } from "@/lib/queries";
+import { sortVariants } from "@/lib/product";
 import type { ProductWithVariants } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -20,20 +21,16 @@ export default async function PosPage() {
     getSiteSettings(supabase),
   ]);
 
-  // Same size ordering as the storefront, so muscle memory transfers.
-  const order: Record<string, number> = { "100g": 0, "200g": 1, "1kg": 2 };
-  const products = ((data ?? []) as ProductWithVariants[]).map((product) => ({
-    ...product,
-    product_variants: (product.product_variants ?? [])
-      .filter((variant) => variant.is_active)
-      .sort((a, b) => (order[a.size] ?? 9) - (order[b.size] ?? 9)),
-  }));
+  // Same size ordering as the storefront, from the same function, so muscle
+  // memory transfers and a size the operator invents lands in the same place
+  // in both.
+  const products = sortVariants((data ?? []) as ProductWithVariants[]);
 
   return (
     <div>
       <PageHeader
         title="Counter sales"
-        description="Ring up a sale in the shop. Stock and takings go into the same books as the website."
+        description="Ring up a sale in the shop, or write down one that came in over WhatsApp or Instagram. Stock and takings go into the same books as the website."
       />
       <PosTerminal products={products} rupiahPerPoint={settings.loyalty_rupiah_per_point} />
     </div>

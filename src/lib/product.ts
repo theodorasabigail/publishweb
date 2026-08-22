@@ -19,8 +19,14 @@ export function lowestPrice(product: ProductWithVariants): number | null {
   return prices.length ? Math.min(...prices) : null;
 }
 
+/**
+ * How many bags of this coffee may still be sold.
+ *
+ * Reads `available` rather than `stock`, so a bag an unpaid WhatsApp order is
+ * holding does not get offered to a second customer on the website.
+ */
 export function totalStock(product: ProductWithVariants): number {
-  return (product.product_variants ?? []).reduce((sum, v) => sum + v.stock, 0);
+  return (product.product_variants ?? []).reduce((sum, v) => sum + v.available, 0);
 }
 
 /**

@@ -158,13 +158,26 @@ $$;
 -- --------------------------------------------------------------------------
 -- Daily takings, split the way a shop actually counts up: by channel, and by
 -- how the money arrived, so the cash drawer can be reconciled against it.
+--
+-- Two defences against `create or replace` being unable to change a return
+-- type, both needed, for two different databases:
+--
+--   the drop  -- an existing shop already has this function returning the old
+--               `sales_channel` enum. Replacing it in place would be refused,
+--               so setup.sql could not upgrade that shop at all.
+--   the cast  -- once 0019 has widened the column to text, this body yields
+--               text, and re-declaring the narrow type would not match it.
+--
+-- Casting costs nothing and is right whichever type the column currently is.
 -- --------------------------------------------------------------------------
+drop function if exists public.sales_summary(timestamptz, timestamptz);
+
 create or replace function public.sales_summary(
   p_from timestamptz,
   p_to timestamptz
 )
 returns table (
-  channel sales_channel,
+  channel text,
   payment_method text,
   order_count bigint,
   gross_idr bigint
@@ -175,7 +188,7 @@ security definer
 set search_path = public
 as $$
   select
-    o.channel,
+    o.channel::text,
     coalesce(o.payment_method, 'unknown'),
     count(*)::bigint,
     coalesce(sum(o.total_idr), 0)::bigint
@@ -190,7 +203,12 @@ $$;
 -- --------------------------------------------------------------------------
 -- What sold, over a period, across both channels. Answers "what should I
 -- roast next" rather than "what did I take".
+--
+-- Dropped first for the same reason as sales_summary above: 0019 gives it an
+-- extra column for orders taken by hand.
 -- --------------------------------------------------------------------------
+drop function if exists public.product_sales_report(timestamptz, timestamptz);
+
 create or replace function public.product_sales_report(
   p_from timestamptz,
   p_to timestamptz

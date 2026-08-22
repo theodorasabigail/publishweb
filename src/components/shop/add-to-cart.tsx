@@ -9,7 +9,7 @@ import { cn, formatIDR } from "@/lib/utils";
 
 export function AddToCart({ product }: { product: ProductWithVariants }) {
   const variants = product.product_variants ?? [];
-  const firstAvailable = variants.find((variant) => variant.stock > 0) ?? variants[0];
+  const firstAvailable = variants.find((variant) => variant.available > 0) ?? variants[0];
 
   const [selectedId, setSelectedId] = useState<string | undefined>(firstAvailable?.id);
   const [quantity, setQuantity] = useState(1);
@@ -27,8 +27,8 @@ export function AddToCart({ product }: { product: ProductWithVariants }) {
     );
   }
 
-  const soldOut = selected.stock <= 0;
-  const maxQuantity = Math.max(1, Math.min(selected.stock, 20));
+  const soldOut = selected.available <= 0;
+  const maxQuantity = Math.max(1, Math.min(selected.available, 20));
 
   function onAdd() {
     if (!selected || soldOut) return;
@@ -55,7 +55,7 @@ export function AddToCart({ product }: { product: ProductWithVariants }) {
         <div className="flex flex-wrap gap-2">
           {variants.map((variant) => {
             const isSelected = variant.id === selected.id;
-            const unavailable = variant.stock <= 0;
+            const unavailable = variant.available <= 0;
             return (
               <button
                 key={variant.id}
@@ -136,9 +136,9 @@ export function AddToCart({ product }: { product: ProductWithVariants }) {
         </p>
       )}
 
-      {!soldOut && selected.stock <= 5 && (
+      {!soldOut && selected.available <= 5 && (
         <p className="text-sm text-amber-700">
-          Only {selected.stock} left in this size.
+          Only {selected.available} left in this size.
         </p>
       )}
     </div>

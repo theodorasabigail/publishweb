@@ -1,11 +1,27 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { MANUAL_CHANNELS, type SalesChannel } from "@/lib/types";
+import { sendOrderConfirmation } from "@/lib/email/notify";
 import { adminClient } from "./guard";
 
 export interface PosSaleLine {
   variantId: string;
   quantity: number;
+}
+
+export type PosPaymentMethod = "cash" | "qris" | "card" | "transfer";
+
+export interface ManualAddress {
+  recipient_name: string;
+  phone: string;
+  line1: string;
+  line2?: string | null;
+  city: string;
+  province?: string | null;
+  postal_code?: string | null;
+  country: string;
+  email?: string | null;
 }
 
 export interface PosSaleResult {
@@ -14,64 +30,119 @@ export interface PosSaleResult {
   order?: {
     id: string;
     human_ref: string;
+    status: string;
+    channel: SalesChannel;
     total_idr: number;
     cash_received_idr: number | null;
     points_awarded: number;
+    paid_at: string | null;
   };
 }
 
 /**
- * Ring up a counter sale.
+ * Write an order that was agreed somewhere other than the website.
  *
- * All the work happens inside the `record_pos_sale` Postgres function, in one
- * transaction: prices are read from the database, stock is locked and checked
- * before anything is written, and settlement runs through the same
- * `mark_order_paid` the online payment webhooks use. A sale that fails any
+ * All the work happens inside the `record_manual_order` Postgres function, in
+ * one transaction: prices are read from the database, availability is locked
+ * and checked before anything is written, stock is held against the order, and
+ * settlement — when the money has actually arrived — runs through the same
+ * `mark_order_paid` the online payment webhooks use. An order that fails any
  * check writes nothing at all.
+ *
+ * A counter sale is this with `channel: "pos"`, `markPaid: true` and no
+ * address, which is why the till no longer has an implementation of its own.
  */
-export async function recordSale(input: {
+export async function recordManualOrder(input: {
   lines: PosSaleLine[];
-  paymentMethod: "cash" | "qris" | "card" | "transfer";
+  channel: SalesChannel;
+  paymentMethod?: PosPaymentMethod | null;
+  markPaid: boolean;
   cashReceived?: number | null;
   customerId?: string | null;
   note?: string | null;
+  channelReference?: string | null;
+  address?: ManualAddress | null;
+  shippingIdr?: number | null;
 }): Promise<PosSaleResult> {
   const { supabase, session } = await adminClient();
 
   if (!input.lines.length) {
-    return { ok: false, error: "Add something to the sale first." };
+    return { ok: false, error: "Add something to the order first." };
+  }
+  if (!MANUAL_CHANNELS.includes(input.channel)) {
+    return { ok: false, error: "Website orders are written by the checkout, not here." };
+  }
+  if (input.markPaid && !input.paymentMethod) {
+    return { ok: false, error: "Say how the money arrived." };
+  }
+  if (input.address && !input.address.recipient_name.trim()) {
+    return { ok: false, error: "A parcel needs a name to go to." };
   }
 
-  const { data, error } = await supabase.rpc("record_pos_sale", {
+  const { data, error } = await supabase.rpc("record_manual_order", {
     p_items: input.lines.map((line) => ({
       variant_id: line.variantId,
       quantity: line.quantity,
     })),
-    p_payment_method: input.paymentMethod,
-    p_cash_received: input.paymentMethod === "cash" ? (input.cashReceived ?? null) : null,
+    p_channel: input.channel,
+    p_payment_method: input.paymentMethod ?? null,
+    p_mark_paid: input.markPaid,
+    p_cash_received:
+      input.markPaid && input.paymentMethod === "cash" ? (input.cashReceived ?? null) : null,
     p_user_id: input.customerId ?? null,
     p_staff_id: session.userId,
-    p_note: input.note ?? null,
+    p_note: input.note?.trim() || null,
+    p_channel_reference: input.channelReference?.trim() || null,
+    p_shipping_address: input.address ?? null,
+    p_shipping_idr: input.address ? Math.max(0, input.shippingIdr ?? 0) : 0,
   });
 
   if (error) {
-    // The function raises messages written to be read at the counter
-    // ("Only 2 of Gayo Arunika (200g) left in stock"), so pass them straight
-    // through rather than replacing them with something generic.
-    return { ok: false, error: error.message ?? "Could not complete the sale." };
+    // The function raises messages written to be read at the counter ("Only 2
+    // of Gayo Arunika (200g) available"), so pass them straight through rather
+    // than replacing them with something generic.
+    return { ok: false, error: error.message ?? "Could not save the order." };
   }
 
-  // Stock moved, so the storefront needs re-rendering.
+  const order = (Array.isArray(data) ? data[0] : data) as PosSaleResult["order"];
+
+  // A paid order that has to be packed is a real order the customer should get
+  // a receipt for. A counter sale is not — they are standing in front of you,
+  // holding the coffee — and neither is one that has not been paid yet.
+  if (order && order.paid_at && input.address) {
+    await sendOrderConfirmation(order.id);
+  }
+
+  // Stock or holds moved, so the storefront needs re-rendering.
   revalidatePath("/");
   revalidatePath("/shop");
   revalidatePath("/admin/orders");
   revalidatePath("/admin/pos");
+  revalidatePath("/admin/products");
 
-  const order = Array.isArray(data) ? data[0] : data;
   return { ok: true, order };
 }
 
-/** Customer lookup for attaching loyalty points at the counter. */
+/** Ring up a counter sale. The one-tap path, kept as its own name. */
+export async function recordSale(input: {
+  lines: PosSaleLine[];
+  paymentMethod: PosPaymentMethod;
+  cashReceived?: number | null;
+  customerId?: string | null;
+  note?: string | null;
+}): Promise<PosSaleResult> {
+  return recordManualOrder({
+    lines: input.lines,
+    channel: "pos",
+    paymentMethod: input.paymentMethod,
+    markPaid: true,
+    cashReceived: input.cashReceived,
+    customerId: input.customerId,
+    note: input.note,
+  });
+}
+
+/** Customer lookup for attaching loyalty points and finding a saved address. */
 export async function findCustomers(query: string) {
   const { supabase } = await adminClient();
   const trimmed = query.trim();
@@ -86,7 +157,7 @@ export async function findCustomers(query: string) {
 
   const { data } = await supabase
     .from("profiles")
-    .select("id, display_name, email, loyalty_points, tier")
+    .select("id, display_name, email, phone, loyalty_points, tier")
     .or(`display_name.ilike.%${escaped}%,email.ilike.%${escaped}%`)
     .limit(8);
 
@@ -94,7 +165,39 @@ export async function findCustomers(query: string) {
     id: string;
     display_name: string | null;
     email: string | null;
+    phone: string | null;
     loyalty_points: number;
     tier: string;
+  }[];
+}
+
+/**
+ * Addresses this customer has already used.
+ *
+ * Saves retyping an address the shop already has, which is most of the reason
+ * attaching a customer is worth doing on a shipped order at all.
+ */
+export async function customerAddresses(userId: string) {
+  const { supabase } = await adminClient();
+  if (!userId) return [];
+
+  const { data } = await supabase
+    .from("addresses")
+    .select("*")
+    .eq("user_id", userId)
+    .order("is_default", { ascending: false })
+    .limit(10);
+
+  return (data ?? []) as {
+    id: string;
+    recipient_name: string;
+    phone: string;
+    line1: string;
+    line2: string | null;
+    city: string;
+    province: string | null;
+    postal_code: string | null;
+    country: string;
+    is_default: boolean;
   }[];
 }
