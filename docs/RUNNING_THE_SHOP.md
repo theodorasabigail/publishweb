@@ -33,10 +33,41 @@ everything a real payment does — it takes stock down and awards loyalty points
 Only use it when you have genuinely confirmed the money arrived. Doing it twice
 is safe; the second time changes nothing.
 
+Marking an order **Shipped** also records *when*, the first time you do it.
+Re-selecting it later will not move that date, and neither will anything else —
+if the parcel actually went out yesterday and you only got round to the site
+today, correct the date by hand (below) and it will stay corrected.
+
 **Cancelling** an unpaid order puts its coffee back on the shelf. Cancelling one
 that was already paid does not — that coffee has left the building, and undoing
 it is a refund and a fresh stock count, which is a decision for you rather than
 something the site should guess at.
+
+## Fixing an order after the fact
+
+Open the order and scroll to **Correct the details**. It is for fixing what was
+written down, not for changing what happened — nothing in that panel moves
+stock, money or points.
+
+You can change:
+
+- **Came in through** and **Reference** — if you filed a WhatsApp order under
+  Instagram, or typed the wrong number. Changing the channel moves the sale in
+  the sales report too, which is usually the point.
+- **Paid at** and **Shipped at** — both in Jakarta time. Useful when the money
+  landed on Friday but you only recorded it on Monday, or when the parcel went
+  out before you updated the site.
+- **The address** — including the name. Clearing the name empties the address
+  entirely, which turns the order into one the customer is collecting.
+
+Two things it will not let you do, on purpose:
+
+- **Give a payment date to an order that has not been paid.** Typing a date
+  would make the order *look* settled while its coffee is still on the shelf
+  and its points were never awarded. Use the status control instead — that does
+  the real work.
+- **Remove the payment date from an order that has been paid.** If it was
+  marked paid by mistake, cancel it rather than quietly un-paying it.
 
 ## Selling in the shop
 
