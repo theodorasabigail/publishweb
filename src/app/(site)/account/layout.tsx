@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { isSupabaseConfigured } from "@/lib/env";
 
 const TABS = [
   { href: "/account", label: "Overview" },
@@ -14,8 +16,32 @@ export default async function AccountLayout({
 }) {
   const session = await requireUser();
 
+  // Points earned before this person had an account follow them in the first
+  // time they arrive here. Signing in with a password never touches
+  // /auth/callback, so this is the one place every signed-in customer passes
+  // through. Safe to run every time: a collected bucket has nothing left in it.
+  let collected = 0;
+  if (isSupabaseConfigured()) {
+    const { data } = await createAdminClient().rpc("claim_pending_points", {
+      p_user_id: session.userId,
+    });
+    collected = Number(data ?? 0);
+  }
+
   return (
     <div className="container-page py-14">
+      {collected > 0 && (
+        <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+          <p className="font-medium text-emerald-900">
+            {collected} points were waiting for you
+          </p>
+          <p className="mt-1 text-sm text-emerald-900">
+            Earned on orders you placed before you had an account. They are on
+            your balance now.
+          </p>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-4xl">

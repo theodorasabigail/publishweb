@@ -582,11 +582,11 @@ export default async function AdminOrderDetailPage({
               </div>
             ) : (
               <p className="text-sm text-sea-800">
-                {order.channel === "pos"
-                  ? "Walk-in customer. Attach an account at the till next time to award points."
-                  : isManual
-                    ? "No account attached, so no points were awarded. Attaching one when you write the order down is what earns them."
-                    : `Guest checkout${order.guest_email ? ` — ${order.guest_email}` : ""}. No points awarded on guest orders.`}
+                {order.pending_loyalty_id && order.points_awarded > 0
+                  ? `No account yet, so ${order.points_awarded} points are being held against their contact details. They collect them by signing up with the same email — or you can hand them over from the customer's page.`
+                  : order.channel === "pos"
+                    ? "Walk-in customer, and no contact details to hold points against. Attach an account at the till next time."
+                    : `No account attached${order.guest_email ? ` — ${order.guest_email}` : ""}, and no email or phone on the order to hold points against.`}
               </p>
             )}
           </Panel>

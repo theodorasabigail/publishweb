@@ -260,6 +260,28 @@ export interface Order {
   /** Whether it was holding reserved stock when voided, so restoring knows to
    *  put the hold back. */
   voided_held_stock: boolean;
+  /** The bucket this order's points went into, when there was no account to
+   *  award them to. */
+  pending_loyalty_id: string | null;
+}
+
+/**
+ * Loyalty points earned by someone who had no account at the time.
+ *
+ * Keyed on a contact detail rather than a person, because `profiles` needs an
+ * `auth.users` row behind it and these people have not signed up yet.
+ */
+export interface PendingLoyalty {
+  id: string;
+  kind: "email" | "phone";
+  identifier: string;
+  points: number;
+  lifetime_points: number;
+  order_count: number;
+  first_seen_at: string;
+  last_seen_at: string;
+  claimed_by: string | null;
+  claimed_at: string | null;
 }
 
 export interface OrderWithItems extends Order {

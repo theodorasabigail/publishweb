@@ -5,6 +5,7 @@ import { EmptyRow, Field, PageHeader, Panel } from "@/components/admin/ui";
 import { OrderStatusBadge } from "@/components/status-badge";
 import {
   adjustLoyaltyPoints,
+  linkPendingPoints,
   setAdminFlag,
   setCustomerTier,
 } from "@/app/admin/_actions/customers";
@@ -148,6 +149,28 @@ export default async function AdminCustomerPage({
               </Field>
               <button type="submit" className="btn-primary w-full py-2 text-xs">
                 Apply adjustment
+              </button>
+            </form>
+          </Panel>
+
+          <Panel
+            title="Collect earlier points"
+            description="Points earned before this customer had an account."
+          >
+            <form action={linkPendingPoints} className="space-y-3">
+              <input type="hidden" name="user_id" value={customer.id} />
+              <Field
+                label="Email or phone the orders came from"
+                hint="Points waiting against an email collect themselves when someone signs up. A phone number is not verified by anything, so those are handed over here — check it is the right person first."
+              >
+                <input
+                  name="identifier"
+                  className="input"
+                  placeholder="0812… or name@example.com"
+                />
+              </Field>
+              <button type="submit" className="btn-secondary w-full py-2 text-xs">
+                Collect them
               </button>
             </form>
           </Panel>

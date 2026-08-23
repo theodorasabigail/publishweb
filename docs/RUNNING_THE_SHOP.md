@@ -284,6 +284,32 @@ which is the main reason to encourage accounts.
 To change how points are earned, go to **Admin → Site settings → Loyalty**.
 Changes apply from then on; past orders are not recalculated.
 
+## Points for people without an account
+
+Somebody who orders over WhatsApp has usually never touched the website, and
+used to earn nothing. Now the points are **held against whatever contact detail
+the order carries** — their email if there is one, otherwise their phone number
+— and wait for them.
+
+- **If they sign up with that email**, the points land on their account the
+  first time they open it, and they are told so. Nothing for you to do.
+- **If the points are held against a phone number**, you hand them over: open
+  the customer in **Customers & loyalty**, find **Collect earlier points**, and
+  type the number the orders came from.
+
+That split is deliberate. An email address is confirmed — the person had to
+open a link, or sign in with Google. A phone number is not: it is whatever was
+typed into a form, so if points followed phone numbers automatically, anyone
+who entered a number that had been buying coffee would walk off with somebody
+else's balance. Handing those over is a judgement about whether this is the
+right person, and that is yours to make.
+
+Phone numbers are matched however they are written — `0812…`, `+62 812…` and
+`62812…` are one customer, not three.
+
+Voiding an order takes its held points back out again, the same as it does for
+a customer with an account.
+
 ## Unmatched payments
 
 Only relevant on the bank-transfer setup. If a customer types the wrong amount,
