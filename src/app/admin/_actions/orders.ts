@@ -76,20 +76,53 @@ export async function updateOrderStatus(formData: FormData) {
   revalidatePath("/shop");
 }
 
+/**
+ * Record how an order is going out.
+ *
+ * Saving a tracking number *is* shipping the order, so it says so. It used to
+ * email the customer that their parcel was on its way while leaving the order
+ * reading "paid" in the admin with no despatch date — the one person who could
+ * answer "did that go out?" was the last to be told.
+ *
+ * Only ever forwards: an order already completed is not walked back to
+ * shipped, and a despatch date corrected by hand is not overwritten by the
+ * moment the form was saved.
+ */
 export async function updateOrderFulfilment(formData: FormData) {
   const { supabase } = await adminClient();
   const id = text(formData, "id");
+  const tracking = optionalText(formData, "tracking_number");
 
-  await supabase
+  const { data: existing } = await supabase
     .from("orders")
-    .update({
-      tracking_number: optionalText(formData, "tracking_number"),
-      courier_note: optionalText(formData, "courier_note"),
-    })
-    .eq("id", id);
+    .select("status, shipped_at")
+    .eq("id", id)
+    .maybeSingle();
+  const before = existing as { status: OrderStatus; shipped_at: string | null } | null;
+
+  const patch: {
+    tracking_number: string | null;
+    courier_note: string | null;
+    status?: OrderStatus;
+    shipped_at?: string;
+  } = {
+    tracking_number: tracking,
+    courier_note: optionalText(formData, "courier_note"),
+  };
+
+  if (tracking && before) {
+    // "Completed" and "cancelled" are both past "shipped"; nothing else is.
+    const notYetShipped = ["pending", "paid", "roasting"].includes(before.status);
+    if (notYetShipped) patch.status = "shipped";
+    if (!before.shipped_at) patch.shipped_at = new Date().toISOString();
+  }
+
+  const { error } = await supabase.from("orders").update(patch).eq("id", id);
+  if (error) throw new Error(describeDbError(error, "Could not save the shipping details."));
 
   await sendOrderShipped(id);
 
+  revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${id}`);
   revalidatePath(`/order/${id}`);
 }
@@ -124,6 +157,15 @@ export async function updateOrderDetails(formData: FormData) {
     .eq("id", id)
     .maybeSingle();
   const wasPaid = Boolean((current as { paid_at: string | null } | null)?.paid_at);
+
+  // When the order was actually agreed, which for one written up days later
+  // is not when it was typed in. Refused if it is in the future: a sale that
+  // has not happened yet is always a slip of the keyboard, and it would sort
+  // to the top of every list until the date came round.
+  const placedAt = fromShopDateTimeInput(optionalText(formData, "created_at"));
+  if (placedAt && Date.parse(placedAt) > Date.now()) {
+    throw new Error("An order cannot have been placed in the future.");
+  }
 
   const paidAt = fromShopDateTimeInput(optionalText(formData, "paid_at"));
   if (paidAt && !wasPaid) {
@@ -166,6 +208,7 @@ export async function updateOrderDetails(formData: FormData) {
     .update({
       channel,
       channel_reference: optionalText(formData, "channel_reference"),
+      ...(placedAt ? { created_at: placedAt } : {}),
       paid_at: paidAt,
       shipped_at: fromShopDateTimeInput(optionalText(formData, "shipped_at")),
       shipping_address: address,

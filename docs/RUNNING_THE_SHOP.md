@@ -33,6 +33,11 @@ everything a real payment does — it takes stock down and awards loyalty points
 Only use it when you have genuinely confirmed the money arrived. Doing it twice
 is safe; the second time changes nothing.
 
+**Saving a tracking number ships the order.** It sets the status to shipped and
+records the date, as well as emailing the customer — those used to be three
+separate things, and the customer could be told a parcel was on its way while
+the admin still said it was only paid.
+
 Marking an order **Shipped** also records *when*, the first time you do it.
 Re-selecting it later will not move that date, and neither will anything else —
 if the parcel actually went out yesterday and you only got round to the site
@@ -42,6 +47,16 @@ today, correct the date by hand (below) and it will stay corrected.
 that was already paid does not — that coffee has left the building, and undoing
 it is a refund and a fresh stock count, which is a decision for you rather than
 something the site should guess at.
+
+## Finding an order
+
+The orders list has a search box above the filters. It looks at the reference,
+the customer's name, their phone number, the WhatsApp number or Instagram
+handle, the tracking number, the city and the customer's note — so "anwar",
+"0812", "sleman" or "MAN-0001" all find the same order.
+
+Search and the filters work together, and the result is a normal web address:
+bookmark a search you run often, or send it to somebody.
 
 ## Fixing an order after the fact
 
@@ -54,6 +69,9 @@ You can change:
 - **Came in through** and **Reference** — if you filed a WhatsApp order under
   Instagram, or typed the wrong number. Changing the channel moves the sale in
   the sales report too, which is usually the point.
+- **Placed at** — when the order was actually agreed, which is not always when
+  you typed it up. An order taken on Friday and written up on Monday belongs on
+  Friday. It will refuse a date in the future.
 - **Paid at** and **Shipped at** — both in Jakarta time. Useful when the money
   landed on Friday but you only recorded it on Monday, or when the parcel went
   out before you updated the site.
@@ -153,6 +171,11 @@ questions the counter never has to ask:
 Press the button and the order appears in **Orders** alongside the website
 ones, with the same statuses and the same tracking-number box.
 
+**The customer gets emailed like any other**, as long as you put an email
+address on the order: a receipt when it is paid, and the tracking number when
+it goes out. Counter sales send nothing — the customer is standing in front of
+you holding the coffee.
+
 ### Coffee that is held but not yet sold
 
 An order agreed on WhatsApp is usually paid later. Between the two, the site
@@ -184,6 +207,9 @@ that clearly fell through.
   this at the end of the day; if they disagree, something was rung up wrong.
 - **What sold** — every coffee and size, with shop, web and by-hand columns side
   by side. This is the roasting list for next week.
+- **Shipping you covered** — counts postage on every channel. Website orders
+  are grouped by their shipping zone; postage you agreed in a chat is grouped
+  as "agreed by hand", since there was no zone involved.
 
 ## Adding a coffee
 

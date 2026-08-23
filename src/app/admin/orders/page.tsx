@@ -21,9 +21,15 @@ const FILTERS: { value: string; label: string }[] = [
 export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; channel?: string; show?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    channel?: string;
+    show?: string;
+    q?: string;
+  }>;
 }) {
-  const { status, channel, show } = await searchParams;
+  const { status, channel, show, q } = await searchParams;
+  const search = (q ?? "").trim();
   // Voided orders are mistakes, so they are out of the way rather than gone:
   // findable on purpose, never in the way by accident.
   const showVoided = show === "voided";
@@ -31,20 +37,35 @@ export default async function AdminOrdersPage({
   const activeChannel =
     channel && channel in CHANNEL_LABELS ? (channel as SalesChannel) : "all";
 
+  // Searching and filtering are one question, so they are one query. Doing it
+  // in the database also means a search reaches every order rather than only
+  // the most recent page of them.
   const supabase = createAdminClient();
-  let query = supabase
-    .from("orders")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(200);
-
-  if (active !== "all") query = query.eq("status", active);
-  if (activeChannel !== "all") query = query.eq("channel", activeChannel);
-  if (showVoided) query = query.not("voided_at", "is", null);
-  else query = query.is("voided_at", null);
-
-  const { data } = await query;
+  const { data } = await supabase.rpc("search_orders", {
+    p_query: search || null,
+    p_status: active === "all" ? null : active,
+    p_channel: activeChannel === "all" ? null : activeChannel,
+    p_voided: showVoided,
+    p_limit: 200,
+  });
   const orders = (data ?? []) as Order[];
+
+  /** This page's own URL, keeping whatever filters are already on. */
+  function href(overrides: Record<string, string | null>) {
+    const params = new URLSearchParams();
+    const merged: Record<string, string | null> = {
+      status: active === "all" ? null : active,
+      channel: activeChannel === "all" ? null : activeChannel,
+      show: showVoided ? "voided" : null,
+      q: search || null,
+      ...overrides,
+    };
+    for (const [key, value] of Object.entries(merged)) {
+      if (value) params.set(key, value);
+    }
+    const query = params.toString();
+    return query ? `/admin/orders?${query}` : "/admin/orders";
+  }
 
   return (
     <div>
@@ -53,6 +74,29 @@ export default async function AdminOrdersPage({
         description="Every order in one place, wherever it came from — the website, the counter, or a message. Move each one along as you roast, pack and ship it."
       />
 
+      <form className="mb-4 flex gap-2" action="/admin/orders">
+        {active !== "all" && <input type="hidden" name="status" value={active} />}
+        {activeChannel !== "all" && (
+          <input type="hidden" name="channel" value={activeChannel} />
+        )}
+        {showVoided && <input type="hidden" name="show" value="voided" />}
+        <input
+          name="q"
+          defaultValue={search}
+          className="input max-w-sm"
+          placeholder="Reference, name, phone, handle, tracking…"
+          aria-label="Search orders"
+        />
+        <button type="submit" className="btn-secondary px-4">
+          Search
+        </button>
+        {search && (
+          <Link href={href({ q: null })} className="btn-ghost px-3 text-sm">
+            Clear
+          </Link>
+        )}
+      </form>
+
       <nav className="mb-3 flex flex-wrap gap-2" aria-label="Sales channel">
         {[
           { value: "all", label: "Everywhere" },
@@ -60,11 +104,7 @@ export default async function AdminOrdersPage({
         ].map((option) => (
           <Link
             key={option.value}
-            href={
-              option.value === "all"
-                ? "/admin/orders"
-                : `/admin/orders?channel=${option.value}`
-            }
+            href={href({ channel: option.value === "all" ? null : option.value })}
             className={cn(
               "badge",
               activeChannel === option.value
@@ -81,7 +121,10 @@ export default async function AdminOrdersPage({
         {FILTERS.map((filter) => (
           <Link
             key={filter.value}
-            href={filter.value === "all" ? "/admin/orders" : `/admin/orders?status=${filter.value}`}
+            href={href({
+              status: filter.value === "all" ? null : filter.value,
+              show: null,
+            })}
             className={cn(
               "badge capitalize",
               !showVoided && active === filter.value
@@ -93,7 +136,7 @@ export default async function AdminOrdersPage({
           </Link>
         ))}
         <Link
-          href="/admin/orders?show=voided"
+          href={href({ show: showVoided ? null : "voided", status: null })}
           className={cn(
             "badge",
             showVoided
@@ -189,7 +232,11 @@ export default async function AdminOrdersPage({
         </div>
       ) : (
         <EmptyRow>
-          {showVoided ? "Nothing has been voided." : "No orders with that status."}
+          {search
+            ? `Nothing matches “${search}”.`
+            : showVoided
+              ? "Nothing has been voided."
+              : "No orders with that status."}
         </EmptyRow>
       )}
     </div>

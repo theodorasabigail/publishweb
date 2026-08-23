@@ -244,6 +244,18 @@ export default async function AdminOrderDetailPage({
                 </Field>
               </div>
 
+              <Field
+                label="Placed at"
+                hint="Jakarta time. When the order was actually agreed, which is not always when you typed it up."
+              >
+                <input
+                  type="datetime-local"
+                  name="created_at"
+                  className="input"
+                  defaultValue={toShopDateTimeInput(order.created_at)}
+                />
+              </Field>
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field
                   label="Paid at"
