@@ -306,6 +306,28 @@ which is the main reason to encourage accounts.
 To change how points are earned, go to **Admin → Site settings → Loyalty**.
 Changes apply from then on; past orders are not recalculated.
 
+## Rewording a page
+
+**Admin → Pages → Jasa Roasting.** The heading and the paragraph under it have
+always been editable. Now so is everything else on that page: the four steps,
+the WhatsApp nudge, and every label inside the quote form — "Your name", the
+button, the message people see after sending.
+
+Each box shows the wording it came with as grey placeholder text. Type over it
+to change it; **clear a box to go back to the original**. You can never end up
+with a blank label, because an empty box means "use the built-in wording"
+rather than "show nothing".
+
+Two useful details:
+
+- **Roast levels offered** is one option per line. Rewrite the list to change
+  what customers can pick from.
+- **Emptying both boxes for a step removes that step** from the page, if you
+  only want three.
+
+This is set up for the roasting page for now. The other pages still only offer
+their heading and paragraph.
+
 ## Addresses
 
 Addresses are shaped like Indonesian addresses: **kelurahan** and **kecamatan**

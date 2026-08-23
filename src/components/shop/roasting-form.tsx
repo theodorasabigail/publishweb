@@ -3,21 +3,41 @@
 import { useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 
-const ROAST_LEVELS = [
-  "Light",
-  "Light-Medium",
-  "Medium",
-  "Medium-Dark",
-  "Dark",
-  "Not sure — advise me",
-];
+/**
+ * Every visible word arrives as a prop.
+ *
+ * The page resolves them, because that is where the operator's overrides are
+ * read; this component only renders what it is handed. Nothing here falls back
+ * to English of its own, so there is exactly one place -- lib/page-text.ts --
+ * where the shipped wording lives.
+ */
+export interface RoastingFormCopy {
+  field_name: string;
+  field_phone: string;
+  field_phone_placeholder: string;
+  field_email: string;
+  field_origin: string;
+  field_origin_placeholder: string;
+  field_quantity: string;
+  field_roast: string;
+  field_roast_empty: string;
+  roast_levels: string[];
+  field_notes: string;
+  field_notes_placeholder: string;
+  submit: string;
+  submitting: string;
+  sent_title: string;
+  sent_body: string;
+}
 
 export function RoastingRequestForm({
   defaultEmail,
   defaultName,
+  copy,
 }: {
   defaultEmail: string;
   defaultName: string;
+  copy: RoastingFormCopy;
 }) {
   const [form, setForm] = useState({
     contact_name: defaultName,
@@ -67,11 +87,11 @@ export function RoastingRequestForm({
     return (
       <div className="text-center">
         <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" />
-        <p className="mt-4 font-serif text-xl">Request sent</p>
+        <p className="mt-4 font-serif text-xl">{copy.sent_title}</p>
         <p className="mt-2 text-sm text-sea-800">
           Your reference is{" "}
-          <span className="font-medium text-sea-900">{reference}</span>. We
-          normally reply within one working day.
+          <span className="font-medium text-sea-900">{reference}</span>.{" "}
+          {copy.sent_body}
         </p>
       </div>
     );
@@ -81,7 +101,7 @@ export function RoastingRequestForm({
     <form onSubmit={onSubmit} className="space-y-4">
       <div>
         <label className="label" htmlFor="contact_name">
-          Your name *
+          {copy.field_name} *
         </label>
         <input
           id="contact_name"
@@ -95,7 +115,7 @@ export function RoastingRequestForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="label" htmlFor="contact_phone">
-            WhatsApp / phone *
+            {copy.field_phone} *
           </label>
           <input
             id="contact_phone"
@@ -103,12 +123,12 @@ export function RoastingRequestForm({
             required
             value={form.contact_phone}
             onChange={(event) => update("contact_phone", event.target.value)}
-            placeholder="+62…"
+            placeholder={copy.field_phone_placeholder}
           />
         </div>
         <div>
           <label className="label" htmlFor="email">
-            Email
+            {copy.field_email}
           </label>
           <input
             id="email"
@@ -122,7 +142,7 @@ export function RoastingRequestForm({
 
       <div>
         <label className="label" htmlFor="origin">
-          Green bean origin *
+          {copy.field_origin} *
         </label>
         <input
           id="origin"
@@ -130,14 +150,14 @@ export function RoastingRequestForm({
           required
           value={form.green_bean_origin}
           onChange={(event) => update("green_bean_origin", event.target.value)}
-          placeholder="e.g. Gayo, natural process"
+          placeholder={copy.field_origin_placeholder}
         />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="label" htmlFor="quantity">
-            Quantity (kg) *
+            {copy.field_quantity} *
           </label>
           <input
             id="quantity"
@@ -152,7 +172,7 @@ export function RoastingRequestForm({
         </div>
         <div>
           <label className="label" htmlFor="roast">
-            Roast level
+            {copy.field_roast}
           </label>
           <select
             id="roast"
@@ -160,8 +180,8 @@ export function RoastingRequestForm({
             value={form.desired_roast_level}
             onChange={(event) => update("desired_roast_level", event.target.value)}
           >
-            <option value="">Choose…</option>
-            {ROAST_LEVELS.map((level) => (
+            <option value="">{copy.field_roast_empty}</option>
+            {copy.roast_levels.map((level) => (
               <option key={level} value={level}>
                 {level}
               </option>
@@ -172,14 +192,14 @@ export function RoastingRequestForm({
 
       <div>
         <label className="label" htmlFor="notes">
-          Anything else
+          {copy.field_notes}
         </label>
         <textarea
           id="notes"
           className="input min-h-24"
           value={form.notes}
           onChange={(event) => update("notes", event.target.value)}
-          placeholder="Target profile, packaging, deadline…"
+          placeholder={copy.field_notes_placeholder}
         />
       </div>
 
@@ -190,7 +210,7 @@ export function RoastingRequestForm({
       )}
 
       <button type="submit" disabled={state === "sending"} className="btn-primary w-full">
-        {state === "sending" ? "Sending…" : "Send request"}
+        {state === "sending" ? copy.submitting : copy.submit}
       </button>
     </form>
   );
