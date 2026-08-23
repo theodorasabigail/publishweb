@@ -8,6 +8,10 @@ import { adminClient } from "./guard";
 export interface PosSaleLine {
   variantId: string;
   quantity: number;
+  /** A price agreed for this order only — a wholesale rate, usually. Left
+   *  undefined, the catalogue price is used and cannot be influenced from the
+   *  screen at all. */
+  unitPriceIdr?: number | null;
 }
 
 export type PosPaymentMethod = "cash" | "qris" | "card" | "transfer";
@@ -63,6 +67,8 @@ export async function recordManualOrder(input: {
   channelReference?: string | null;
   address?: ManualAddress | null;
   shippingIdr?: number | null;
+  discountIdr?: number | null;
+  discountReason?: string | null;
 }): Promise<PosSaleResult> {
   const { supabase, session } = await adminClient();
 
@@ -83,6 +89,12 @@ export async function recordManualOrder(input: {
     p_items: input.lines.map((line) => ({
       variant_id: line.variantId,
       quantity: line.quantity,
+      // Null rather than absent when there is no override, so the database
+      // sees "use the catalogue" rather than a malformed line.
+      unit_price_idr:
+        typeof line.unitPriceIdr === "number" && line.unitPriceIdr >= 0
+          ? Math.round(line.unitPriceIdr)
+          : null,
     })),
     p_channel: input.channel,
     p_payment_method: input.paymentMethod ?? null,
@@ -95,6 +107,8 @@ export async function recordManualOrder(input: {
     p_channel_reference: input.channelReference?.trim() || null,
     p_shipping_address: input.address ?? null,
     p_shipping_idr: input.address ? Math.max(0, input.shippingIdr ?? 0) : 0,
+    p_discount_idr: Math.max(0, Math.round(input.discountIdr ?? 0)),
+    p_discount_reason: input.discountReason?.trim() || null,
   });
 
   if (error) {

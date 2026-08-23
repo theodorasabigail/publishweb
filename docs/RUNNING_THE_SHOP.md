@@ -176,6 +176,23 @@ address on the order: a receipt when it is paid, and the tracking number when
 it goes out. Counter sales send nothing — the customer is standing in front of
 you holding the coffee.
 
+### Bulk prices and discounts
+
+**Custom price or discount** under the basket opens two things.
+
+- **Type over a price** on any line for a wholesale or bulk rate — 5kg to a
+  cafe is not sold at the 200g shelf price. It applies to that order only; the
+  shop price does not change, and the order keeps a record of what was actually
+  charged.
+- **Discount off the coffee** takes an amount off the whole order. It asks what
+  for, because a discount with no reason is indistinguishable from a mistake a
+  month later. Shipping is not touched — that is subsidised separately, so the
+  two never have to be untangled.
+
+A discount bigger than the order is treated as "this one is free" rather than
+refused. Prices left alone still come from the catalogue and cannot be
+influenced from the screen at all.
+
 ### Coffee that is held but not yet sold
 
 An order agreed on WhatsApp is usually paid later. Between the two, the site

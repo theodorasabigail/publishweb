@@ -8,6 +8,7 @@ import {
   Plus,
   Search,
   Store,
+  Tag,
   Trash2,
   UserPlus,
   X,
@@ -51,7 +52,12 @@ interface Line {
   variantId: string;
   productName: string;
   size: string;
+  /** What this line is being charged at — the catalogue price until somebody
+   *  types over it. */
   priceIdr: number;
+  /** What the catalogue says, kept so an override can be shown as a change
+   *  from something rather than as a number with no context. */
+  cataloguePriceIdr: number;
   available: number;
   quantity: number;
 }
@@ -116,6 +122,9 @@ export function PosTerminal({
   });
   const [shippingIdr, setShippingIdr] = useState<number | null>(null);
   const [note, setNote] = useState("");
+  const [customPricing, setCustomPricing] = useState(false);
+  const [discountIdr, setDiscountIdr] = useState<number | null>(null);
+  const [discountReason, setDiscountReason] = useState("");
 
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<{
@@ -133,7 +142,10 @@ export function PosTerminal({
   const shipping = isManual && ships ? (shippingIdr ?? 0) : 0;
 
   const subtotal = lines.reduce((sum, line) => sum + line.priceIdr * line.quantity, 0);
-  const total = subtotal + shipping;
+  // Capped at the subtotal: taking off more than the coffee costs would make
+  // this a refund, which is not something an order can record.
+  const discount = Math.min(Math.max(0, discountIdr ?? 0), subtotal);
+  const total = subtotal - discount + shipping;
   const change = cashReceived !== null ? cashReceived - total : null;
 
   const visibleProducts = useMemo(() => {
@@ -200,6 +212,7 @@ export function PosTerminal({
           productName: product.name,
           size: variant.size,
           priceIdr: variant.price_idr,
+          cataloguePriceIdr: variant.price_idr,
           available: variant.available,
           quantity: 1,
         },
@@ -219,6 +232,17 @@ export function PosTerminal({
     );
   }
 
+  /** A price agreed for this order only. The catalogue is never touched. */
+  function setPrice(variantId: string, priceIdr: number) {
+    setLines((current) =>
+      current.map((line) =>
+        line.variantId === variantId
+          ? { ...line, priceIdr: Math.max(0, Math.round(priceIdr || 0)) }
+          : line,
+      ),
+    );
+  }
+
   function resetSale() {
     setLines([]);
     setCashReceived(null);
@@ -230,6 +254,9 @@ export function PosTerminal({
     setAddress(BLANK_ADDRESS);
     setShippingIdr(null);
     setNote("");
+    setCustomPricing(false);
+    setDiscountIdr(null);
+    setDiscountReason("");
     setError(null);
     setReceipt(null);
   }
@@ -272,6 +299,12 @@ export function PosTerminal({
     if (paid && method === "cash" && cashReceived !== null && cashReceived < total) {
       return "Cash received is less than the total.";
     }
+    if (lines.some((line) => !Number.isFinite(line.priceIdr) || line.priceIdr < 0)) {
+      return "A price cannot be negative.";
+    }
+    if (discount > 0 && !discountReason.trim()) {
+      return "Say what the discount is for.";
+    }
     if (isManual && ships) {
       if (!address.recipient_name.trim()) return "A parcel needs a name to go to.";
       if (!address.phone.trim()) return "The courier will need a phone number.";
@@ -279,7 +312,7 @@ export function PosTerminal({
       if (!address.city.trim()) return "Add a city.";
     }
     return null;
-  }, [lines, paid, method, cashReceived, total, isManual, ships, address]);
+  }, [lines, paid, method, cashReceived, total, isManual, ships, address, discount, discountReason]);
 
   function submit() {
     setError(null);
@@ -293,6 +326,10 @@ export function PosTerminal({
         lines: lines.map((line) => ({
           variantId: line.variantId,
           quantity: line.quantity,
+          // Only sent when it actually differs, so an untouched line is priced
+          // by the database exactly as it always was.
+          unitPriceIdr:
+            line.priceIdr === line.cataloguePriceIdr ? null : line.priceIdr,
         })),
         channel: isManual ? channel : "pos",
         paymentMethod: paid ? method : null,
@@ -303,6 +340,8 @@ export function PosTerminal({
         channelReference: isManual ? channelReference : null,
         address: isManual && ships ? address : null,
         shippingIdr: isManual && ships ? (shippingIdr ?? 0) : 0,
+        discountIdr: discount,
+        discountReason: discount > 0 ? discountReason : null,
       });
 
       if (!result.ok || !result.order) {
@@ -328,6 +367,9 @@ export function PosTerminal({
       setAddress(BLANK_ADDRESS);
       setShippingIdr(null);
       setNote("");
+      setCustomPricing(false);
+      setDiscountIdr(null);
+      setDiscountReason("");
     });
   }
 
@@ -515,9 +557,41 @@ export function PosTerminal({
                 <li key={line.variantId} className="flex items-center gap-2 px-4 py-2.5">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{line.productName}</p>
-                    <p className="text-xs text-sea-800">
-                      {line.size} · {formatIDR(line.priceIdr)}
-                    </p>
+                    {customPricing ? (
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <span className="text-xs text-sea-800">{line.size}</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1000}
+                          value={line.priceIdr}
+                          onChange={(event) =>
+                            setPrice(line.variantId, Number(event.target.value))
+                          }
+                          className="input h-7 w-24 px-1.5 py-0 text-xs"
+                          aria-label={`Price each for ${line.productName}`}
+                        />
+                        {line.priceIdr !== line.cataloguePriceIdr && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPrice(line.variantId, line.cataloguePriceIdr)
+                            }
+                            className="text-[10px] text-sea-800 underline"
+                            title={`Catalogue price is ${formatIDR(line.cataloguePriceIdr)}`}
+                          >
+                            reset
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-sea-800">
+                        {line.size} · {formatIDR(line.priceIdr)}
+                        {line.priceIdr !== line.cataloguePriceIdr && (
+                          <span className="ml-1 text-amber-700">(agreed)</span>
+                        )}
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex items-center rounded-full border border-sea-200">
@@ -777,18 +851,88 @@ export function PosTerminal({
             </div>
           )}
 
+          {/* Bulk prices and discounts */}
+          {lines.length > 0 && (
+            <div className="border-t border-sea-200 px-4 py-3">
+              <button
+                type="button"
+                onClick={() => setCustomPricing((on) => !on)}
+                className="flex items-center gap-1.5 text-sm text-sea-800 hover:text-sea-900"
+              >
+                <Tag className="h-4 w-4" />
+                {customPricing ? "Use catalogue prices" : "Custom price or discount"}
+              </button>
+
+              {customPricing && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs text-sea-800">
+                    Type over a price above for a bulk or wholesale rate. It
+                    applies to this order only — the shop price does not change.
+                  </p>
+                  <div>
+                    <label
+                      htmlFor="order-discount"
+                      className="mb-1 block text-xs text-sea-800"
+                    >
+                      Discount off the coffee
+                    </label>
+                    <input
+                      id="order-discount"
+                      type="number"
+                      min={0}
+                      step={1000}
+                      value={discountIdr ?? ""}
+                      onChange={(event) =>
+                        setDiscountIdr(
+                          event.target.value ? Number(event.target.value) : null,
+                        )
+                      }
+                      placeholder="0"
+                      className="input text-sm"
+                    />
+                  </div>
+                  {discount > 0 && (
+                    <div>
+                      <label
+                        htmlFor="discount-reason"
+                        className="mb-1 block text-xs text-sea-800"
+                      >
+                        What for?
+                      </label>
+                      <input
+                        id="discount-reason"
+                        value={discountReason}
+                        onChange={(event) => setDiscountReason(event.target.value)}
+                        placeholder="Regular customer, 5kg order…"
+                        className="input text-sm"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Total + payment */}
           <div className="border-t border-sea-200 px-4 py-4">
-            {shipping > 0 && (
+            {(shipping > 0 || discount > 0) && (
               <dl className="mb-2 space-y-1 text-xs text-sea-800">
                 <div className="flex justify-between">
                   <dt>Coffee</dt>
                   <dd>{formatIDR(subtotal)}</dd>
                 </div>
-                <div className="flex justify-between">
-                  <dt>Shipping</dt>
-                  <dd>{formatIDR(shipping)}</dd>
-                </div>
+                {discount > 0 && (
+                  <div className="flex justify-between text-emerald-700">
+                    <dt>Discount</dt>
+                    <dd>−{formatIDR(discount)}</dd>
+                  </div>
+                )}
+                {shipping > 0 && (
+                  <div className="flex justify-between">
+                    <dt>Shipping</dt>
+                    <dd>{formatIDR(shipping)}</dd>
+                  </div>
+                )}
               </dl>
             )}
 

@@ -121,6 +121,15 @@ export default async function AdminOrderDetailPage({
                 </dt>
                 <dd>{formatIDR(order.shipping_idr)}</dd>
               </div>
+              {order.discount_idr > 0 && (
+                <div className="flex justify-between text-emerald-700">
+                  <dt>
+                    Discount
+                    {order.discount_reason ? ` — ${order.discount_reason}` : ""}
+                  </dt>
+                  <dd>−{formatIDR(order.discount_idr)}</dd>
+                </div>
+              )}
               {order.shipping_discount_idr > 0 && (
                 <div className="flex justify-between text-emerald-700">
                   <dt>Shipping you covered</dt>

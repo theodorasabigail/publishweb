@@ -216,6 +216,10 @@ export interface Order {
   shipping_idr: number;
   /** What the roastery absorbed on this order's shipping. */
   shipping_discount_idr: number;
+  /** Taken off the coffee — kept apart from shipping_discount_idr so the two
+   *  never have to be untangled afterwards. */
+  discount_idr: number;
+  discount_reason: string | null;
   unique_code: number;
   total_idr: number;
   payment_method: string | null;
