@@ -174,6 +174,8 @@ export default async function AdminOrderDetailPage({
                   </>
                 )}
                 <br />
+                {[address.village, address.district].filter(Boolean).join(", ")}
+                {(address.village || address.district) && <br />}
                 {address.city}
                 {address.province && `, ${address.province}`} {address.postal_code}
                 <br />
@@ -334,7 +336,7 @@ export default async function AdminOrderDetailPage({
                     defaultValue={address?.line1 ?? ""}
                   />
                 </Field>
-                <Field label="Apartment, RT/RW">
+                <Field label="RT / RW, patokan">
                   <input
                     name="line2"
                     className="input"
@@ -342,14 +344,35 @@ export default async function AdminOrderDetailPage({
                   />
                 </Field>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="City">
+                  <Field label="Kelurahan / desa">
+                    <input
+                      name="village"
+                      className="input"
+                      defaultValue={address?.village ?? ""}
+                    />
+                  </Field>
+                  <Field label="Kecamatan">
+                    <input
+                      name="district"
+                      className="input"
+                      defaultValue={address?.district ?? ""}
+                    />
+                  </Field>
+                </div>
+                <input
+                  type="hidden"
+                  name="area_id"
+                  value={address?.area_id ?? ""}
+                />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Kota / kabupaten">
                     <input
                       name="city"
                       className="input"
                       defaultValue={address?.city ?? ""}
                     />
                   </Field>
-                  <Field label="Province">
+                  <Field label="Provinsi">
                     <input
                       name="province"
                       className="input"
@@ -358,7 +381,7 @@ export default async function AdminOrderDetailPage({
                   </Field>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Postcode">
+                  <Field label="Kode pos">
                     <input
                       name="postal_code"
                       className="input"

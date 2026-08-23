@@ -192,10 +192,16 @@ export async function updateOrderDetails(formData: FormData) {
         email: optionalText(formData, "email"),
         line1: text(formData, "line1"),
         line2: optionalText(formData, "line2"),
+        village: optionalText(formData, "village"),
+        district: optionalText(formData, "district"),
         city: text(formData, "city"),
         province: optionalText(formData, "province"),
         postal_code: optionalText(formData, "postal_code"),
         country: text(formData, "country") || "ID",
+        // Carried through rather than re-derived: it identifies the place the
+        // customer actually picked, and a hand-edit to the words around it is
+        // handled by the form, which clears this when they no longer agree.
+        area_id: optionalText(formData, "area_id"),
       }
     : null;
 

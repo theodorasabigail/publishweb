@@ -381,3 +381,74 @@ export function dropOffAllowed(): boolean {
 export function courierList(): string {
   return env.optional("BITESHIP_COURIERS") ?? "jne,sicepat,anteraja,jnt,pos";
 }
+
+// ---------------------------------------------------------------------------
+// Areas
+// ---------------------------------------------------------------------------
+
+/**
+ * One place Biteship can deliver to, as their maps endpoint describes it.
+ *
+ * An Indonesian address is a hierarchy — provinsi, kota/kabupaten, kecamatan,
+ * kelurahan — and the generic western `city` / `state` pair loses the middle
+ * two entirely. Asking somebody to type them by hand gets them spelled four
+ * ways; this is the same list the courier itself rates against, so what the
+ * customer picks and what the courier understands are the same thing.
+ *
+ * `id` is the valuable part. Rates can be requested by `destination_area_id`
+ * instead of by postal code, which is both more precise and what a real
+ * booking needs.
+ */
+export interface BiteshipArea {
+  id: string;
+  /** The whole thing on one line, as Biteship writes it — what a picker shows. */
+  label: string;
+  province: string | null;
+  /** Kota or kabupaten. */
+  city: string | null;
+  /** Kecamatan. */
+  district: string | null;
+  /** Kelurahan or desa. */
+  village: string | null;
+  postalCode: string | null;
+}
+
+/**
+ * Read the areas out of a maps response.
+ *
+ * The administrative levels are numbered rather than named in Biteship's
+ * payload, and level 4 is absent for some areas, so every field is read
+ * defensively: a suggestion missing its kelurahan is still worth offering,
+ * and is far better than the free-text box it replaces.
+ */
+export function parseAreas(body: unknown): BiteshipArea[] {
+  const payload = body as { areas?: unknown } | null;
+  if (!payload || !Array.isArray(payload.areas)) return [];
+
+  const text = (value: unknown): string | null => {
+    if (typeof value === "number") return String(value);
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : null;
+  };
+
+  return payload.areas.flatMap((entry) => {
+    const area = entry as Record<string, unknown>;
+    const id = text(area.id);
+    if (!id) return [];
+
+    const province = text(area.administrative_division_level_1_name);
+    const city = text(area.administrative_division_level_2_name);
+    const district = text(area.administrative_division_level_3_name);
+    const village = text(area.administrative_division_level_4_name);
+    const postalCode = text(area.postal_code);
+
+    // Biteship's own `name` is the readable one-liner. Rebuilt from the parts
+    // when it is missing, so the picker never shows a blank row.
+    const label =
+      text(area.name) ??
+      [village, district, city, province, postalCode].filter(Boolean).join(", ");
+
+    return [{ id, label, province, city, district, village, postalCode }];
+  });
+}

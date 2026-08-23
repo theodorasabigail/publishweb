@@ -162,7 +162,12 @@ questions the counter never has to ask:
 - **Came in through** — WhatsApp, Instagram, Marketplace or somewhere else, plus
   their number or handle. That is what lets you find the conversation again in a
   fortnight when they ask where it is.
-- **Collecting or Shipping** — Shipping opens an address form. If you attached a
+- **Collecting or Shipping** — Shipping opens an address form. Type a few
+  letters of the kelurahan or kecamatan into the search box and pick from the
+  list: provinsi, kota, kecamatan, kelurahan and the postcode all fill in, and
+  the order remembers the courier's own code for that place, which is what
+  makes the ongkir accurate. Every field stays editable underneath, so a place
+  the lookup does not know is still deliverable. If you attached a
   customer who has ordered before, their saved addresses appear above it as
   one-tap buttons. There is also a box for the shipping you agreed with them,
   since a chat order is often a negotiated price rather than a table rate.
@@ -300,6 +305,26 @@ which is the main reason to encourage accounts.
 
 To change how points are earned, go to **Admin → Site settings → Loyalty**.
 Changes apply from then on; past orders are not recalculated.
+
+## Addresses
+
+Addresses are shaped like Indonesian addresses: **kelurahan** and **kecamatan**
+have their own fields, between the street and the kota. Those two used to be
+missing entirely, which is why people ended up typing an entire address into
+the street box.
+
+Both the checkout and the manual-order form have a **search** above them. Type
+part of a kelurahan or kecamatan and pick from the list; everything below fills
+in, including the postcode. The list comes from the courier's own database, so
+what the customer picks is a place the courier recognises — which is the
+difference between an accurate ongkir and a guess.
+
+If the lookup is unavailable — no courier API key, or their service is down —
+the search quietly says so and every field can still be typed. Nobody is ever
+unable to give their address because a courier is having a bad afternoon.
+
+Addresses saved before this existed are still perfectly good. They simply carry
+less detail, and are priced from the postcode as they always were.
 
 ## Points for people without an account
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { MANUAL_CHANNELS, type SalesChannel } from "@/lib/types";
+import { MANUAL_CHANNELS, type Address, type SalesChannel } from "@/lib/types";
 import { sendOrderConfirmation } from "@/lib/email/notify";
 import { adminClient } from "./guard";
 
@@ -16,16 +16,30 @@ export interface PosSaleLine {
 
 export type PosPaymentMethod = "cash" | "qris" | "card" | "transfer";
 
+/**
+ * Where a manual order is going.
+ *
+ * Deliberately the same shape as the storefront's address snapshot, kelurahan
+ * and kecamatan included, so an order typed here and an order placed on the
+ * site are indistinguishable to everything downstream — the courier, the
+ * shipped email, the customer's own order page.
+ */
 export interface ManualAddress {
   recipient_name: string;
   phone: string;
   line1: string;
   line2?: string | null;
+  /** Kelurahan or desa. */
+  village?: string | null;
+  /** Kecamatan. */
+  district?: string | null;
   city: string;
   province?: string | null;
   postal_code?: string | null;
   country: string;
   email?: string | null;
+  /** Biteship's key for the place, when picked from the area lookup. */
+  area_id?: string | null;
 }
 
 export interface PosSaleResult {
@@ -202,16 +216,5 @@ export async function customerAddresses(userId: string) {
     .order("is_default", { ascending: false })
     .limit(10);
 
-  return (data ?? []) as {
-    id: string;
-    recipient_name: string;
-    phone: string;
-    line1: string;
-    line2: string | null;
-    city: string;
-    province: string | null;
-    postal_code: string | null;
-    country: string;
-    is_default: boolean;
-  }[];
+  return (data ?? []) as Address[];
 }

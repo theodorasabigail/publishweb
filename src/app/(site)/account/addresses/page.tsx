@@ -101,12 +101,20 @@ export default async function AddressesPage() {
             <input id="line1" name="line1" className="input" required />
           </div>
           <div>
-            <label className="label" htmlFor="line2">Apartment, unit (optional)</label>
+            <label className="label" htmlFor="line2">RT / RW, patokan (optional)</label>
             <input id="line2" name="line2" className="input" />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="label" htmlFor="city">City *</label>
+              <label className="label" htmlFor="village">Kelurahan / desa</label>
+              <input id="village" name="village" className="input" />
+            </div>
+            <div>
+              <label className="label" htmlFor="district">Kecamatan</label>
+              <input id="district" name="district" className="input" />
+            </div>
+            <div>
+              <label className="label" htmlFor="city">Kota / kabupaten *</label>
               <input id="city" name="city" className="input" required />
             </div>
             <div>

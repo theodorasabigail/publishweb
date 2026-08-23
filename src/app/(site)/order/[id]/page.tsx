@@ -226,6 +226,12 @@ export default async function OrderPage({
               </>
             )}
             <br />
+            {[order.shipping_address.village, order.shipping_address.district]
+              .filter(Boolean)
+              .join(", ")}
+            {(order.shipping_address.village || order.shipping_address.district) && (
+              <br />
+            )}
             {order.shipping_address.city}
             {order.shipping_address.province && `, ${order.shipping_address.province}`}{" "}
             {order.shipping_address.postal_code}

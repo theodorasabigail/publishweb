@@ -99,10 +99,16 @@ export interface Address {
   phone: string;
   line1: string;
   line2: string | null;
+  /** Kelurahan or desa. */
+  village: string | null;
+  /** Kecamatan. */
+  district: string | null;
   city: string;
   province: string | null;
   postal_code: string | null;
   country: string;
+  /** Biteship's key for this place, when it came from the area lookup. */
+  area_id: string | null;
   is_default: boolean;
   created_at: string;
 }
@@ -183,16 +189,36 @@ export interface OrderItem {
   quantity: number;
 }
 
+/**
+ * The address an order is going to, copied onto the order at the time.
+ *
+ * A snapshot rather than a reference: a customer who edits their saved address
+ * next year must not silently rewrite where last year's parcel went.
+ *
+ * `village` and `district` are the two levels an Indonesian address has that
+ * the generic western set leaves out — kelurahan and kecamatan. `area_id` is
+ * Biteship's key for the place, present when the address was picked from the
+ * lookup rather than typed, and what makes an accurate rate (and a real
+ * courier booking) possible.
+ *
+ * All three are optional: addresses recorded before the lookup existed are
+ * still perfectly good addresses.
+ */
 export interface ShippingAddressSnapshot {
   recipient_name: string;
   phone: string;
   email?: string | null;
   line1: string;
   line2?: string | null;
+  /** Kelurahan or desa. */
+  village?: string | null;
+  /** Kecamatan. */
+  district?: string | null;
   city: string;
   province?: string | null;
   postal_code?: string | null;
   country: string;
+  area_id?: string | null;
 }
 
 export interface Order {

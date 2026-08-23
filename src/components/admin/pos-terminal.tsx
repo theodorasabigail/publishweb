@@ -20,6 +20,8 @@ import {
   type ManualAddress,
   type PosPaymentMethod,
 } from "@/app/admin/_actions/pos";
+import { AddressFields, EMPTY_ADDRESS } from "@/components/shop/address-fields";
+import type { Address } from "@/lib/types";
 import {
   CHANNEL_LABELS,
   CHANNEL_REFERENCE_LABELS,
@@ -71,25 +73,12 @@ interface Customer {
   tier: string;
 }
 
-interface SavedAddress extends ManualAddress {
-  id: string;
-  is_default: boolean;
-}
+type SavedAddress = Address;
 
 /** Notes Ebi is likely to have in the drawer, for one-tap cash tendering. */
 const CASH_PRESETS = [50_000, 100_000, 150_000, 200_000, 500_000];
 
-const BLANK_ADDRESS: ManualAddress = {
-  recipient_name: "",
-  phone: "",
-  line1: "",
-  line2: "",
-  city: "",
-  province: "",
-  postal_code: "",
-  country: "ID",
-  email: "",
-};
+const BLANK_ADDRESS: ManualAddress = { ...EMPTY_ADDRESS };
 
 export function PosTerminal({
   products,
@@ -285,11 +274,14 @@ export function PosTerminal({
       phone: row.phone,
       line1: row.line1,
       line2: row.line2 ?? "",
+      village: row.village ?? "",
+      district: row.district ?? "",
       city: row.city,
       province: row.province ?? "",
       postal_code: row.postal_code ?? "",
       country: row.country,
       email: customer?.email ?? "",
+      area_id: row.area_id ?? null,
     });
   }
 
@@ -805,7 +797,11 @@ export function PosTerminal({
                     </div>
                   )}
 
-                  <AddressFields value={address} onChange={setAddress} />
+                  <AddressFields
+                    value={address}
+                    onChange={setAddress}
+                    idPrefix="pos-address"
+                  />
 
                   <div>
                     <label
@@ -1092,100 +1088,6 @@ export function PosTerminal({
             </button>
           </div>
         </aside>
-      </div>
-    </div>
-  );
-}
-
-/**
- * The address a parcel goes to.
- *
- * Deliberately the same fields, in the same order, as the storefront checkout
- * form — an order typed here and an order placed on the site produce the same
- * shipping snapshot, so everything downstream (the courier, the shipped email,
- * the customer's order page) cannot tell them apart.
- */
-function AddressFields({
-  value,
-  onChange,
-}: {
-  value: ManualAddress;
-  onChange: (next: ManualAddress) => void;
-}) {
-  function set(field: keyof ManualAddress, next: string) {
-    onChange({ ...value, [field]: next });
-  }
-
-  return (
-    <div className="space-y-2">
-      <input
-        value={value.recipient_name}
-        onChange={(event) => set("recipient_name", event.target.value)}
-        placeholder="Name"
-        className="input text-sm"
-        aria-label="Recipient name"
-      />
-      <div className="grid grid-cols-2 gap-2">
-        <input
-          value={value.phone}
-          onChange={(event) => set("phone", event.target.value)}
-          placeholder="Phone"
-          className="input text-sm"
-          aria-label="Phone"
-        />
-        <input
-          value={value.email ?? ""}
-          onChange={(event) => set("email", event.target.value)}
-          placeholder="Email (optional)"
-          className="input text-sm"
-          aria-label="Email"
-        />
-      </div>
-      <input
-        value={value.line1}
-        onChange={(event) => set("line1", event.target.value)}
-        placeholder="Street address"
-        className="input text-sm"
-        aria-label="Street address"
-      />
-      <input
-        value={value.line2 ?? ""}
-        onChange={(event) => set("line2", event.target.value)}
-        placeholder="Apartment, RT/RW (optional)"
-        className="input text-sm"
-        aria-label="Address line 2"
-      />
-      <div className="grid grid-cols-2 gap-2">
-        <input
-          value={value.city}
-          onChange={(event) => set("city", event.target.value)}
-          placeholder="City"
-          className="input text-sm"
-          aria-label="City"
-        />
-        <input
-          value={value.province ?? ""}
-          onChange={(event) => set("province", event.target.value)}
-          placeholder="Province"
-          className="input text-sm"
-          aria-label="Province"
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <input
-          value={value.postal_code ?? ""}
-          onChange={(event) => set("postal_code", event.target.value)}
-          placeholder="Postcode"
-          className="input text-sm"
-          aria-label="Postcode"
-        />
-        <input
-          value={value.country}
-          onChange={(event) => set("country", event.target.value)}
-          placeholder="Country"
-          className="input text-sm"
-          aria-label="Country"
-        />
       </div>
     </div>
   );
