@@ -4,9 +4,12 @@ import { ArrowLeft } from "lucide-react";
 import { Field, PageHeader, Panel } from "@/components/admin/ui";
 import { OrderStatusBadge } from "@/components/status-badge";
 import {
+  deleteOrder,
+  restoreOrder,
   updateOrderDetails,
   updateOrderFulfilment,
   updateOrderStatus,
+  voidOrder,
 } from "@/app/admin/_actions/orders";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -54,6 +57,7 @@ export default async function AdminOrderDetailPage({
   // A WhatsApp order can be either.
   const ships = Boolean(address);
   const isManual = order.channel !== "online";
+  const isVoided = Boolean(order.voided_at);
 
   return (
     <div>
@@ -75,6 +79,17 @@ export default async function AdminOrderDetailPage({
         }
         action={<OrderStatusBadge status={order.status} />}
       />
+
+      {isVoided && (
+        <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-5">
+          <h2 className="font-medium text-amber-900">This order was voided</h2>
+          <p className="mt-1 text-sm text-amber-900">
+            Undone as a mistake on {formatDateTime(order.voided_at)}. Its stock
+            and any points have been put back, and it counts towards nothing.
+            {order.voided_reason ? ` Reason given: “${order.voided_reason}”.` : ""}
+          </p>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
@@ -195,6 +210,7 @@ export default async function AdminOrderDetailPage({
             )}
           </Panel>
 
+          <div id="correct-details" className="scroll-mt-6">
           <Panel
             title="Correct the details"
             description="For fixing what was written down, not for changing what happened. Nothing here moves stock, money or points."
@@ -343,6 +359,7 @@ export default async function AdminOrderDetailPage({
               </button>
             </form>
           </Panel>
+          </div>
         </div>
 
         <div className="space-y-6">
@@ -357,6 +374,12 @@ export default async function AdminOrderDetailPage({
                   />
                 )}
               </dl>
+              <a
+                href="#correct-details"
+                className="mt-3 block text-xs underline"
+              >
+                Change this, the dates or the address
+              </a>
             </Panel>
           )}
 
@@ -457,6 +480,77 @@ export default async function AdminOrderDetailPage({
                     on the same coffee, its shipping weight is probably wrong.
                   </p>
                 )}
+            </Panel>
+          )}
+
+          {isManual && (
+            <Panel title={isVoided ? "Voided" : "Entered by mistake?"}>
+              {isVoided ? (
+                <div className="space-y-5">
+                  <form action={restoreOrder}>
+                    <input type="hidden" name="id" value={order.id} />
+                    <p className="mb-3 text-sm text-sea-800">
+                      Putting it back takes the coffee off the shelf again and
+                      re-awards any points. It will be refused if the coffee has
+                      since been sold to somebody else.
+                    </p>
+                    <button type="submit" className="btn-secondary w-full">
+                      Put this order back
+                    </button>
+                  </form>
+
+                  <form
+                    action={deleteOrder}
+                    className="space-y-3 border-t border-sea-200 pt-5"
+                  >
+                    <input type="hidden" name="id" value={order.id} />
+                    <p className="text-sm text-sea-800">
+                      Or remove it for good. The stock and points are already
+                      back, so this deletes the record and nothing else — but
+                      there is no undo. Type{" "}
+                      <strong className="text-ink">{order.human_ref}</strong> to
+                      confirm.
+                    </p>
+                    <input
+                      name="confirm"
+                      className="input"
+                      placeholder={order.human_ref}
+                      aria-label={`Type ${order.human_ref} to confirm deletion`}
+                      autoComplete="off"
+                    />
+                    <button
+                      type="submit"
+                      className="w-full rounded-lg border border-red-300 bg-red-50 py-2 text-sm font-medium text-red-800 hover:bg-red-100"
+                    >
+                      Delete permanently
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <form action={voidOrder} className="space-y-3">
+                  <input type="hidden" name="id" value={order.id} />
+                  <p className="text-sm text-sea-800">
+                    Voiding undoes an order that should never have been written
+                    — the wrong coffee, or one entered twice. It puts the stock
+                    and points back and takes it out of the books, and it can be
+                    undone.
+                  </p>
+                  <p className="text-sm text-sea-800">
+                    For an order that was real but is not going ahead, use{" "}
+                    <strong className="text-ink">cancelled</strong> instead.
+                  </p>
+                  <Field label="What went wrong?" hint="Optional, for your own records.">
+                    <input
+                      name="reason"
+                      className="input"
+                      placeholder="Rang up the wrong size"
+                    />
+                  </Field>
+                  <button type="submit" className="btn-secondary w-full">
+                    Void this order
+                  </button>
+                </form>
+              )}
             </Panel>
           )}
 

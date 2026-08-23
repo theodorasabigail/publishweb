@@ -16,6 +16,9 @@ export default async function AccountOrdersPage() {
     .from("orders")
     .select("*, order_items (*)")
     .eq("user_id", session.userId)
+    // A voided order was a mistake on the shop's side. It should never have
+    // been the customer's order, so it is not in the customer's history.
+    .is("voided_at", null)
     .order("created_at", { ascending: false });
 
   const orders = (data ?? []) as OrderWithItems[];

@@ -21,9 +21,12 @@ const FILTERS: { value: string; label: string }[] = [
 export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; channel?: string }>;
+  searchParams: Promise<{ status?: string; channel?: string; show?: string }>;
 }) {
-  const { status, channel } = await searchParams;
+  const { status, channel, show } = await searchParams;
+  // Voided orders are mistakes, so they are out of the way rather than gone:
+  // findable on purpose, never in the way by accident.
+  const showVoided = show === "voided";
   const active = status && ORDER_STATUSES.includes(status as OrderStatus) ? status : "all";
   const activeChannel =
     channel && channel in CHANNEL_LABELS ? (channel as SalesChannel) : "all";
@@ -37,6 +40,8 @@ export default async function AdminOrdersPage({
 
   if (active !== "all") query = query.eq("status", active);
   if (activeChannel !== "all") query = query.eq("channel", activeChannel);
+  if (showVoided) query = query.not("voided_at", "is", null);
+  else query = query.is("voided_at", null);
 
   const { data } = await query;
   const orders = (data ?? []) as Order[];
@@ -79,7 +84,7 @@ export default async function AdminOrdersPage({
             href={filter.value === "all" ? "/admin/orders" : `/admin/orders?status=${filter.value}`}
             className={cn(
               "badge capitalize",
-              active === filter.value
+              !showVoided && active === filter.value
                 ? "bg-sea-800 text-cream"
                 : "border border-sea-200 bg-white text-sea-700 hover:border-sea-400",
             )}
@@ -87,7 +92,25 @@ export default async function AdminOrdersPage({
             {filter.label}
           </Link>
         ))}
+        <Link
+          href="/admin/orders?show=voided"
+          className={cn(
+            "badge",
+            showVoided
+              ? "bg-amber-600 text-white"
+              : "border border-sea-200 bg-white text-sea-700 hover:border-sea-400",
+          )}
+        >
+          Voided
+        </Link>
       </nav>
+
+      {showVoided && (
+        <p className="mb-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">
+          These were entered by mistake and undone. Their stock and points have
+          been put back, and they count towards nothing.
+        </p>
+      )}
 
       {orders.length ? (
         <div className="overflow-x-auto rounded-xl border border-sea-200 bg-white">
@@ -165,7 +188,9 @@ export default async function AdminOrdersPage({
           </table>
         </div>
       ) : (
-        <EmptyRow>No orders with that status.</EmptyRow>
+        <EmptyRow>
+          {showVoided ? "Nothing has been voided." : "No orders with that status."}
+        </EmptyRow>
       )}
     </div>
   );

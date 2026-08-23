@@ -13,7 +13,10 @@ export default async function AdminCustomersPage() {
 
   const [{ data: profiles }, { data: orders }] = await Promise.all([
     supabase.from("profiles").select("*").order("created_at", { ascending: false }).limit(500),
-    supabase.from("orders").select("user_id, total_idr, paid_at").not("paid_at", "is", null),
+    supabase.from("orders")
+      .select("user_id, total_idr, paid_at")
+      .is("voided_at", null)
+      .not("paid_at", "is", null),
   ]);
 
   const rows = (profiles ?? []) as Profile[];

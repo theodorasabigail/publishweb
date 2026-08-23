@@ -252,6 +252,14 @@ export interface Order {
    *  shipped, and correctable afterwards — a parcel is often posted a day
    *  before anyone gets round to updating the site. */
   shipped_at: string | null;
+  /** Set when an order was undone as a mistake. A voided order keeps its row
+   *  but is excluded from every report, list and total. */
+  voided_at: string | null;
+  voided_reason: string | null;
+  voided_by: string | null;
+  /** Whether it was holding reserved stock when voided, so restoring knows to
+   *  put the hold back. */
+  voided_held_stock: boolean;
 }
 
 export interface OrderWithItems extends Order {

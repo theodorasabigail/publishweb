@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import {
   CHANNEL_LABELS,
   ORDER_STATUSES,
@@ -178,4 +179,99 @@ export async function updateOrderDetails(formData: FormData) {
   revalidatePath(`/order/${id}`);
   // The channel a sale is filed under changes what the reports say.
   revalidatePath("/admin/reports");
+}
+
+/**
+ * Undo an order that was entered wrong.
+ *
+ * "Cancelled" and "voided" say different things and this is the second one.
+ * Cancelled means the order was real and is not going ahead; voided means it
+ * was never real — the wrong coffee rung up, a WhatsApp order entered twice —
+ * so leaving it in the day's takings misreports the day.
+ *
+ * The reversal is the database's job, in one transaction: release any hold,
+ * put the coffee back if it had been paid for, take the points back through
+ * the ledger so the customer's history still adds up. Restoring re-applies
+ * all of it, which is what makes voiding safe to reach for.
+ */
+export async function voidOrder(formData: FormData) {
+  const { supabase, session } = await adminClient();
+  const id = text(formData, "id");
+
+  const { error } = await supabase.rpc("void_order", {
+    p_order_id: id,
+    p_reason: optionalText(formData, "reason"),
+    p_by: session.userId,
+  });
+
+  // The function's own messages explain what it refused and why, so they go
+  // through unchanged rather than being flattened into something generic.
+  if (error) throw new Error(describeDbError(error, error.message ?? "Could not void the order."));
+
+  revalidateOrder(id);
+}
+
+/** Put a voided order back, stock and points with it. */
+export async function restoreOrder(formData: FormData) {
+  const { supabase } = await adminClient();
+  const id = text(formData, "id");
+
+  const { error } = await supabase.rpc("restore_order", { p_order_id: id });
+  if (error) {
+    throw new Error(describeDbError(error, error.message ?? "Could not restore the order."));
+  }
+
+  revalidateOrder(id);
+}
+
+/**
+ * Remove a voided order for good.
+ *
+ * Guarded twice over: the database refuses unless the order is already voided
+ * (so its stock and points are already back), and the operator has to type the
+ * order's reference to confirm. There is no undo past this point, which is
+ * exactly why it asks.
+ */
+export async function deleteOrder(formData: FormData) {
+  const { supabase } = await adminClient();
+  const id = text(formData, "id");
+
+  const { data: order } = await supabase
+    .from("orders")
+    .select("human_ref")
+    .eq("id", id)
+    .maybeSingle();
+
+  const reference = (order as { human_ref: string } | null)?.human_ref;
+  if (!reference) throw new Error("That order no longer exists.");
+
+  if (text(formData, "confirm").toUpperCase() !== reference.toUpperCase()) {
+    throw new Error(
+      `To delete this order for good, type its reference — ${reference} — into the box.`,
+    );
+  }
+
+  const { error } = await supabase.rpc("delete_order", { p_order_id: id });
+  if (error) {
+    throw new Error(describeDbError(error, error.message ?? "Could not delete the order."));
+  }
+
+  revalidatePath("/admin/orders");
+  revalidatePath("/admin/reports");
+  revalidatePath("/admin");
+  revalidatePath("/");
+  revalidatePath("/shop");
+  // The order's own page is gone, so there is nowhere to go back to.
+  redirect("/admin/orders");
+}
+
+/** Everywhere an order's existence or stock is reflected. */
+function revalidateOrder(id: string) {
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${id}`);
+  revalidatePath(`/order/${id}`);
+  revalidatePath("/admin/reports");
+  revalidatePath("/admin");
+  revalidatePath("/");
+  revalidatePath("/shop");
 }

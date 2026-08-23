@@ -69,6 +69,43 @@ Two things it will not let you do, on purpose:
 - **Remove the payment date from an order that has been paid.** If it was
   marked paid by mistake, cancel it rather than quietly un-paying it.
 
+## Undoing an order you entered wrong
+
+**Cancelled** and **voided** say different things, and picking the right one
+keeps your books honest.
+
+- **Cancelled** — the order was real and is not going ahead. It stays in your
+  records as an order that happened and then stopped.
+- **Voided** — the order was never real. You rang up the wrong coffee, or typed
+  the same WhatsApp order in twice. It should not be in the day's takings at
+  all, because it never took any money.
+
+Voiding is on the order page, under **Entered by mistake?**. It puts everything
+back: coffee returns to the shelf, any loyalty points are taken back off the
+customer (as a second line in their points history, so it still adds up), and
+the order disappears from every report and total. It keeps the record, marked
+void, so there is still a trace that something was entered and undone.
+
+You can **put a voided order back** if you voided the wrong one. That takes the
+coffee off the shelf again — so it will refuse if the coffee has since been
+sold to somebody else, and tell you to fix the stock first.
+
+To find voided orders again, use the **Voided** filter on the orders list.
+
+### Deleting for good
+
+Once an order is voided, the same panel offers **Delete permanently**. This
+removes the record entirely and cannot be undone, so you have to type the
+order's reference to confirm it.
+
+You cannot delete an order that has not been voided first. Voiding is what puts
+the stock and points back; deleting only removes the record, and doing it to a
+live order would quietly leave your stock wrong.
+
+**Website orders can be neither voided nor deleted.** A real payment went
+through a real payment provider for those, and your records need to keep
+matching what the customer was actually charged. Cancel them instead.
+
 ## Selling in the shop
 
 **Admin → Counter sales.** This is the till, and it has two modes across the

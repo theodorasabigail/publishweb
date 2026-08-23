@@ -25,7 +25,11 @@ export default async function AdminCustomerPage({
 
   const [{ data: profile }, { data: orders }, { data: ledger }] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", id).maybeSingle(),
-    supabase.from("orders").select("*").eq("user_id", id).order("created_at", { ascending: false }),
+    supabase.from("orders")
+      .select("*")
+      .eq("user_id", id)
+      .is("voided_at", null)
+      .order("created_at", { ascending: false }),
     supabase
       .from("loyalty_ledger")
       .select("*")
