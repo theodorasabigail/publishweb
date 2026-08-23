@@ -1,4 +1,3 @@
-import { ColorPicker } from "@/components/admin/color-picker";
 import { FlavourPicker } from "@/components/admin/flavour-picker";
 import { ImageUploader } from "@/components/admin/image-uploader";
 import { TitleAndSlug } from "@/components/admin/slug-input";
@@ -100,7 +99,7 @@ export function ProductForm({
             label="Product photo"
             defaultValue={product?.image_url}
             folder="products"
-            hint="Square images work best. Without one, the card shows the name on the accent colour."
+            hint="Square images work best. Without one, the card shows the name on the flavour colour."
           />
 
           <Field label="Image description" hint="Describes the photo for screen readers and search engines.">
@@ -113,13 +112,6 @@ export function ProductForm({
           </Field>
 
           <FlavourPicker defaultValue={product?.flavour_level} />
-
-          <ColorPicker
-            name="accent_color"
-            label="Card accent colour"
-            defaultValue={product?.accent_color ?? "#486b73"}
-            hint="The colour behind this product on the shop grid."
-          />
 
           <div className="flex flex-wrap gap-6">
             <label className="flex items-center gap-2 text-sm">

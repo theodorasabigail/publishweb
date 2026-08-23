@@ -26,46 +26,46 @@
 -- The coffees.
 -- --------------------------------------------------------------------------
 insert into public.products
-  (slug, name, origin, process, varietal, accent_color, is_active, is_featured, sort_order)
+  (slug, name, origin, process, varietal, is_active, is_featured, sort_order)
 values
   -- Jawa Timur
   ('mami-estate-waved-natural-komasti', 'Mami Estate Waved Natural Komasti',
-   'Jawa Timur', 'Waved Natural', 'Komasti', '#486b73', true, true, 1),
+   'Jawa Timur', 'Waved Natural', 'Komasti', true, true, 1),
   -- Jawa Barat
   ('palintang-washed-java-ateng', 'Palintang Washed Java Ateng',
-   'Jawa Barat', 'Washed', 'Java Ateng', '#638c97', true, false, 3),
+   'Jawa Barat', 'Washed', 'Java Ateng', true, false, 3),
   ('genteng-sumedang-anaerobic-natural', 'Genteng Sumedang Anaerobic Natural Mixed Varieties',
-   'Jawa Barat', 'Anaerobic Natural', 'Mixed Varieties', '#638c97', true, false, 4),
+   'Jawa Barat', 'Anaerobic Natural', 'Mixed Varieties', true, false, 4),
   ('mt-patuha-red-honey', 'Mt. Patuha Red Honey Mixed Varieties',
-   'Jawa Barat', 'Red Honey', 'Mixed Varieties', '#638c97', true, true, 5),
+   'Jawa Barat', 'Red Honey', 'Mixed Varieties', true, true, 5),
   ('patuha-natural-typica', 'Patuha Natural Typica',
-   'Jawa Barat', 'Natural', 'Typica', '#638c97', true, false, 6),
+   'Jawa Barat', 'Natural', 'Typica', true, false, 6),
   ('kamojang-anaerobic-washed', 'Kamojang Anaerobic Washed',
-   'Jawa Barat', 'Anaerobic Washed', null, '#638c97', true, false, 7),
+   'Jawa Barat', 'Anaerobic Washed', null, true, false, 7),
   ('kertasari-natural-java', 'Kertasari Natural Java',
-   'Jawa Barat', 'Natural', 'Java', '#638c97', true, false, 8),
+   'Jawa Barat', 'Natural', 'Java', true, false, 8),
   ('sukawangi-sumedang-natural-excelsa', 'Sukawangi Sumedang Natural Excelsa',
-   'Jawa Barat', 'Natural', 'Excelsa', '#638c97', true, false, 9),
+   'Jawa Barat', 'Natural', 'Excelsa', true, false, 9),
   ('puntang-extended-natural', 'Puntang Extended Natural Mixed Varieties',
-   'Jawa Barat', 'Extended Natural', 'Mixed Varieties', '#638c97', true, false, 10),
+   'Jawa Barat', 'Extended Natural', 'Mixed Varieties', true, false, 10),
 
   -- Africa
   ('ethiopia-bensa-daye-mountain-decaf', 'Ethiopia Bensa Daye Mountain Decaf Washed',
-   'Africa', 'Washed Decaf', null, '#a7a4b5', true, false, 11),
+   'Africa', 'Washed Decaf', null, true, false, 11),
 
   -- Sumatra
   ('aceh-bener-meriah-anaerobic-natural-gayo-1', 'Aceh Bener Meriah Anaerobic Natural Gayo 1',
-   'Sumatra', 'Anaerobic Natural', 'Gayo 1', '#dab0b0', true, true, 12),
+   'Sumatra', 'Anaerobic Natural', 'Gayo 1', true, true, 12),
 
   -- Latin America
   ('panama-totumas-typica-washed', 'Panama Totumas Typica Washed',
-   'Latin America', 'Washed', 'Typica', '#ee8a7a', true, false, 13),
+   'Latin America', 'Washed', 'Typica', true, false, 13),
   ('ecuador-sidra-anaerobic-washed', 'Ecuador Sidra Anaerobic Washed',
-   'Latin America', 'Anaerobic Washed', 'Sidra', '#ee8a7a', true, false, 14),
+   'Latin America', 'Anaerobic Washed', 'Sidra', true, false, 14),
   ('ecuador-sidra-anaerobic-honey-co2', 'Ecuador Sidra Anaerobic Honey CO2',
-   'Latin America', 'Anaerobic Honey CO2', 'Sidra', '#ee8a7a', true, false, 15),
+   'Latin America', 'Anaerobic Honey CO2', 'Sidra', true, false, 15),
   ('hacienda-la-papaya-b7-anaerobic-120hr', 'Hacienda La Papaya B7 Anaerobic 120HR',
-   'Latin America', 'Anaerobic 120HR', 'B7', '#ee8a7a', true, false, 16)
+   'Latin America', 'Anaerobic 120HR', 'B7', true, false, 16)
 on conflict (slug) do nothing;
 
 -- --------------------------------------------------------------------------

@@ -36,7 +36,6 @@ function productFields(formData: FormData) {
     category_id: optionalText(formData, "category_id"),
     image_url: optionalText(formData, "image_url"),
     image_alt: optionalText(formData, "image_alt"),
-    accent_color: text(formData, "accent_color") || "#486b73",
     // 0 is the "not set yet" option in the picker, and must become null rather
     // than failing the 1-6 check constraint.
     flavour_level: integer(formData, "flavour_level", 0) || null,

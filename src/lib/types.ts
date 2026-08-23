@@ -154,7 +154,6 @@ export interface Product {
   category_id: string | null;
   image_url: string | null;
   image_alt: string | null;
-  accent_color: string;
   /** Publish flavour scale, 1–6. Null until assigned. See lib/flavour.ts. */
   flavour_level: number | null;
   is_active: boolean;

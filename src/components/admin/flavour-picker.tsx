@@ -61,7 +61,7 @@ export function FlavourPicker({
             <strong>{current.label}</strong> — {current.description}
           </>
         ) : (
-          "Not set. Customers can still find this coffee, but not by colour."
+          "Not set — this coffee shows in plain grey until you pick a level. It is the only colour a coffee has."
         )}
       </p>
     </div>

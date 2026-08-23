@@ -26,6 +26,7 @@ import {
   type SalesChannel,
 } from "@/lib/types";
 import type { ProductWithVariants } from "@/lib/types";
+import { productColour } from "@/lib/flavour";
 import { cn, formatIDR } from "@/lib/utils";
 
 /**
@@ -436,7 +437,7 @@ export function PosTerminal({
               >
                 <div
                   className="px-3 py-2"
-                  style={{ backgroundColor: `${product.accent_color}1a` }}
+                  style={{ backgroundColor: `${productColour(product)}1a` }}
                 >
                   <p className="truncate text-sm font-medium">{product.name}</p>
                   {product.origin && (

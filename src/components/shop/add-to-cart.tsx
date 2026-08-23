@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Check, Minus, Plus } from "lucide-react";
 import { useCart } from "@/components/cart-provider";
 import type { ProductWithVariants, ProductVariant } from "@/lib/types";
+import { productColour } from "@/lib/flavour";
 import { cn, formatIDR } from "@/lib/utils";
 
 export function AddToCart({ product }: { product: ProductWithVariants }) {
@@ -41,7 +42,7 @@ export function AddToCart({ product }: { product: ProductWithVariants }) {
       priceIdr: selected.price_idr,
       weightGrams: selected.weight_grams,
       imageUrl: product.image_url,
-      accentColor: product.accent_color,
+      accentColor: productColour(product),
       quantity,
     });
     setJustAdded(true);
