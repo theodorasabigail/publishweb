@@ -3,7 +3,11 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Field, PageHeader, Panel } from "@/components/admin/ui";
 import { OrderStatusBadge } from "@/components/status-badge";
-import { updateOrderFulfilment, updateOrderStatus } from "@/app/admin/_actions/orders";
+import {
+  updateOrderDetails,
+  updateOrderFulfilment,
+  updateOrderStatus,
+} from "@/app/admin/_actions/orders";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   CHANNEL_LABELS,
@@ -11,8 +15,9 @@ import {
   ORDER_STATUSES,
   type OrderWithItems,
   type Profile,
+  type SalesChannel,
 } from "@/lib/types";
-import { formatDateTime, formatIDR } from "@/lib/utils";
+import { formatDateTime, formatIDR, toShopDateTimeInput } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -189,6 +194,155 @@ export default async function AdminOrderDetailPage({
             </form>
             )}
           </Panel>
+
+          <Panel
+            title="Correct the details"
+            description="For fixing what was written down, not for changing what happened. Nothing here moves stock, money or points."
+          >
+            <form action={updateOrderDetails} className="space-y-4">
+              <input type="hidden" name="id" value={order.id} />
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Came in through">
+                  <select
+                    name="channel"
+                    className="input"
+                    defaultValue={order.channel}
+                  >
+                    {(Object.keys(CHANNEL_LABELS) as SalesChannel[]).map((value) => (
+                      <option key={value} value={value}>
+                        {CHANNEL_LABELS[value]}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field
+                  label="Reference"
+                  hint="Their number, @handle or marketplace order id."
+                >
+                  <input
+                    name="channel_reference"
+                    className="input"
+                    defaultValue={order.channel_reference ?? ""}
+                  />
+                </Field>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field
+                  label="Paid at"
+                  hint={
+                    order.paid_at
+                      ? "Jakarta time."
+                      : "Not paid yet — use the status control, which also takes the stock down."
+                  }
+                >
+                  <input
+                    type="datetime-local"
+                    name="paid_at"
+                    className="input"
+                    disabled={!order.paid_at}
+                    defaultValue={toShopDateTimeInput(order.paid_at)}
+                  />
+                </Field>
+                <Field
+                  label="Shipped at"
+                  hint="Jakarta time. Leave empty if it has not gone out."
+                >
+                  <input
+                    type="datetime-local"
+                    name="shipped_at"
+                    className="input"
+                    defaultValue={toShopDateTimeInput(order.shipped_at)}
+                  />
+                </Field>
+              </div>
+
+              <fieldset className="space-y-4 border-t border-sea-200 pt-4">
+                <legend className="text-xs uppercase tracking-wider text-sea-800">
+                  Where it is going
+                </legend>
+                <p className="text-xs text-sea-800">
+                  Clearing the name empties the address entirely, which marks
+                  the order as one the customer is collecting.
+                </p>
+
+                <Field label="Name">
+                  <input
+                    name="recipient_name"
+                    className="input"
+                    defaultValue={address?.recipient_name ?? ""}
+                  />
+                </Field>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Phone">
+                    <input
+                      name="phone"
+                      className="input"
+                      defaultValue={address?.phone ?? ""}
+                    />
+                  </Field>
+                  <Field label="Email">
+                    <input
+                      name="email"
+                      className="input"
+                      defaultValue={address?.email ?? ""}
+                    />
+                  </Field>
+                </div>
+                <Field label="Street address">
+                  <input
+                    name="line1"
+                    className="input"
+                    defaultValue={address?.line1 ?? ""}
+                  />
+                </Field>
+                <Field label="Apartment, RT/RW">
+                  <input
+                    name="line2"
+                    className="input"
+                    defaultValue={address?.line2 ?? ""}
+                  />
+                </Field>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="City">
+                    <input
+                      name="city"
+                      className="input"
+                      defaultValue={address?.city ?? ""}
+                    />
+                  </Field>
+                  <Field label="Province">
+                    <input
+                      name="province"
+                      className="input"
+                      defaultValue={address?.province ?? ""}
+                    />
+                  </Field>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Postcode">
+                    <input
+                      name="postal_code"
+                      className="input"
+                      defaultValue={address?.postal_code ?? ""}
+                    />
+                  </Field>
+                  <Field label="Country">
+                    <input
+                      name="country"
+                      className="input"
+                      defaultValue={address?.country ?? "ID"}
+                    />
+                  </Field>
+                </div>
+              </fieldset>
+
+              <button type="submit" className="btn-secondary py-2 text-xs">
+                Save corrections
+              </button>
+            </form>
+          </Panel>
         </div>
 
         <div className="space-y-6">
@@ -247,6 +401,10 @@ export default async function AdminOrderDetailPage({
               <Row
                 label="Paid at"
                 value={order.paid_at ? formatDateTime(order.paid_at) : "Not yet"}
+              />
+              <Row
+                label="Shipped at"
+                value={order.shipped_at ? formatDateTime(order.shipped_at) : "Not yet"}
               />
               <Row label="Points awarded" value={String(order.points_awarded)} />
               {order.cash_received_idr !== null && (

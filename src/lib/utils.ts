@@ -15,12 +15,29 @@ export function formatIDR(amount: number | null | undefined): string {
   return idrFormatter.format(amount ?? 0);
 }
 
+/**
+ * The shop's clock.
+ *
+ * Every date the operator reads or types is Jakarta time, whatever timezone
+ * the machine rendering it happens to be in. Saying so explicitly is not
+ * decoration: admin pages render on a server, that server runs in UTC, and
+ * without a timezone an order taken at 20:33 in the shop displayed as 13:33.
+ * A date the operator then typed back in would have meant something different
+ * again.
+ *
+ * WIB is UTC+7 the whole year -- Indonesia has no daylight saving -- so the
+ * offset is a constant rather than a lookup, and arithmetic on it is exact.
+ */
+export const SHOP_TIME_ZONE = "Asia/Jakarta";
+const SHOP_OFFSET_MS = 7 * 60 * 60 * 1000;
+
 export function formatDate(value: string | Date | null | undefined): string {
   if (!value) return "—";
   return new Date(value).toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
+    timeZone: SHOP_TIME_ZONE,
   });
 }
 
@@ -32,7 +49,47 @@ export function formatDateTime(value: string | Date | null | undefined): string 
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: SHOP_TIME_ZONE,
   });
+}
+
+/**
+ * A stored instant, as `<input type="datetime-local">` wants to receive it:
+ * a wall-clock reading with no zone, which the browser shows back verbatim.
+ *
+ * Shifted into shop time first, then read through `toISOString` -- which
+ * always renders UTC, and is therefore reading WIB's wall clock once the
+ * instant has been moved by the offset.
+ */
+export function toShopDateTimeInput(value: string | Date | null | undefined): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Date(date.getTime() + SHOP_OFFSET_MS).toISOString().slice(0, 16);
+}
+
+/**
+ * The inverse: what the operator typed, understood as shop time, back to a
+ * real instant.
+ *
+ * An empty box returns null, which is how the admin says "there is no such
+ * date" -- an order that has not shipped, rather than one that shipped at
+ * midnight on the epoch.
+ */
+export function fromShopDateTimeInput(
+  value: string | null | undefined,
+): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  // A datetime-local field yields "YYYY-MM-DDTHH:mm", but yields seconds too
+  // if it was given a step. Normalise before parsing rather than assuming.
+  const withSeconds = trimmed.length === 16 ? `${trimmed}:00` : trimmed;
+  const parsed = Date.parse(`${withSeconds}Z`);
+  if (Number.isNaN(parsed)) return null;
+
+  return new Date(parsed - SHOP_OFFSET_MS).toISOString();
 }
 
 /** URL-safe slug. Used by the admin editors so the operator can type a title

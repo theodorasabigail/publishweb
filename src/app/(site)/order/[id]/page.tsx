@@ -231,8 +231,15 @@ export default async function OrderPage({
             {order.shipping_address.phone}
           </address>
 
-          {order.tracking_number && (
+          {order.shipped_at && (
             <p className="mt-4 text-sm">
+              <span className="text-sea-800">Sent:</span>{" "}
+              {formatDateTime(order.shipped_at)}
+            </p>
+          )}
+
+          {order.tracking_number && (
+            <p className="mt-1 text-sm">
               <span className="text-sea-800">Tracking:</span>{" "}
               <span className="font-mono">{order.tracking_number}</span>
             </p>

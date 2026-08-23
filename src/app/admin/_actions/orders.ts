@@ -1,9 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { ORDER_STATUSES, type OrderStatus } from "@/lib/types";
+import {
+  CHANNEL_LABELS,
+  ORDER_STATUSES,
+  type OrderStatus,
+  type SalesChannel,
+  type ShippingAddressSnapshot,
+} from "@/lib/types";
 import { sendOrderConfirmation, sendOrderShipped } from "@/lib/email/notify";
-import { adminClient, optionalText, text } from "./guard";
+import { fromShopDateTimeInput } from "@/lib/utils";
+import { adminClient, describeDbError, optionalText, text } from "./guard";
 
 export async function updateOrderStatus(formData: FormData) {
   const { supabase } = await adminClient();
@@ -34,8 +41,24 @@ export async function updateOrderStatus(formData: FormData) {
     const { error } = await supabase.rpc("cancel_order", { p_order_id: id });
     if (error) throw new Error("Could not cancel the order.");
   } else {
-    const { error } = await supabase.from("orders").update({ status }).eq("id", id);
-    if (error) throw new Error("Could not update the order.");
+    // Marking an order shipped records when, if nothing has yet. Only when it
+    // is missing: re-selecting "shipped" on an order that already shipped
+    // must not move the date to today, and a date the operator corrected by
+    // hand is more accurate than the moment they clicked the dropdown.
+    const patch: { status: OrderStatus; shipped_at?: string } = { status };
+    if (status === "shipped") {
+      const { data: existing } = await supabase
+        .from("orders")
+        .select("shipped_at")
+        .eq("id", id)
+        .maybeSingle();
+      if (!(existing as { shipped_at: string | null } | null)?.shipped_at) {
+        patch.shipped_at = new Date().toISOString();
+      }
+    }
+
+    const { error } = await supabase.from("orders").update(patch).eq("id", id);
+    if (error) throw new Error(describeDbError(error, "Could not update the order."));
 
     // Covers marking an order shipped after the tracking number was already
     // saved. Guarded on the tracking number, so doing both in either order
@@ -68,4 +91,91 @@ export async function updateOrderFulfilment(formData: FormData) {
 
   revalidatePath(`/admin/orders/${id}`);
   revalidatePath(`/order/${id}`);
+}
+
+/**
+ * Correct the details of an order that has already been written.
+ *
+ * Everything here is bookkeeping: which conversation an order came from, the
+ * address it is going to, and the two dates that matter — when the money
+ * arrived and when the parcel left. None of it moves stock, money or loyalty
+ * points, and that is the line this action does not cross.
+ *
+ * `paid_at` is the one that could. Setting it on an order that was never paid
+ * would produce an order that looks settled while its stock is still on the
+ * shelf and its points were never awarded, so that case is refused here and
+ * the operator is pointed at the status control, which does the real work. A
+ * *correction* to an already-paid order's date is only a correction, and is
+ * allowed.
+ */
+export async function updateOrderDetails(formData: FormData) {
+  const { supabase } = await adminClient();
+  const id = text(formData, "id");
+
+  const channel = text(formData, "channel") as SalesChannel;
+  if (!(channel in CHANNEL_LABELS)) {
+    throw new Error("Unknown sales channel.");
+  }
+
+  const { data: current } = await supabase
+    .from("orders")
+    .select("paid_at")
+    .eq("id", id)
+    .maybeSingle();
+  const wasPaid = Boolean((current as { paid_at: string | null } | null)?.paid_at);
+
+  const paidAt = fromShopDateTimeInput(optionalText(formData, "paid_at"));
+  if (paidAt && !wasPaid) {
+    throw new Error(
+      "This order has not been paid yet, so it has no payment date to correct. " +
+        "Use the status control to mark it paid — that takes the stock down and " +
+        "awards points, which typing a date here would not.",
+    );
+  }
+  if (!paidAt && wasPaid) {
+    throw new Error(
+      "An order that has been paid cannot have its payment date removed. " +
+        "If it was marked paid by mistake, cancel it instead.",
+    );
+  }
+
+  // An address is either recorded in full or not at all. A half-written one is
+  // worse than none: the courier form would silently take it.
+  const recipient = optionalText(formData, "recipient_name");
+  const address: ShippingAddressSnapshot | null = recipient
+    ? {
+        recipient_name: recipient,
+        phone: text(formData, "phone"),
+        email: optionalText(formData, "email"),
+        line1: text(formData, "line1"),
+        line2: optionalText(formData, "line2"),
+        city: text(formData, "city"),
+        province: optionalText(formData, "province"),
+        postal_code: optionalText(formData, "postal_code"),
+        country: text(formData, "country") || "ID",
+      }
+    : null;
+
+  if (address && (!address.phone || !address.line1 || !address.city)) {
+    throw new Error("An address needs at least a phone number, a street and a city.");
+  }
+
+  const { error } = await supabase
+    .from("orders")
+    .update({
+      channel,
+      channel_reference: optionalText(formData, "channel_reference"),
+      paid_at: paidAt,
+      shipped_at: fromShopDateTimeInput(optionalText(formData, "shipped_at")),
+      shipping_address: address,
+    })
+    .eq("id", id);
+
+  if (error) throw new Error(describeDbError(error, "Could not save the corrections."));
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${id}`);
+  revalidatePath(`/order/${id}`);
+  // The channel a sale is filed under changes what the reports say.
+  revalidatePath("/admin/reports");
 }

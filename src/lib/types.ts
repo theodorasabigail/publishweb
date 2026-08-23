@@ -248,6 +248,10 @@ export interface Order {
   shipped_email_tracking: string | null;
   created_at: string;
   paid_at: string | null;
+  /** When the parcel actually left. Stamped the first time an order is marked
+   *  shipped, and correctable afterwards — a parcel is often posted a day
+   *  before anyone gets round to updating the site. */
+  shipped_at: string | null;
 }
 
 export interface OrderWithItems extends Order {
