@@ -86,19 +86,28 @@ export const FLAVOUR_SWATCH_RING_COLOR = "rgba(15,32,36,0.18)";
 export const FLAVOUR_SWATCH_RING = `1px solid ${FLAVOUR_SWATCH_RING_COLOR}`;
 
 /**
- * The colour a product is shown in.
+ * What a coffee with no flavour level yet is shown in.
  *
- * The flavour level when it has one, and only then the operator-chosen accent.
+ * Deliberately a neutral off the brand's own scale rather than a seventh
+ * colour: it has to read as "not set" at a glance, next to six colours that
+ * all mean something. Anything with character would look like a meaning
+ * nobody could look up.
+ */
+export const UNSET_FLAVOUR_COLOUR = "#e3ecee";
+
+/**
+ * The colour a product is shown in.
  *
  * There were two colour systems competing here: `accent_color`, an arbitrary
  * per-product colour from the original spec, and the flavour scale, which
  * actually means something and is printed on the bag. A card in one colour
  * with a small dot in the other told the customer nothing and quietly
- * contradicted the packaging. The meaningful one wins.
+ * contradicted the packaging.
+ *
+ * The arbitrary one is gone now. What a coffee looks like follows from what it
+ * tastes like, and there is exactly one place — FLAVOUR_LEVELS — where that
+ * mapping lives.
  */
-export function productColour(product: {
-  flavour_level: number | null;
-  accent_color: string;
-}): string {
-  return flavourFor(product.flavour_level)?.hex ?? product.accent_color;
+export function productColour(product: { flavour_level: number | null }): string {
+  return flavourFor(product.flavour_level)?.hex ?? UNSET_FLAVOUR_COLOUR;
 }

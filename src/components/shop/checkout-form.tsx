@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/components/cart-provider";
+import { AreaLookup, areaSummary } from "@/components/shop/address-fields";
 import type { ShippingQuote } from "@/lib/shipping";
 import type { Address } from "@/lib/types";
 import { formatIDR } from "@/lib/utils";
@@ -66,10 +67,13 @@ export function CheckoutForm({
     phone: preset?.phone ?? "",
     line1: preset?.line1 ?? "",
     line2: preset?.line2 ?? "",
+    village: preset?.village ?? "",
+    district: preset?.district ?? "",
     city: preset?.city ?? "",
     province: preset?.province ?? "",
     postal_code: preset?.postal_code ?? "",
     country: preset?.country ?? "ID",
+    area_id: preset?.area_id ?? null,
   });
   const [note, setNote] = useState("");
   const [saveAddress, setSaveAddress] = useState<boolean>(isSignedIn && !preset);
@@ -90,9 +94,10 @@ export function CheckoutForm({
         country: form.country,
         province: form.province,
         postalCode: form.postal_code,
+        areaId: form.area_id,
         items: lines.map((line) => [line.variantId, line.quantity]),
       }),
-    [form.country, form.province, form.postal_code, lines],
+    [form.country, form.province, form.postal_code, form.area_id, lines],
   );
 
   const requestRef = useRef(0);
@@ -117,6 +122,7 @@ export function CheckoutForm({
             province: form.province || null,
             city: form.city || null,
             postalCode: form.postal_code || null,
+            areaId: form.area_id || null,
             items: lines.map((line) => ({
               variantId: line.variantId,
               quantity: line.quantity,
@@ -145,7 +151,7 @@ export function CheckoutForm({
     }, 400);
 
     return () => window.clearTimeout(timer);
-  }, [quoteKey, form.country, form.province, form.city, form.postal_code, lines]);
+  }, [quoteKey, form.country, form.province, form.city, form.postal_code, form.area_id, lines]);
 
   // A quote only counts while there is something to ship it to.
   const quote = lines.length && form.country ? fetchedQuote : null;
@@ -260,10 +266,13 @@ export function CheckoutForm({
                     phone: address.phone,
                     line1: address.line1,
                     line2: address.line2 ?? "",
+                    village: address.village ?? "",
+                    district: address.district ?? "",
                     city: address.city,
                     province: address.province ?? "",
                     postal_code: address.postal_code ?? "",
                     country: address.country,
+                    area_id: address.area_id ?? null,
                   });
                 }}
                 defaultValue={preset?.id}
@@ -331,6 +340,47 @@ export function CheckoutForm({
                 ))}
               </select>
             </Field>
+
+            {!isInternational && (
+              <div className="sm:col-span-2">
+                <Field label="Cari kelurahan / kecamatan">
+                  <AreaLookup
+                    chosen={areaSummary(form)}
+                    idPrefix="checkout-area"
+                    onPick={(area) =>
+                      setForm((current) => ({
+                        ...current,
+                        village: area.village ?? "",
+                        district: area.district ?? "",
+                        city: area.city ?? "",
+                        province: area.province ?? "",
+                        postal_code: area.postalCode ?? "",
+                        area_id: area.id,
+                      }))
+                    }
+                  />
+                </Field>
+              </div>
+            )}
+
+            {!isInternational && (
+              <>
+                <Field label="Kelurahan / desa">
+                  <input
+                    className="input"
+                    value={form.village}
+                    onChange={(event) => update("village", event.target.value)}
+                  />
+                </Field>
+                <Field label="Kecamatan">
+                  <input
+                    className="input"
+                    value={form.district}
+                    onChange={(event) => update("district", event.target.value)}
+                  />
+                </Field>
+              </>
+            )}
 
             <Field label={isInternational ? "State / region" : "Provinsi"} required>
               {form.country === "ID" ? (

@@ -72,10 +72,14 @@ export function createBiteshipProvider(supabase: SupabaseClient): ShippingProvid
 
       const originPostal = Number(settings?.origin_postal_code);
       const destinationPostal = Number(destination.postalCode);
+      // A postal code can cover several kelurahan, and couriers price the
+      // area rather than the code. When the customer picked their area from
+      // the lookup we know exactly which one, so we say so.
+      const destinationArea = destination.areaId?.trim() || null;
 
       // Without both ends there is nothing to ask, and asking anyway would
       // spend a request to get an error back.
-      if (!Number.isFinite(originPostal) || !Number.isFinite(destinationPostal)) {
+      if (!Number.isFinite(originPostal) || (!destinationArea && !Number.isFinite(destinationPostal))) {
         return fallback();
       }
 
@@ -83,7 +87,12 @@ export function createBiteshipProvider(supabase: SupabaseClient): ShippingProvid
 
       const body: BiteshipRateRequest = {
         origin_postal_code: originPostal,
-        destination_postal_code: destinationPostal,
+        // One or the other, never both: sending a code and an area that
+        // disagree leaves the courier to pick, and which one it picks is not
+        // documented.
+        ...(destinationArea
+          ? { destination_area_id: destinationArea }
+          : { destination_postal_code: destinationPostal }),
         couriers: courierList(),
         // One aggregated item rather than one per line: couriers price on total
         // weight and declared value, and a single item keeps the request small.

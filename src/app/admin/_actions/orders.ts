@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import {
   CHANNEL_LABELS,
   ORDER_STATUSES,
@@ -75,20 +76,53 @@ export async function updateOrderStatus(formData: FormData) {
   revalidatePath("/shop");
 }
 
+/**
+ * Record how an order is going out.
+ *
+ * Saving a tracking number *is* shipping the order, so it says so. It used to
+ * email the customer that their parcel was on its way while leaving the order
+ * reading "paid" in the admin with no despatch date — the one person who could
+ * answer "did that go out?" was the last to be told.
+ *
+ * Only ever forwards: an order already completed is not walked back to
+ * shipped, and a despatch date corrected by hand is not overwritten by the
+ * moment the form was saved.
+ */
 export async function updateOrderFulfilment(formData: FormData) {
   const { supabase } = await adminClient();
   const id = text(formData, "id");
+  const tracking = optionalText(formData, "tracking_number");
 
-  await supabase
+  const { data: existing } = await supabase
     .from("orders")
-    .update({
-      tracking_number: optionalText(formData, "tracking_number"),
-      courier_note: optionalText(formData, "courier_note"),
-    })
-    .eq("id", id);
+    .select("status, shipped_at")
+    .eq("id", id)
+    .maybeSingle();
+  const before = existing as { status: OrderStatus; shipped_at: string | null } | null;
+
+  const patch: {
+    tracking_number: string | null;
+    courier_note: string | null;
+    status?: OrderStatus;
+    shipped_at?: string;
+  } = {
+    tracking_number: tracking,
+    courier_note: optionalText(formData, "courier_note"),
+  };
+
+  if (tracking && before) {
+    // "Completed" and "cancelled" are both past "shipped"; nothing else is.
+    const notYetShipped = ["pending", "paid", "roasting"].includes(before.status);
+    if (notYetShipped) patch.status = "shipped";
+    if (!before.shipped_at) patch.shipped_at = new Date().toISOString();
+  }
+
+  const { error } = await supabase.from("orders").update(patch).eq("id", id);
+  if (error) throw new Error(describeDbError(error, "Could not save the shipping details."));
 
   await sendOrderShipped(id);
 
+  revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${id}`);
   revalidatePath(`/order/${id}`);
 }
@@ -124,6 +158,15 @@ export async function updateOrderDetails(formData: FormData) {
     .maybeSingle();
   const wasPaid = Boolean((current as { paid_at: string | null } | null)?.paid_at);
 
+  // When the order was actually agreed, which for one written up days later
+  // is not when it was typed in. Refused if it is in the future: a sale that
+  // has not happened yet is always a slip of the keyboard, and it would sort
+  // to the top of every list until the date came round.
+  const placedAt = fromShopDateTimeInput(optionalText(formData, "created_at"));
+  if (placedAt && Date.parse(placedAt) > Date.now()) {
+    throw new Error("An order cannot have been placed in the future.");
+  }
+
   const paidAt = fromShopDateTimeInput(optionalText(formData, "paid_at"));
   if (paidAt && !wasPaid) {
     throw new Error(
@@ -149,10 +192,16 @@ export async function updateOrderDetails(formData: FormData) {
         email: optionalText(formData, "email"),
         line1: text(formData, "line1"),
         line2: optionalText(formData, "line2"),
+        village: optionalText(formData, "village"),
+        district: optionalText(formData, "district"),
         city: text(formData, "city"),
         province: optionalText(formData, "province"),
         postal_code: optionalText(formData, "postal_code"),
         country: text(formData, "country") || "ID",
+        // Carried through rather than re-derived: it identifies the place the
+        // customer actually picked, and a hand-edit to the words around it is
+        // handled by the form, which clears this when they no longer agree.
+        area_id: optionalText(formData, "area_id"),
       }
     : null;
 
@@ -165,6 +214,7 @@ export async function updateOrderDetails(formData: FormData) {
     .update({
       channel,
       channel_reference: optionalText(formData, "channel_reference"),
+      ...(placedAt ? { created_at: placedAt } : {}),
       paid_at: paidAt,
       shipped_at: fromShopDateTimeInput(optionalText(formData, "shipped_at")),
       shipping_address: address,
@@ -178,4 +228,99 @@ export async function updateOrderDetails(formData: FormData) {
   revalidatePath(`/order/${id}`);
   // The channel a sale is filed under changes what the reports say.
   revalidatePath("/admin/reports");
+}
+
+/**
+ * Undo an order that was entered wrong.
+ *
+ * "Cancelled" and "voided" say different things and this is the second one.
+ * Cancelled means the order was real and is not going ahead; voided means it
+ * was never real — the wrong coffee rung up, a WhatsApp order entered twice —
+ * so leaving it in the day's takings misreports the day.
+ *
+ * The reversal is the database's job, in one transaction: release any hold,
+ * put the coffee back if it had been paid for, take the points back through
+ * the ledger so the customer's history still adds up. Restoring re-applies
+ * all of it, which is what makes voiding safe to reach for.
+ */
+export async function voidOrder(formData: FormData) {
+  const { supabase, session } = await adminClient();
+  const id = text(formData, "id");
+
+  const { error } = await supabase.rpc("void_order", {
+    p_order_id: id,
+    p_reason: optionalText(formData, "reason"),
+    p_by: session.userId,
+  });
+
+  // The function's own messages explain what it refused and why, so they go
+  // through unchanged rather than being flattened into something generic.
+  if (error) throw new Error(describeDbError(error, error.message ?? "Could not void the order."));
+
+  revalidateOrder(id);
+}
+
+/** Put a voided order back, stock and points with it. */
+export async function restoreOrder(formData: FormData) {
+  const { supabase } = await adminClient();
+  const id = text(formData, "id");
+
+  const { error } = await supabase.rpc("restore_order", { p_order_id: id });
+  if (error) {
+    throw new Error(describeDbError(error, error.message ?? "Could not restore the order."));
+  }
+
+  revalidateOrder(id);
+}
+
+/**
+ * Remove a voided order for good.
+ *
+ * Guarded twice over: the database refuses unless the order is already voided
+ * (so its stock and points are already back), and the operator has to type the
+ * order's reference to confirm. There is no undo past this point, which is
+ * exactly why it asks.
+ */
+export async function deleteOrder(formData: FormData) {
+  const { supabase } = await adminClient();
+  const id = text(formData, "id");
+
+  const { data: order } = await supabase
+    .from("orders")
+    .select("human_ref")
+    .eq("id", id)
+    .maybeSingle();
+
+  const reference = (order as { human_ref: string } | null)?.human_ref;
+  if (!reference) throw new Error("That order no longer exists.");
+
+  if (text(formData, "confirm").toUpperCase() !== reference.toUpperCase()) {
+    throw new Error(
+      `To delete this order for good, type its reference — ${reference} — into the box.`,
+    );
+  }
+
+  const { error } = await supabase.rpc("delete_order", { p_order_id: id });
+  if (error) {
+    throw new Error(describeDbError(error, error.message ?? "Could not delete the order."));
+  }
+
+  revalidatePath("/admin/orders");
+  revalidatePath("/admin/reports");
+  revalidatePath("/admin");
+  revalidatePath("/");
+  revalidatePath("/shop");
+  // The order's own page is gone, so there is nowhere to go back to.
+  redirect("/admin/orders");
+}
+
+/** Everywhere an order's existence or stock is reflected. */
+function revalidateOrder(id: string) {
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${id}`);
+  revalidatePath(`/order/${id}`);
+  revalidatePath("/admin/reports");
+  revalidatePath("/admin");
+  revalidatePath("/");
+  revalidatePath("/shop");
 }

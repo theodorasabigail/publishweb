@@ -2371,3 +2371,1472 @@ comment on column public.orders.shipped_at is
 -- index for. Orders that shipped are not the ones being chased.
 create index if not exists orders_awaiting_shipment_idx
   on public.orders(paid_at) where shipped_at is null and paid_at is not null;
+
+-- ===========================================================================
+-- migrations/0021_void_orders.sql
+-- ===========================================================================
+
+-- ===========================================================================
+-- Publish Coffee Roasters -- undoing an order that was typed wrong
+--
+-- Orders written by hand can be written wrong: the wrong coffee rung up at the
+-- counter, a WhatsApp order entered twice, a size picked from the row above.
+-- Until now the only way back was `cancelled`, which is a different statement.
+-- Cancelled means "this order was real and is not going ahead". A miskeyed one
+-- was never real at all, and leaving it in the takings misreports the day.
+--
+-- So: voiding. It reverses everything the order did -- releases any hold, puts
+-- the coffee back if it had been paid for, takes back the loyalty points --
+-- and then hides the order from the books while keeping the row, so there is
+-- still a trace that something was entered and undone. Restoring puts it all
+-- back, which is what makes voiding safe to reach for.
+--
+-- Deleting outright is separate, deliberate, and only reachable once an order
+-- is already voided. By then the reversal has happened, so a delete is only
+-- the removal of a record -- never a silent change to stock or points.
+--
+-- Neither applies to website orders. A real payment went through a real
+-- provider for those, and the shop's records should keep matching it.
+--
+-- Run this in Supabase -> SQL Editor, after 0020.
+-- ===========================================================================
+
+alter table public.orders
+  add column if not exists voided_at timestamptz,
+  add column if not exists voided_reason text,
+  add column if not exists voided_by uuid references public.profiles(id) on delete set null,
+  -- Whether this order was holding stock when it was voided. The hold itself
+  -- is released, so `stock_reserved_at` is cleared and cannot answer this --
+  -- but restoring has to know whether to take the hold back out again.
+  add column if not exists voided_held_stock boolean not null default false;
+
+comment on column public.orders.voided_at is
+  'Set when an order was undone as a mistake. A voided order keeps its row but is excluded from every report, list and total.';
+comment on column public.orders.voided_held_stock is
+  'Whether the order held reserved stock at the moment it was voided, so restoring can put the hold back.';
+
+-- Voided orders are the exception everywhere, so the index that matters is the
+-- one over everything that is *not* voided.
+create index if not exists orders_live_created_idx
+  on public.orders(created_at desc) where voided_at is null;
+
+-- --------------------------------------------------------------------------
+-- Void an order: undo everything it did, keep the record.
+-- --------------------------------------------------------------------------
+create or replace function public.void_order(
+  p_order_id uuid,
+  p_reason text default null,
+  p_by uuid default null
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order public.orders;
+  v_held boolean;
+begin
+  select * into v_order from public.orders where id = p_order_id for update;
+  if v_order is null then
+    raise exception 'order % not found', p_order_id;
+  end if;
+
+  if v_order.channel = 'online' then
+    raise exception 'A website order cannot be voided -- a real payment went through for it. Cancel it instead, so the record still matches what the customer was charged.';
+  end if;
+
+  -- Idempotent: voiding twice must not put the stock back twice.
+  if v_order.voided_at is not null then
+    return v_order;
+  end if;
+
+  v_held := v_order.stock_reserved_at is not null;
+  if v_held then
+    perform public.release_order_stock(p_order_id);
+  end if;
+
+  -- A paid order already turned its coffee into a real decrement, so undoing
+  -- it means putting actual stock back on the shelf.
+  if v_order.paid_at is not null then
+    update public.product_variants v
+       set stock = v.stock + i.qty
+      from (
+        select variant_id, sum(quantity)::integer as qty
+          from public.order_items
+         where order_id = p_order_id and variant_id is not null
+         group by variant_id
+      ) i
+     where v.id = i.variant_id;
+
+    -- Points come back through the ledger rather than by editing the balance,
+    -- so the customer's history shows the award and the reversal as two
+    -- entries and still adds up.
+    if v_order.user_id is not null and v_order.points_awarded > 0 then
+      perform public.award_loyalty_points(
+        v_order.user_id,
+        -v_order.points_awarded,
+        'Voided order ' || v_order.human_ref,
+        p_order_id,
+        p_by
+      );
+    end if;
+  end if;
+
+  update public.orders
+     set voided_at = now(),
+         voided_reason = p_reason,
+         voided_by = p_by,
+         voided_held_stock = v_held
+   where id = p_order_id
+  returning * into v_order;
+
+  return v_order;
+end;
+$$;
+
+-- --------------------------------------------------------------------------
+-- Restore a voided order: re-apply what voiding undid.
+--
+-- Checked before anything is written, because the coffee may have been sold to
+-- somebody else in the meantime. Refusing with a message the operator can act
+-- on beats restoring an order the shop can no longer fulfil.
+-- --------------------------------------------------------------------------
+create or replace function public.restore_order(p_order_id uuid)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order public.orders;
+  v_item record;
+  v_available integer;
+  v_name text;
+begin
+  select * into v_order from public.orders where id = p_order_id for update;
+  if v_order is null then
+    raise exception 'order % not found', p_order_id;
+  end if;
+  if v_order.voided_at is null then
+    return v_order;
+  end if;
+
+  -- Pass one: confirm every line can be honoured, before touching anything.
+  if v_order.paid_at is not null or v_order.voided_held_stock then
+    for v_item in
+      select i.variant_id, sum(i.quantity)::integer as qty
+        from public.order_items i
+       where i.order_id = p_order_id and i.variant_id is not null
+       group by i.variant_id
+    loop
+      select v.available, p.name
+        into v_available, v_name
+        from public.product_variants v
+        join public.products p on p.id = v.product_id
+       where v.id = v_item.variant_id
+         for update of v;
+
+      if v_available is null then
+        raise exception 'One of the coffees on this order no longer exists, so it cannot be put back.';
+      end if;
+      if v_available < v_item.qty then
+        raise exception 'Only % of % is free, and this order needs %. Adjust the stock first, then restore it.',
+          v_available, coalesce(v_name, 'that coffee'), v_item.qty;
+      end if;
+    end loop;
+  end if;
+
+  -- Pass two: re-apply.
+  if v_order.paid_at is not null then
+    update public.product_variants v
+       set stock = greatest(0, v.stock - i.qty)
+      from (
+        select variant_id, sum(quantity)::integer as qty
+          from public.order_items
+         where order_id = p_order_id and variant_id is not null
+         group by variant_id
+      ) i
+     where v.id = i.variant_id;
+
+    if v_order.user_id is not null and v_order.points_awarded > 0 then
+      perform public.award_loyalty_points(
+        v_order.user_id,
+        v_order.points_awarded,
+        'Restored order ' || v_order.human_ref,
+        p_order_id,
+        null
+      );
+    end if;
+  end if;
+
+  if v_order.voided_held_stock then
+    update public.product_variants v
+       set reserved = v.reserved + i.qty
+      from (
+        select variant_id, sum(quantity)::integer as qty
+          from public.order_items
+         where order_id = p_order_id and variant_id is not null
+         group by variant_id
+      ) i
+     where v.id = i.variant_id;
+  end if;
+
+  update public.orders
+     set voided_at = null,
+         voided_reason = null,
+         voided_by = null,
+         voided_held_stock = false,
+         -- The local variable, not the column: inside an UPDATE a bare column
+         -- reads its old value, which is right but far too subtle to lean on.
+         stock_reserved_at = case
+           when v_order.voided_held_stock then now()
+           else stock_reserved_at
+         end
+   where id = p_order_id
+  returning * into v_order;
+
+  return v_order;
+end;
+$$;
+
+-- --------------------------------------------------------------------------
+-- Remove a voided order for good.
+--
+-- Only reachable once an order is voided, which is what makes this safe: the
+-- stock and the points were already put back, so this deletes a record and
+-- nothing else. Order lines go with it; the loyalty ledger keeps its entries,
+-- naming the order in their text, so a customer's points history still adds up
+-- after the order itself is gone.
+-- --------------------------------------------------------------------------
+create or replace function public.delete_order(p_order_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order public.orders;
+begin
+  select * into v_order from public.orders where id = p_order_id for update;
+  if v_order is null then
+    raise exception 'order % not found', p_order_id;
+  end if;
+
+  if v_order.channel = 'online' then
+    raise exception 'A website order cannot be deleted -- a real payment went through for it.';
+  end if;
+
+  if v_order.voided_at is null then
+    raise exception 'Void this order first. Voiding is what puts its stock and points back; deleting only removes the record, and doing that to a live order would leave your stock wrong.';
+  end if;
+
+  delete from public.orders where id = p_order_id;
+end;
+$$;
+
+revoke all on function public.void_order(uuid, text, uuid) from anon, authenticated;
+revoke all on function public.restore_order(uuid) from anon, authenticated;
+revoke all on function public.delete_order(uuid) from anon, authenticated;
+
+-- --------------------------------------------------------------------------
+-- Every report learns to skip voided orders.
+--
+-- Recreated wholesale rather than patched, because a report that counts a
+-- voided order is the entire failure this feature exists to prevent, and
+-- "which of these four had the filter added" is not a question worth having.
+-- --------------------------------------------------------------------------
+create or replace function public.sales_summary(
+  p_from timestamptz,
+  p_to timestamptz
+)
+returns table (
+  channel text,
+  payment_method text,
+  order_count bigint,
+  gross_idr bigint
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    o.channel::text,
+    coalesce(o.payment_method, 'unknown'),
+    count(*)::bigint,
+    coalesce(sum(o.total_idr), 0)::bigint
+  from public.orders o
+  where o.paid_at >= p_from
+    and o.paid_at < p_to
+    and o.status <> 'cancelled'
+    and o.voided_at is null
+  group by o.channel, coalesce(o.payment_method, 'unknown')
+  order by o.channel, coalesce(o.payment_method, 'unknown');
+$$;
+
+drop function if exists public.product_sales_report(timestamptz, timestamptz);
+
+create or replace function public.product_sales_report(
+  p_from timestamptz,
+  p_to timestamptz
+)
+returns table (
+  product_name text,
+  size text,
+  units_sold bigint,
+  gross_idr bigint,
+  online_units bigint,
+  pos_units bigint,
+  manual_units bigint
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    i.name_snapshot,
+    i.size_snapshot,
+    sum(i.quantity)::bigint,
+    sum(i.quantity * i.unit_price_idr)::bigint,
+    coalesce(sum(i.quantity) filter (where o.channel = 'online'), 0)::bigint,
+    coalesce(sum(i.quantity) filter (where o.channel = 'pos'), 0)::bigint,
+    coalesce(sum(i.quantity) filter (where o.channel not in ('online', 'pos')), 0)::bigint
+  from public.order_items i
+  join public.orders o on o.id = i.order_id
+  where o.paid_at >= p_from
+    and o.paid_at < p_to
+    and o.status <> 'cancelled'
+    and o.voided_at is null
+  group by i.name_snapshot, i.size_snapshot
+  order by sum(i.quantity) desc;
+$$;
+
+create or replace function public.shipping_summary(
+  p_from timestamptz,
+  p_to timestamptz
+)
+returns table (
+  shipping_zone text,
+  order_count bigint,
+  charged_idr bigint,
+  absorbed_idr bigint
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    coalesce(o.shipping_zone, 'unknown'),
+    count(*)::bigint,
+    coalesce(sum(o.shipping_idr), 0)::bigint,
+    coalesce(sum(o.shipping_discount_idr), 0)::bigint
+  from public.orders o
+  where o.paid_at >= p_from
+    and o.paid_at < p_to
+    and o.status <> 'cancelled'
+    and o.voided_at is null
+    and o.channel = 'online'
+  group by coalesce(o.shipping_zone, 'unknown')
+  order by coalesce(sum(o.shipping_discount_idr), 0) desc;
+$$;
+
+create or replace function public.courier_price_variances(
+  p_from timestamptz,
+  p_to timestamptz
+)
+returns table (
+  order_id uuid,
+  human_ref text,
+  shipping_charged_idr integer,
+  courier_charged_idr integer,
+  variance_idr integer,
+  created_at timestamptz
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    o.id,
+    o.human_ref,
+    o.shipping_idr,
+    o.courier_charged_idr,
+    (o.courier_charged_idr - o.shipping_idr)::integer,
+    o.created_at
+  from public.orders o
+  cross join lateral (
+    select coalesce(courier_variance_alert_idr, 10000) as threshold
+    from public.site_settings where id = true
+  ) s
+  where o.courier_charged_idr is not null
+    and o.created_at >= p_from
+    and o.created_at < p_to
+    and o.voided_at is null
+    and (o.courier_charged_idr - o.shipping_idr) >= s.threshold
+  order by (o.courier_charged_idr - o.shipping_idr) desc;
+$$;
+
+revoke all on function public.sales_summary(timestamptz, timestamptz) from anon, authenticated;
+revoke all on function public.product_sales_report(timestamptz, timestamptz) from anon, authenticated;
+revoke all on function public.shipping_summary(timestamptz, timestamptz) from anon, authenticated;
+revoke all on function public.courier_price_variances(timestamptz, timestamptz) from anon, authenticated;
+
+-- ===========================================================================
+-- migrations/0022_order_tracking_gaps.sql
+-- ===========================================================================
+
+-- ===========================================================================
+-- Publish Coffee Roasters -- closing the gaps around manual orders
+--
+-- 0019 made orders from WhatsApp and Instagram first-class in the admin, but
+-- only in the admin. Everything pointing outwards -- the receipt, the tracking
+-- email, the shipping report -- still quietly assumed an order came from the
+-- website. This file fixes the parts of that which live in the database; the
+-- rest is in the application.
+--
+-- Run this in Supabase -> SQL Editor, after 0021.
+-- ===========================================================================
+
+-- --------------------------------------------------------------------------
+-- One-time repair: unstick receipts that were claimed but never sent.
+--
+-- `sendOrderConfirmation` marks an order as "receipt sent" *before* checking
+-- whether it should send one, and the check it then failed was a channel test.
+-- Every manual order that reached it was therefore stamped as notified without
+-- an email ever going out -- and, worse, could never be notified afterwards,
+-- because the stamp is what stops a second send.
+--
+-- Clearing the stamp lets those orders be emailed properly now that the
+-- application no longer refuses to. It has to happen exactly once: after this,
+-- a manual order's stamp is a real one, and clearing it again on the next
+-- paste of setup.sql would send everybody a duplicate receipt. So it is
+-- latched on a flag rather than left to run every time.
+-- --------------------------------------------------------------------------
+alter table public.site_settings
+  add column if not exists manual_receipt_claims_repaired boolean not null default false;
+
+do $$
+declare
+  v_done boolean;
+begin
+  select coalesce(manual_receipt_claims_repaired, false)
+    into v_done from public.site_settings where id = true;
+
+  if coalesce(v_done, false) then
+    return;
+  end if;
+
+  update public.orders
+     set confirmation_email_sent_at = null
+   where channel <> 'online'
+     and confirmation_email_sent_at is not null;
+
+  update public.site_settings
+     set manual_receipt_claims_repaired = true
+   where id = true;
+end $$;
+
+comment on column public.site_settings.manual_receipt_claims_repaired is
+  'Latch for a one-time repair. Manual orders were once stamped as having been emailed a receipt without one being sent; this records that the bad stamps have been cleared, so re-running setup.sql cannot clear real ones and send duplicates.';
+
+-- --------------------------------------------------------------------------
+-- Shipping, counted wherever it was charged.
+--
+-- The report was written when only the website could ship, so it filtered to
+-- online orders. A WhatsApp order that charges for postage is shipping revenue
+-- like any other, and leaving it out understates both what was charged and
+-- what the roastery absorbed.
+--
+-- Manual orders carry no zone -- the operator agrees a price in the chat
+-- rather than reading it off a table -- so they group under a label that says
+-- so rather than under "unknown", which would read like a fault.
+-- --------------------------------------------------------------------------
+create or replace function public.shipping_summary(
+  p_from timestamptz,
+  p_to timestamptz
+)
+returns table (
+  shipping_zone text,
+  order_count bigint,
+  charged_idr bigint,
+  absorbed_idr bigint
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    coalesce(
+      o.shipping_zone,
+      case when o.channel = 'online' then 'unknown' else 'agreed by hand' end
+    ),
+    count(*)::bigint,
+    coalesce(sum(o.shipping_idr), 0)::bigint,
+    coalesce(sum(o.shipping_discount_idr), 0)::bigint
+  from public.orders o
+  where o.paid_at >= p_from
+    and o.paid_at < p_to
+    and o.status <> 'cancelled'
+    and o.voided_at is null
+    -- An order that was collected has no shipping to report on either side.
+    and (o.shipping_idr > 0 or o.shipping_discount_idr > 0)
+  group by 1
+  order by coalesce(sum(o.shipping_discount_idr), 0) desc;
+$$;
+
+-- --------------------------------------------------------------------------
+-- Find an order.
+--
+-- Filtering by status and channel only gets you so far; the question actually
+-- asked at the counter is "where is Anwar's order", and the answer might be
+-- under a reference, a phone number, a handle or a city.
+--
+-- Matching is by substring rather than by `ilike` with wrapped wildcards, so a
+-- `%` or `_` typed into the search box is a character to look for rather than
+-- a pattern that matches everything.
+-- --------------------------------------------------------------------------
+create or replace function public.search_orders(
+  p_query text default null,
+  p_status text default null,
+  p_channel text default null,
+  p_voided boolean default false,
+  p_limit integer default 200
+)
+returns setof public.orders
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select o.*
+  from public.orders o
+  where
+    -- Voided orders are their own view of the list, never mixed into it.
+    (p_voided is not true) = (o.voided_at is null)
+    and (p_status is null or p_status = '' or o.status::text = p_status)
+    and (p_channel is null or p_channel = '' or o.channel = p_channel)
+    and (
+      p_query is null or btrim(p_query) = ''
+      or position(lower(btrim(p_query)) in lower(o.human_ref)) > 0
+      or position(lower(btrim(p_query)) in lower(coalesce(o.channel_reference, ''))) > 0
+      or position(lower(btrim(p_query)) in lower(coalesce(o.guest_email, ''))) > 0
+      or position(lower(btrim(p_query)) in lower(coalesce(o.tracking_number, ''))) > 0
+      or position(lower(btrim(p_query)) in lower(coalesce(o.customer_note, ''))) > 0
+      or position(lower(btrim(p_query)) in lower(coalesce(o.shipping_address ->> 'recipient_name', ''))) > 0
+      or position(lower(btrim(p_query)) in lower(coalesce(o.shipping_address ->> 'phone', ''))) > 0
+      or position(lower(btrim(p_query)) in lower(coalesce(o.shipping_address ->> 'city', ''))) > 0
+    )
+  order by o.created_at desc
+  limit greatest(1, least(coalesce(p_limit, 200), 500));
+$$;
+
+revoke all on function public.shipping_summary(timestamptz, timestamptz) from anon, authenticated;
+revoke all on function public.search_orders(text, text, text, boolean, integer) from anon, authenticated;
+
+-- ===========================================================================
+-- migrations/0023_pending_loyalty.sql
+-- ===========================================================================
+
+-- ===========================================================================
+-- Publish Coffee Roasters -- points for people who do not have an account yet
+--
+-- Loyalty points only ever went to a signed-in customer. Everyone else -- the
+-- guest checking out online, and above all the WhatsApp regular who has never
+-- touched the website -- earned nothing, which is backwards: they are the ones
+-- an account most needs selling to.
+--
+-- Points now accrue against whatever the shop knows about the buyer, and wait.
+-- When that person signs up, the waiting points follow them in.
+--
+-- `profiles` is foreign-keyed to `auth.users`, so there is nowhere to hang
+-- points for somebody who has not signed up -- hence a table of their own,
+-- keyed on a contact detail rather than on a person.
+--
+-- Run this in Supabase -> SQL Editor, after 0022.
+-- ===========================================================================
+
+create table if not exists public.pending_loyalty (
+  id uuid primary key default gen_random_uuid(),
+  -- Which kind of contact detail this is keyed on. The distinction matters
+  -- because only one of them can be trusted to identify somebody: see
+  -- claim_pending_points below.
+  kind text not null check (kind in ('email', 'phone')),
+  identifier text not null,
+  points integer not null default 0 check (points >= 0),
+  lifetime_points integer not null default 0,
+  order_count integer not null default 0,
+  first_seen_at timestamptz not null default now(),
+  last_seen_at timestamptz not null default now(),
+  claimed_by uuid references public.profiles(id) on delete set null,
+  claimed_at timestamptz,
+  unique (kind, identifier)
+);
+
+create index if not exists pending_loyalty_unclaimed_idx
+  on public.pending_loyalty(last_seen_at desc) where claimed_at is null;
+
+alter table public.pending_loyalty enable row level security;
+
+drop policy if exists "pending_loyalty: admin only" on public.pending_loyalty;
+create policy "pending_loyalty: admin only" on public.pending_loyalty
+  for all using (public.is_admin()) with check (public.is_admin());
+
+comment on table public.pending_loyalty is
+  'Loyalty points earned by someone who had no account at the time. Keyed on a contact detail rather than a person, and emptied into a real profile when one turns up.';
+
+-- Which bucket an order's points went to, so voiding it can take them back out
+-- of the same place they went in.
+alter table public.orders
+  add column if not exists pending_loyalty_id uuid
+    references public.pending_loyalty(id) on delete set null;
+
+-- --------------------------------------------------------------------------
+-- Normalising a contact detail.
+--
+-- Two orders from the same person must land in the same bucket, and people do
+-- not type their own phone number the same way twice: 0812…, +62 812…,
+-- 62812…, with or without spaces and dashes. Everything is reduced to one
+-- form so those are one customer rather than four.
+-- --------------------------------------------------------------------------
+create or replace function public.normalise_loyalty_email(p_value text)
+returns text
+language sql
+immutable
+as $$
+  select nullif(lower(btrim(coalesce(p_value, ''))), '');
+$$;
+
+create or replace function public.normalise_loyalty_phone(p_value text)
+returns text
+language sql
+immutable
+as $$
+  select case
+    -- Too short to be a real number, so more likely a house number that found
+    -- its way into the wrong box. Better to hold no points than to pool
+    -- several people's under "12".
+    when length(digits) < 8 then null
+    when left(digits, 2) = '62' then digits
+    when left(digits, 1) = '0' then '62' || substr(digits, 2)
+    else digits
+  end
+  from (
+    select regexp_replace(coalesce(p_value, ''), '\D', '', 'g') as digits
+  ) cleaned;
+$$;
+
+-- --------------------------------------------------------------------------
+-- Put points aside for whoever this order belongs to.
+--
+-- Email is preferred over phone wherever both are known, because email is the
+-- one that can later be claimed without a person having to be believed.
+-- Returns null when the order carries no contact detail at all -- a walk-in
+-- counter sale -- in which case there is nobody to hold points for.
+-- --------------------------------------------------------------------------
+create or replace function public.credit_pending_points(
+  p_order_id uuid,
+  p_points integer
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order public.orders;
+  v_kind text;
+  v_identifier text;
+  v_bucket uuid;
+begin
+  if p_points is null or p_points <= 0 then
+    return null;
+  end if;
+
+  select * into v_order from public.orders where id = p_order_id;
+  if v_order is null then
+    return null;
+  end if;
+
+  v_identifier := public.normalise_loyalty_email(
+    coalesce(v_order.guest_email, v_order.shipping_address ->> 'email')
+  );
+
+  if v_identifier is not null then
+    v_kind := 'email';
+  else
+    v_identifier := public.normalise_loyalty_phone(
+      coalesce(
+        v_order.shipping_address ->> 'phone',
+        -- A WhatsApp order's reference *is* the customer's phone number.
+        case when v_order.channel = 'whatsapp' then v_order.channel_reference end
+      )
+    );
+    if v_identifier is not null then
+      v_kind := 'phone';
+    end if;
+  end if;
+
+  if v_identifier is null then
+    return null;
+  end if;
+
+  insert into public.pending_loyalty (kind, identifier, points, lifetime_points, order_count)
+  values (v_kind, v_identifier, p_points, p_points, 1)
+  on conflict (kind, identifier) do update
+     set points = pending_loyalty.points + excluded.points,
+         lifetime_points = pending_loyalty.lifetime_points + excluded.lifetime_points,
+         order_count = pending_loyalty.order_count + 1,
+         last_seen_at = now(),
+         -- Somebody who has already collected once and orders again as a guest
+         -- starts a fresh balance rather than reopening the old one.
+         claimed_by = null,
+         claimed_at = null
+  returning id into v_bucket;
+
+  update public.orders set pending_loyalty_id = v_bucket where id = p_order_id;
+  return v_bucket;
+end;
+$$;
+
+-- --------------------------------------------------------------------------
+-- Take them back out again, for an order that is being voided.
+--
+-- Floors at zero: if the points were already collected into a real account,
+-- the bucket is empty and there is nothing here to reclaim. Chasing them into
+-- the customer's account would mean taking points off somebody for a mistake
+-- the shop made.
+-- --------------------------------------------------------------------------
+create or replace function public.debit_pending_points(
+  p_order_id uuid,
+  p_points integer
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_bucket uuid;
+begin
+  select pending_loyalty_id into v_bucket from public.orders where id = p_order_id;
+  if v_bucket is null or p_points is null or p_points <= 0 then
+    return;
+  end if;
+
+  update public.pending_loyalty
+     set points = greatest(0, points - p_points),
+         lifetime_points = greatest(0, lifetime_points - p_points),
+         order_count = greatest(0, order_count - 1)
+   where id = v_bucket;
+end;
+$$;
+
+-- --------------------------------------------------------------------------
+-- Collect waiting points into a real account.
+--
+-- Only ever by email, and only the email Supabase already holds for the
+-- account -- which it has confirmed, through a link the person had to open or
+-- through the provider they signed in with. A phone number is not confirmed by
+-- anything: `profiles.phone` is whatever was typed into a form, so claiming by
+-- it would let anyone who enters a number that has been buying coffee walk off
+-- with somebody else's balance. Phone buckets are handed over by the operator
+-- instead, in `link_pending_points`.
+--
+-- Safe to call on every sign-in: a collected bucket has nothing left in it.
+-- --------------------------------------------------------------------------
+create or replace function public.claim_pending_points(p_user_id uuid)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_email text;
+  v_bucket public.pending_loyalty;
+begin
+  if p_user_id is null then
+    return 0;
+  end if;
+
+  -- auth.users, not profiles: this is the confirmed address, and the whole
+  -- reason email is trusted where phone is not.
+  select public.normalise_loyalty_email(u.email)
+    into v_email
+    from auth.users u
+   where u.id = p_user_id
+     and u.email_confirmed_at is not null;
+
+  if v_email is null then
+    return 0;
+  end if;
+
+  select * into v_bucket
+    from public.pending_loyalty
+   where kind = 'email' and identifier = v_email and claimed_at is null
+     for update;
+
+  if v_bucket is null or v_bucket.points <= 0 then
+    return 0;
+  end if;
+
+  perform public.award_loyalty_points(
+    p_user_id,
+    v_bucket.points,
+    'Points earned before you had an account',
+    null,
+    null
+  );
+
+  update public.pending_loyalty
+     set points = 0, claimed_by = p_user_id, claimed_at = now()
+   where id = v_bucket.id;
+
+  return v_bucket.points;
+end;
+$$;
+
+-- --------------------------------------------------------------------------
+-- Hand a bucket to a customer by hand.
+--
+-- The operator's route, and the only way a phone bucket ever moves. They are
+-- the one who can tell whether the person in front of them is the person whose
+-- number that is -- which is a judgement, and belongs to a human.
+-- --------------------------------------------------------------------------
+create or replace function public.link_pending_points(
+  p_user_id uuid,
+  p_identifier text,
+  p_by uuid default null
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_bucket public.pending_loyalty;
+  v_email text := public.normalise_loyalty_email(p_identifier);
+  v_phone text := public.normalise_loyalty_phone(p_identifier);
+begin
+  if p_user_id is null then
+    raise exception 'Pick a customer to give these points to.';
+  end if;
+
+  -- Whatever was typed, matched as either kind. An operator copying a contact
+  -- detail out of a chat should not have to say which sort it is.
+  select * into v_bucket
+    from public.pending_loyalty
+   where claimed_at is null
+     and ((kind = 'email' and identifier = v_email)
+       or (kind = 'phone' and identifier = v_phone))
+   order by points desc
+   limit 1
+     for update;
+
+  if v_bucket is null then
+    raise exception 'No points are waiting against %. Check the spelling, or the number the order was placed from.', p_identifier;
+  end if;
+
+  perform public.award_loyalty_points(
+    p_user_id,
+    v_bucket.points,
+    'Points collected from ' || v_bucket.identifier,
+    null,
+    p_by
+  );
+
+  update public.pending_loyalty
+     set points = 0, claimed_by = p_user_id, claimed_at = now()
+   where id = v_bucket.id;
+
+  return v_bucket.points;
+end;
+$$;
+
+-- --------------------------------------------------------------------------
+-- Settlement, now awarding points to everybody who can be identified.
+--
+-- Replaces the definition in 0019. The change is the else branch: an order
+-- with no account behind it used to record zero points and move on. It now
+-- puts them aside against the buyer's email or phone, and only records zero
+-- when there is genuinely nobody to hold them for.
+-- --------------------------------------------------------------------------
+create or replace function public.mark_order_paid(
+  p_order_id uuid,
+  p_payment_ref text default null,
+  p_payment_method text default null
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order public.orders;
+  v_rate integer;
+  v_points integer;
+  v_bucket uuid;
+begin
+  select * into v_order from public.orders where id = p_order_id for update;
+  if v_order is null then
+    raise exception 'order % not found', p_order_id;
+  end if;
+
+  if v_order.paid_at is not null then
+    return v_order;
+  end if;
+
+  select greatest(1, coalesce(loyalty_rupiah_per_point, 10000))
+    into v_rate from public.site_settings where id = true;
+
+  v_points := floor(v_order.total_idr::numeric / v_rate)::integer;
+
+  update public.orders
+     set status = 'paid',
+         paid_at = now(),
+         payment_ref = coalesce(p_payment_ref, payment_ref),
+         payment_method = coalesce(p_payment_method, payment_method),
+         points_awarded = 0
+   where id = p_order_id;
+
+  update public.product_variants v
+     set stock = greatest(0, v.stock - i.qty)
+    from (
+      select variant_id, sum(quantity)::integer as qty
+        from public.order_items
+       where order_id = p_order_id and variant_id is not null
+       group by variant_id
+    ) i
+   where v.id = i.variant_id;
+
+  perform public.release_order_stock(p_order_id);
+
+  if v_points > 0 then
+    if v_order.user_id is not null then
+      perform public.award_loyalty_points(
+        v_order.user_id, v_points, 'Order ' || v_order.human_ref, p_order_id, null
+      );
+      update public.orders set points_awarded = v_points where id = p_order_id;
+    else
+      -- No account, but usually still a person we can name. Points wait for
+      -- them; `points_awarded` records them either way, so the order shows
+      -- what it earned rather than a bare zero.
+      v_bucket := public.credit_pending_points(p_order_id, v_points);
+      if v_bucket is not null then
+        update public.orders set points_awarded = v_points where id = p_order_id;
+      end if;
+    end if;
+  end if;
+
+  select * into v_order from public.orders where id = p_order_id;
+  return v_order;
+end;
+$$;
+
+revoke all on function public.credit_pending_points(uuid, integer) from anon, authenticated;
+revoke all on function public.debit_pending_points(uuid, integer) from anon, authenticated;
+revoke all on function public.claim_pending_points(uuid) from anon, authenticated;
+revoke all on function public.link_pending_points(uuid, text, uuid) from anon, authenticated;
+
+-- --------------------------------------------------------------------------
+-- Voiding and restoring, now that a guest order can carry points too.
+--
+-- Replaces the definitions in 0021. Same shape; the only change is that points
+-- are put back wherever they came from -- a customer's balance, or the bucket
+-- waiting for whoever they belong to.
+-- --------------------------------------------------------------------------
+create or replace function public.void_order(
+  p_order_id uuid,
+  p_reason text default null,
+  p_by uuid default null
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order public.orders;
+  v_held boolean;
+begin
+  select * into v_order from public.orders where id = p_order_id for update;
+  if v_order is null then
+    raise exception 'order % not found', p_order_id;
+  end if;
+
+  if v_order.channel = 'online' then
+    raise exception 'A website order cannot be voided -- a real payment went through for it. Cancel it instead, so the record still matches what the customer was charged.';
+  end if;
+
+  if v_order.voided_at is not null then
+    return v_order;
+  end if;
+
+  v_held := v_order.stock_reserved_at is not null;
+  if v_held then
+    perform public.release_order_stock(p_order_id);
+  end if;
+
+  if v_order.paid_at is not null then
+    update public.product_variants v
+       set stock = v.stock + i.qty
+      from (
+        select variant_id, sum(quantity)::integer as qty
+          from public.order_items
+         where order_id = p_order_id and variant_id is not null
+         group by variant_id
+      ) i
+     where v.id = i.variant_id;
+
+    if v_order.points_awarded > 0 then
+      if v_order.user_id is not null then
+        perform public.award_loyalty_points(
+          v_order.user_id,
+          -v_order.points_awarded,
+          'Voided order ' || v_order.human_ref,
+          p_order_id,
+          p_by
+        );
+      else
+        perform public.debit_pending_points(p_order_id, v_order.points_awarded);
+      end if;
+    end if;
+  end if;
+
+  update public.orders
+     set voided_at = now(),
+         voided_reason = p_reason,
+         voided_by = p_by,
+         voided_held_stock = v_held
+   where id = p_order_id
+  returning * into v_order;
+
+  return v_order;
+end;
+$$;
+
+create or replace function public.restore_order(p_order_id uuid)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order public.orders;
+  v_item record;
+  v_available integer;
+  v_name text;
+begin
+  select * into v_order from public.orders where id = p_order_id for update;
+  if v_order is null then
+    raise exception 'order % not found', p_order_id;
+  end if;
+  if v_order.voided_at is null then
+    return v_order;
+  end if;
+
+  if v_order.paid_at is not null or v_order.voided_held_stock then
+    for v_item in
+      select i.variant_id, sum(i.quantity)::integer as qty
+        from public.order_items i
+       where i.order_id = p_order_id and i.variant_id is not null
+       group by i.variant_id
+    loop
+      select v.available, p.name
+        into v_available, v_name
+        from public.product_variants v
+        join public.products p on p.id = v.product_id
+       where v.id = v_item.variant_id
+         for update of v;
+
+      if v_available is null then
+        raise exception 'One of the coffees on this order no longer exists, so it cannot be put back.';
+      end if;
+      if v_available < v_item.qty then
+        raise exception 'Only % of % is free, and this order needs %. Adjust the stock first, then restore it.',
+          v_available, coalesce(v_name, 'that coffee'), v_item.qty;
+      end if;
+    end loop;
+  end if;
+
+  if v_order.paid_at is not null then
+    update public.product_variants v
+       set stock = greatest(0, v.stock - i.qty)
+      from (
+        select variant_id, sum(quantity)::integer as qty
+          from public.order_items
+         where order_id = p_order_id and variant_id is not null
+         group by variant_id
+      ) i
+     where v.id = i.variant_id;
+
+    if v_order.points_awarded > 0 then
+      if v_order.user_id is not null then
+        perform public.award_loyalty_points(
+          v_order.user_id,
+          v_order.points_awarded,
+          'Restored order ' || v_order.human_ref,
+          p_order_id,
+          null
+        );
+      else
+        perform public.credit_pending_points(p_order_id, v_order.points_awarded);
+      end if;
+    end if;
+  end if;
+
+  if v_order.voided_held_stock then
+    update public.product_variants v
+       set reserved = v.reserved + i.qty
+      from (
+        select variant_id, sum(quantity)::integer as qty
+          from public.order_items
+         where order_id = p_order_id and variant_id is not null
+         group by variant_id
+      ) i
+     where v.id = i.variant_id;
+  end if;
+
+  update public.orders
+     set voided_at = null,
+         voided_reason = null,
+         voided_by = null,
+         voided_held_stock = false,
+         stock_reserved_at = case
+           when v_order.voided_held_stock then now()
+           else stock_reserved_at
+         end
+   where id = p_order_id
+  returning * into v_order;
+
+  return v_order;
+end;
+$$;
+
+-- ===========================================================================
+-- migrations/0024_flavour_is_the_only_colour.sql
+-- ===========================================================================
+
+-- ===========================================================================
+-- Publish Coffee Roasters -- one colour system for coffee, not two
+--
+-- A product carried two colours: `accent_color`, an arbitrary per-product
+-- value from the original spec, and its flavour level, which is Publish's own
+-- six-step scale and is printed on the bags.
+--
+-- 0013 already made the flavour colour win wherever both existed, which left
+-- accent_color as a fallback nobody could see the effect of and a second
+-- colour picker in the product form that changed nothing on most products.
+-- A setting that usually does nothing is worse than no setting: the operator
+-- cannot tell whether it is broken or working.
+--
+-- So the arbitrary one goes. What a coffee looks like now follows from what it
+-- tastes like, which is the only version of this that can stay in step with
+-- the packaging.
+--
+-- Blog categories keep their own accent colour. A journal category is not a
+-- coffee and has no flavour, so the scale has nothing to say about it.
+--
+-- Run this in Supabase -> SQL Editor, after 0023.
+-- ===========================================================================
+
+alter table public.products
+  drop column if exists accent_color;
+
+-- ===========================================================================
+-- migrations/0025_manual_order_pricing.sql
+-- ===========================================================================
+
+-- ===========================================================================
+-- Publish Coffee Roasters -- bulk prices and discounts on orders taken by hand
+--
+-- `record_manual_order` prices every line from the catalogue and refuses to
+-- take a price from the screen. That is the right default -- it is what stops
+-- a typo at the till from quietly selling coffee at the wrong price, and it
+-- stays the default here.
+--
+-- But a shop that sells 5kg to a cafe does not sell it at the retail 200g
+-- rate, and "we agreed 10% off because they came back" is a real thing that
+-- happened. Refusing to record either does not make them go away; it makes
+-- them happen off the books, which is worse.
+--
+-- So an override is possible, and deliberate: a price has to be typed in place
+-- of the catalogue one, per line, and a discount has to carry a reason. What
+-- was actually charged is snapshotted on the order line exactly as it always
+-- was, so a wholesale price is history rather than a rule.
+--
+-- Run this in Supabase -> SQL Editor, after 0024.
+-- ===========================================================================
+
+alter table public.orders
+  add column if not exists discount_idr integer not null default 0 check (discount_idr >= 0),
+  add column if not exists discount_reason text;
+
+comment on column public.orders.discount_idr is
+  'Taken off the coffee, not the shipping. Shipping is subsidised separately through shipping_discount_idr, so the two never have to be untangled afterwards.';
+comment on column public.orders.discount_reason is
+  'Why this order was discounted. Free text, for the operator -- a discount with no reason is indistinguishable from a mistake a month later.';
+
+-- --------------------------------------------------------------------------
+-- Write an order that was agreed somewhere other than the website.
+--
+-- Replaces the definition in 0019. Two additions:
+--
+--   a per-line "unit_price_idr" in p_items, which overrides the catalogue
+--   price for that line only, and
+--
+--   p_discount_idr, taken off the coffee once the lines are totalled.
+--
+-- Everything else is unchanged: availability is still locked and checked
+-- before anything is written, and settlement still runs through mark_order_paid.
+-- --------------------------------------------------------------------------
+-- Dropped, not just replaced. Adding parameters makes a *new* function rather
+-- than a new version of this one, and the old eleven-argument signature would
+-- still be sitting there -- with defaults on both, a call naming fewer than
+-- eleven arguments matches each of them equally and Postgres refuses to pick.
+-- The application calls this through PostgREST, which would meet exactly the
+-- same ambiguity.
+drop function if exists public.record_manual_order(
+  jsonb, text, text, boolean, integer, uuid, uuid, text, text, jsonb, integer
+);
+
+create or replace function public.record_manual_order(
+  p_items jsonb,
+  p_channel text default 'pos',
+  p_payment_method text default null,
+  p_mark_paid boolean default true,
+  p_cash_received integer default null,
+  p_user_id uuid default null,
+  p_staff_id uuid default null,
+  p_note text default null,
+  p_channel_reference text default null,
+  p_shipping_address jsonb default null,
+  p_shipping_idr integer default 0,
+  p_discount_idr integer default 0,
+  p_discount_reason text default null
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order public.orders;
+  v_order_id uuid;
+  v_subtotal integer := 0;
+  v_shipping integer := greatest(0, coalesce(p_shipping_idr, 0));
+  v_discount integer := greatest(0, coalesce(p_discount_idr, 0));
+  v_total integer;
+  v_item jsonb;
+  v_variant record;
+  v_quantity integer;
+  v_price integer;
+  v_ships boolean := p_shipping_address is not null;
+begin
+  if p_items is null or jsonb_array_length(p_items) = 0 then
+    raise exception 'An order needs at least one item.';
+  end if;
+
+  if p_channel not in ('pos', 'whatsapp', 'instagram', 'marketplace', 'other') then
+    raise exception 'Unknown channel %. Orders from the website are written by the checkout, not here.', p_channel;
+  end if;
+
+  if p_mark_paid and coalesce(p_payment_method, '') not in ('cash', 'qris', 'card', 'transfer') then
+    raise exception 'Unknown payment method %', coalesce(p_payment_method, '(none)');
+  end if;
+  if not p_mark_paid
+     and p_payment_method is not null
+     and p_payment_method not in ('cash', 'qris', 'card', 'transfer') then
+    raise exception 'Unknown payment method %', p_payment_method;
+  end if;
+
+  for v_item in select * from jsonb_array_elements(p_items)
+  loop
+    v_quantity := (v_item ->> 'quantity')::integer;
+    if v_quantity is null or v_quantity <= 0 then
+      raise exception 'Every line needs a quantity of at least 1.';
+    end if;
+
+    select v.id, v.price_idr, v.available, v.size, v.is_active,
+           p.id as product_id, p.name as product_name, p.slug as product_slug
+      into v_variant
+      from public.product_variants v
+      join public.products p on p.id = v.product_id
+     where v.id = (v_item ->> 'variant_id')::uuid
+     for update of v;
+
+    if v_variant.id is null then
+      raise exception 'That coffee is no longer on the list.';
+    end if;
+    if not v_variant.is_active then
+      raise exception '% (%) is not currently for sale.',
+        v_variant.product_name, v_variant.size;
+    end if;
+    if v_variant.available < v_quantity then
+      raise exception 'Only % of % (%) available -- the rest is either sold or held by another order.',
+        v_variant.available, v_variant.product_name, v_variant.size;
+    end if;
+
+    -- The catalogue price unless one was typed in its place. Null and absent
+    -- both mean "use the catalogue", so an override is always something
+    -- somebody entered on purpose rather than something a blank field did.
+    v_price := coalesce((v_item ->> 'unit_price_idr')::integer, v_variant.price_idr);
+    if v_price < 0 then
+      raise exception 'A price cannot be negative.';
+    end if;
+
+    v_subtotal := v_subtotal + (v_price * v_quantity);
+  end loop;
+
+  -- A discount bigger than the coffee would make the order a refund, which is
+  -- not a thing this can record. Capped rather than refused, since the
+  -- intention -- "this one is free" -- is clear enough to honour.
+  v_discount := least(v_discount, v_subtotal);
+  v_total := (v_subtotal - v_discount) + v_shipping;
+
+  if p_mark_paid
+     and p_payment_method = 'cash'
+     and p_cash_received is not null
+     and p_cash_received < v_total then
+    raise exception 'Cash received is less than the total.';
+  end if;
+
+  insert into public.orders (
+    human_ref, channel, channel_reference, user_id, status,
+    subtotal_idr, shipping_idr, unique_code, total_idr,
+    discount_idr, discount_reason,
+    payment_method, cash_received_idr, staff_id, customer_note,
+    shipping_address, stock_reserved_at
+  )
+  values (
+    case
+      when p_channel = 'pos'
+        then 'POS-' || lpad(nextval('public.pos_ref_seq')::text, 5, '0')
+      else 'MAN-' || lpad(nextval('public.manual_ref_seq')::text, 5, '0')
+    end,
+    p_channel, p_channel_reference, p_user_id, 'pending',
+    v_subtotal, v_shipping, 0, v_total,
+    v_discount, nullif(btrim(coalesce(p_discount_reason, '')), ''),
+    p_payment_method,
+    case when p_mark_paid and p_payment_method = 'cash' then p_cash_received else null end,
+    p_staff_id, p_note,
+    p_shipping_address, now()
+  )
+  returning id into v_order_id;
+
+  -- The line snapshots what was actually charged, which is the whole point of
+  -- snapshotting: a wholesale price is a fact about this order, never a rule
+  -- that leaks back into the catalogue.
+  for v_item in select * from jsonb_array_elements(p_items)
+  loop
+    v_quantity := (v_item ->> 'quantity')::integer;
+
+    insert into public.order_items (
+      order_id, product_id, variant_id,
+      name_snapshot, size_snapshot, slug_snapshot,
+      unit_price_idr, quantity
+    )
+    select v_order_id, p.id, v.id, p.name, v.size::text, p.slug,
+           coalesce((v_item ->> 'unit_price_idr')::integer, v.price_idr),
+           v_quantity
+      from public.product_variants v
+      join public.products p on p.id = v.product_id
+     where v.id = (v_item ->> 'variant_id')::uuid;
+  end loop;
+
+  update public.product_variants v
+     set reserved = v.reserved + i.qty
+    from (
+      select variant_id, sum(quantity)::integer as qty
+        from public.order_items
+       where order_id = v_order_id and variant_id is not null
+       group by variant_id
+    ) i
+   where v.id = i.variant_id;
+
+  if p_mark_paid then
+    perform public.mark_order_paid(v_order_id, null, p_payment_method);
+    if not v_ships then
+      update public.orders set status = 'completed' where id = v_order_id;
+    end if;
+  end if;
+
+  select * into v_order from public.orders where id = v_order_id;
+  return v_order;
+end;
+$$;
+
+revoke all on function public.record_manual_order(jsonb, text, text, boolean, integer, uuid, uuid, text, text, jsonb, integer, integer, text) from anon, authenticated;
+
+-- ===========================================================================
+-- migrations/0026_indonesian_addresses.sql
+-- ===========================================================================
+
+-- ===========================================================================
+-- Publish Coffee Roasters -- addresses shaped like Indonesian addresses
+--
+-- The address fields were the generic western set: line1, line2, city,
+-- province, postal code. An Indonesian address has two more levels between the
+-- street and the city -- kecamatan and kelurahan -- and they are not optional
+-- detail. A courier needs them, and leaving them out means people cram the
+-- whole address into one box, which is exactly what has been happening.
+--
+-- `area_id` is Biteship's own key for a place. Rates can be asked for by
+-- destination_area_id instead of destination_postal_code, which is both more
+-- precise and what booking a courier actually needs -- so storing it is what
+-- turns the courier integration from a quote into a shipment.
+--
+-- Every column is nullable. Addresses already saved are still valid addresses;
+-- they simply have less detail than new ones, and nothing should stop a
+-- customer reordering to one.
+--
+-- Run this in Supabase -> SQL Editor, after 0025.
+-- ===========================================================================
+
+alter table public.addresses
+  -- Kelurahan or desa.
+  add column if not exists village text,
+  -- Kecamatan.
+  add column if not exists district text,
+  add column if not exists area_id text;
+
+comment on column public.addresses.village is 'Kelurahan or desa.';
+comment on column public.addresses.district is 'Kecamatan.';
+comment on column public.addresses.area_id is
+  'Biteship''s identifier for this place. Present when the address was chosen from the area lookup rather than typed, and preferred over the postal code when asking for rates.';
+
+-- The order's own copy is a jsonb snapshot rather than columns, so it needs no
+-- migration -- new orders simply carry the extra keys. Nothing reads a key it
+-- has not been given, so old orders keep rendering exactly as before.
+
+-- ===========================================================================
+-- migrations/0027_page_wording.sql
+-- ===========================================================================
+
+-- ===========================================================================
+-- Publish Coffee Roasters -- wording that lives in the database, not the code
+--
+-- 0018 made a page's heading and intro editable, which covered the top of the
+-- page and nothing else. Everything further down -- the four steps on the
+-- roasting page, the labels inside the quote form, the button on it -- was
+-- still English written into a component, so an operator who wanted "Nama
+-- lengkap" instead of "Your name" needed a developer and a deployment.
+--
+-- One jsonb map of overrides rather than a column per phrase. A phrase is not
+-- a field: which phrases exist changes whenever a page is redesigned, and a
+-- column per phrase would mean a migration every time somebody rewords a
+-- button. Absent keys fall through to what the component ships with, so a page
+-- nobody has edited reads exactly as it does today.
+--
+-- Run this in Supabase -> SQL Editor, after 0026.
+-- ===========================================================================
+
+alter table public.pages
+  add column if not exists copy jsonb not null default '{}'::jsonb;
+
+comment on column public.pages.copy is
+  'Wording overrides, keyed by slot. A missing or blank key uses the text the page ships with, so this is always additive and never leaves a page with an empty label.';

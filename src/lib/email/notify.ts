@@ -70,6 +70,29 @@ export async function sendOrderConfirmation(orderId: string): Promise<void> {
   try {
     const supabase = createAdminClient();
 
+    // Every reason not to send is settled BEFORE the send is claimed.
+    //
+    // The claim exists to stop a redelivered webhook sending twice, so it has
+    // to be written before the email goes out. But it was being written before
+    // the decision too, and a bail-out afterwards left the order marked as
+    // notified with nothing sent -- and unable to be notified later, because
+    // the mark is what suppresses the second attempt. Deciding first costs one
+    // extra read and cannot strand an order.
+    const loaded = await loadOrder(supabase, orderId);
+    if (!loaded) return;
+
+    // A counter sale is handed over across the counter. There is nobody
+    // waiting on an email and usually no address to send one to. Every other
+    // channel gets a receipt -- an order agreed over WhatsApp is still an
+    // order somebody is waiting for.
+    if (loaded.order.channel === "pos") return;
+
+    const to = await recipientFor(supabase, loaded.order);
+    if (!to) {
+      console.info(`no email address for order ${loaded.order.human_ref}; receipt skipped`);
+      return;
+    }
+
     const { data: claimed } = await supabase
       .from("orders")
       .update({ confirmation_email_sent_at: new Date().toISOString() })
@@ -79,18 +102,6 @@ export async function sendOrderConfirmation(orderId: string): Promise<void> {
       .maybeSingle();
 
     if (!claimed) return;
-
-    const loaded = await loadOrder(supabase, orderId);
-    if (!loaded) return;
-
-    // Counter sales have no email address and no one expecting one.
-    if (loaded.order.channel !== "online") return;
-
-    const to = await recipientFor(supabase, loaded.order);
-    if (!to) {
-      console.info(`no email address for order ${loaded.order.human_ref}; receipt skipped`);
-      return;
-    }
 
     const settings = await getSiteSettings(supabase);
     const result = await sendEmail(
@@ -130,7 +141,9 @@ export async function sendOrderShipped(orderId: string): Promise<void> {
     const tracking = order.tracking_number?.trim();
     if (!tracking) return;
     if (order.shipped_email_tracking === tracking) return;
-    if (order.channel !== "online") return;
+    // Any order with a tracking number has something in the post, whichever
+    // conversation it started in. A counter sale never gets one, so it never
+    // reaches here and needs no special case.
 
     const to = await recipientFor(supabase, order);
     if (!to) return;

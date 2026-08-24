@@ -24,6 +24,7 @@ export default async function AccountOverviewPage({
       .from("orders")
       .select("*")
       .eq("user_id", session.userId)
+      .is("voided_at", null)
       .order("created_at", { ascending: false }),
     getSiteSettings(),
     getProducts({ featuredOnly: true, limit: 4 }),

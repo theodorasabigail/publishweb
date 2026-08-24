@@ -14,6 +14,12 @@
  */
 
 export interface ShippingDestination {
+  /**
+   * Biteship's own key for the destination, when the address was chosen from
+   * the area lookup. Preferred over the postal code where both exist: one
+   * postal code can span several kelurahan, and a courier rates the area.
+   */
+  areaId?: string | null;
   country: string;
   province?: string | null;
   city?: string | null;

@@ -14,10 +14,15 @@ const addressSchema = z.object({
   phone: z.string().min(5).max(40),
   line1: z.string().min(1).max(200),
   line2: z.string().max(200).optional().nullable(),
+  // Kelurahan and kecamatan. Optional because an address outside Indonesia has
+  // neither, and one saved before the area lookup existed has neither either.
+  village: z.string().max(120).optional().nullable(),
+  district: z.string().max(120).optional().nullable(),
   city: z.string().min(1).max(120),
   province: z.string().max(120).optional().nullable(),
   postal_code: z.string().max(20).optional().nullable(),
   country: z.string().min(2).max(20),
+  area_id: z.string().max(120).optional().nullable(),
 });
 
 const checkoutSchema = z.object({
@@ -124,6 +129,7 @@ export async function POST(request: Request) {
       province: address.province,
       city: address.city,
       postalCode: address.postal_code,
+      areaId: address.area_id,
     },
     { weightGrams: weight, subtotalIdr },
   );
@@ -271,10 +277,13 @@ export async function POST(request: Request) {
       phone: address.phone,
       line1: address.line1,
       line2: address.line2 ?? null,
+      village: address.village ?? null,
+      district: address.district ?? null,
       city: address.city,
       province: address.province ?? null,
       postal_code: address.postal_code ?? null,
       country: address.country,
+      area_id: address.area_id ?? null,
       is_default: true,
     });
   }

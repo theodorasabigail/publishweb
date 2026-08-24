@@ -7,6 +7,7 @@ import { ProductCard } from "@/components/shop/product-card";
 import { siteUrl } from "@/lib/env";
 import { getProductBySlug, getProducts } from "@/lib/queries";
 import { lowestPrice, totalStock } from "@/lib/product";
+import { productColour } from "@/lib/flavour";
 import { contrastText } from "@/lib/utils";
 
 /*
@@ -129,7 +130,7 @@ export default async function ProductPage({
       <div className="mt-6 grid gap-10 lg:grid-cols-2 lg:gap-16">
         <div
           className="relative aspect-square overflow-hidden"
-          style={{ backgroundColor: product.accent_color }}
+          style={{ backgroundColor: productColour(product) }}
         >
           {product.image_url ? (
             <Image
@@ -143,7 +144,7 @@ export default async function ProductPage({
           ) : (
             <div
               className="flex h-full items-center justify-center p-10 text-center"
-              style={{ color: contrastText(product.accent_color) }}
+              style={{ color: contrastText(productColour(product)) }}
             >
               <span className="font-serif text-4xl leading-tight opacity-90">
                 {product.name}

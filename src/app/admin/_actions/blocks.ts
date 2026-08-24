@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { blockDefinition, type PageBlock } from "@/lib/blocks";
+import { copySlotsFor } from "@/lib/page-text";
 import { adminClient, boolean, describeDbError, integer, text } from "./guard";
 
 /**
@@ -172,6 +173,7 @@ export async function updatePage(formData: FormData) {
     // it ships with instead of rendering an empty heading.
     heading: text(formData, "heading") || null,
     intro: text(formData, "intro") || null,
+    copy: pageCopyOverrides(slug, formData),
     updated_at: new Date().toISOString(),
   };
 
@@ -332,3 +334,27 @@ const STARTER_BLOCKS: Record<
     },
   ],
 };
+
+
+/**
+ * The wording overrides on a page form, as a map.
+ *
+ * Only the slots this page actually offers are read, so a field posted under a
+ * key the page does not have cannot be stored — and a box left empty is
+ * dropped rather than saved as "", which is what makes clearing a box mean
+ * "go back to the shipped wording" rather than "show nothing here".
+ */
+function pageCopyOverrides(slug: string, formData: FormData): Record<string, string> {
+  const overrides: Record<string, string> = {};
+
+  for (const slot of copySlotsFor(slug)) {
+    const value = text(formData, `copy_${slot.key}`);
+    // A value identical to what ships is not an override; storing it would
+    // freeze this page against a future wording change for no reason.
+    if (value && value !== slot.value.trim()) {
+      overrides[slot.key] = value;
+    }
+  }
+
+  return overrides;
+}

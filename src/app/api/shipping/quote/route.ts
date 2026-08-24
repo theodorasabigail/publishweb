@@ -23,6 +23,7 @@ const schema = z.object({
   province: z.string().max(120).optional().nullable(),
   city: z.string().max(120).optional().nullable(),
   postalCode: z.string().max(20).optional().nullable(),
+  areaId: z.string().max(120).optional().nullable(),
   items: z
     .array(
       z.object({
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
-  const { country, province, city, postalCode, items } = parsed.data;
+  const { country, province, city, postalCode, areaId, items } = parsed.data;
   const supabase = createAdminClient();
 
   const { data: variantRows, error } = await supabase
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
 
   const provider = getShippingProvider(supabase);
   const quote = await provider.quote(
-    { country, province, city, postalCode },
+    { country, province, city, postalCode, areaId },
     { weightGrams: parcelWeight(parcelItems), subtotalIdr },
   );
 

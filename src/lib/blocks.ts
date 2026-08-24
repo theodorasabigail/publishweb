@@ -313,6 +313,9 @@ export interface PageRecord {
   /** Null means "use the wording the page ships with". */
   heading: string | null;
   intro: string | null;
+  /** Wording overrides for the rest of the page, keyed by slot. A missing or
+   *  blank key falls through to what the component ships with. */
+  copy: Record<string, string> | null;
   created_at: string;
   updated_at: string;
 }

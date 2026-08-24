@@ -33,6 +33,10 @@ export default async function OrderPage({
     .from("orders")
     .select("*, order_items (*)")
     .eq("id", id)
+    // Voided means it was entered in error. The customer gets a 404 rather
+    // than a page for an order that, as far as the shop is concerned, never
+    // happened.
+    .is("voided_at", null)
     .maybeSingle();
 
   const order = data as OrderWithItems | null;
@@ -222,6 +226,12 @@ export default async function OrderPage({
               </>
             )}
             <br />
+            {[order.shipping_address.village, order.shipping_address.district]
+              .filter(Boolean)
+              .join(", ")}
+            {(order.shipping_address.village || order.shipping_address.district) && (
+              <br />
+            )}
             {order.shipping_address.city}
             {order.shipping_address.province && `, ${order.shipping_address.province}`}{" "}
             {order.shipping_address.postal_code}

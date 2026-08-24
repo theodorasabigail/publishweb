@@ -10,10 +10,13 @@ const addressSchema = z.object({
   phone: z.string().min(5).max(40),
   line1: z.string().min(1).max(200),
   line2: z.string().max(200).optional(),
+  village: z.string().max(120).optional(),
+  district: z.string().max(120).optional(),
   city: z.string().min(1).max(120),
   province: z.string().max(120).optional(),
   postal_code: z.string().max(20).optional(),
   country: z.string().min(2).max(20),
+  area_id: z.string().max(120).optional(),
   is_default: z.boolean(),
 });
 
@@ -25,10 +28,13 @@ export async function saveAddress(formData: FormData): Promise<void> {
     phone: formData.get("phone"),
     line1: formData.get("line1"),
     line2: formData.get("line2") || undefined,
+    village: formData.get("village") || undefined,
+    district: formData.get("district") || undefined,
     city: formData.get("city"),
     province: formData.get("province") || undefined,
     postal_code: formData.get("postal_code") || undefined,
     country: formData.get("country"),
+    area_id: formData.get("area_id") || undefined,
     is_default: formData.get("is_default") === "on",
   });
 

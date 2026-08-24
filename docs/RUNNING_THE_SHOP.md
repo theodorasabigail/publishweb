@@ -33,6 +33,11 @@ everything a real payment does — it takes stock down and awards loyalty points
 Only use it when you have genuinely confirmed the money arrived. Doing it twice
 is safe; the second time changes nothing.
 
+**Saving a tracking number ships the order.** It sets the status to shipped and
+records the date, as well as emailing the customer — those used to be three
+separate things, and the customer could be told a parcel was on its way while
+the admin still said it was only paid.
+
 Marking an order **Shipped** also records *when*, the first time you do it.
 Re-selecting it later will not move that date, and neither will anything else —
 if the parcel actually went out yesterday and you only got round to the site
@@ -42,6 +47,16 @@ today, correct the date by hand (below) and it will stay corrected.
 that was already paid does not — that coffee has left the building, and undoing
 it is a refund and a fresh stock count, which is a decision for you rather than
 something the site should guess at.
+
+## Finding an order
+
+The orders list has a search box above the filters. It looks at the reference,
+the customer's name, their phone number, the WhatsApp number or Instagram
+handle, the tracking number, the city and the customer's note — so "anwar",
+"0812", "sleman" or "MAN-0001" all find the same order.
+
+Search and the filters work together, and the result is a normal web address:
+bookmark a search you run often, or send it to somebody.
 
 ## Fixing an order after the fact
 
@@ -54,6 +69,9 @@ You can change:
 - **Came in through** and **Reference** — if you filed a WhatsApp order under
   Instagram, or typed the wrong number. Changing the channel moves the sale in
   the sales report too, which is usually the point.
+- **Placed at** — when the order was actually agreed, which is not always when
+  you typed it up. An order taken on Friday and written up on Monday belongs on
+  Friday. It will refuse a date in the future.
 - **Paid at** and **Shipped at** — both in Jakarta time. Useful when the money
   landed on Friday but you only recorded it on Monday, or when the parcel went
   out before you updated the site.
@@ -68,6 +86,43 @@ Two things it will not let you do, on purpose:
   the real work.
 - **Remove the payment date from an order that has been paid.** If it was
   marked paid by mistake, cancel it rather than quietly un-paying it.
+
+## Undoing an order you entered wrong
+
+**Cancelled** and **voided** say different things, and picking the right one
+keeps your books honest.
+
+- **Cancelled** — the order was real and is not going ahead. It stays in your
+  records as an order that happened and then stopped.
+- **Voided** — the order was never real. You rang up the wrong coffee, or typed
+  the same WhatsApp order in twice. It should not be in the day's takings at
+  all, because it never took any money.
+
+Voiding is on the order page, under **Entered by mistake?**. It puts everything
+back: coffee returns to the shelf, any loyalty points are taken back off the
+customer (as a second line in their points history, so it still adds up), and
+the order disappears from every report and total. It keeps the record, marked
+void, so there is still a trace that something was entered and undone.
+
+You can **put a voided order back** if you voided the wrong one. That takes the
+coffee off the shelf again — so it will refuse if the coffee has since been
+sold to somebody else, and tell you to fix the stock first.
+
+To find voided orders again, use the **Voided** filter on the orders list.
+
+### Deleting for good
+
+Once an order is voided, the same panel offers **Delete permanently**. This
+removes the record entirely and cannot be undone, so you have to type the
+order's reference to confirm it.
+
+You cannot delete an order that has not been voided first. Voiding is what puts
+the stock and points back; deleting only removes the record, and doing it to a
+live order would quietly leave your stock wrong.
+
+**Website orders can be neither voided nor deleted.** A real payment went
+through a real payment provider for those, and your records need to keep
+matching what the customer was actually charged. Cancel them instead.
 
 ## Selling in the shop
 
@@ -107,7 +162,12 @@ questions the counter never has to ask:
 - **Came in through** — WhatsApp, Instagram, Marketplace or somewhere else, plus
   their number or handle. That is what lets you find the conversation again in a
   fortnight when they ask where it is.
-- **Collecting or Shipping** — Shipping opens an address form. If you attached a
+- **Collecting or Shipping** — Shipping opens an address form. Type a few
+  letters of the kelurahan or kecamatan into the search box and pick from the
+  list: provinsi, kota, kecamatan, kelurahan and the postcode all fill in, and
+  the order remembers the courier's own code for that place, which is what
+  makes the ongkir accurate. Every field stays editable underneath, so a place
+  the lookup does not know is still deliverable. If you attached a
   customer who has ordered before, their saved addresses appear above it as
   one-tap buttons. There is also a box for the shipping you agreed with them,
   since a chat order is often a negotiated price rather than a table rate.
@@ -115,6 +175,28 @@ questions the counter never has to ask:
 
 Press the button and the order appears in **Orders** alongside the website
 ones, with the same statuses and the same tracking-number box.
+
+**The customer gets emailed like any other**, as long as you put an email
+address on the order: a receipt when it is paid, and the tracking number when
+it goes out. Counter sales send nothing — the customer is standing in front of
+you holding the coffee.
+
+### Bulk prices and discounts
+
+**Custom price or discount** under the basket opens two things.
+
+- **Type over a price** on any line for a wholesale or bulk rate — 5kg to a
+  cafe is not sold at the 200g shelf price. It applies to that order only; the
+  shop price does not change, and the order keeps a record of what was actually
+  charged.
+- **Discount off the coffee** takes an amount off the whole order. It asks what
+  for, because a discount with no reason is indistinguishable from a mistake a
+  month later. Shipping is not touched — that is subsidised separately, so the
+  two never have to be untangled.
+
+A discount bigger than the order is treated as "this one is free" rather than
+refused. Prices left alone still come from the catalogue and cannot be
+influenced from the screen at all.
 
 ### Coffee that is held but not yet sold
 
@@ -147,6 +229,9 @@ that clearly fell through.
   this at the end of the day; if they disagree, something was rung up wrong.
 - **What sold** — every coffee and size, with shop, web and by-hand columns side
   by side. This is the roasting list for next week.
+- **Shipping you covered** — counts postage on every channel. Website orders
+  are grouped by their shipping zone; postage you agreed in a chat is grouped
+  as "agreed by hand", since there was no zone involved.
 
 ## Adding a coffee
 
@@ -220,6 +305,74 @@ which is the main reason to encourage accounts.
 
 To change how points are earned, go to **Admin → Site settings → Loyalty**.
 Changes apply from then on; past orders are not recalculated.
+
+## Rewording a page
+
+**Admin → Pages → Jasa Roasting.** The heading and the paragraph under it have
+always been editable. Now so is everything else on that page: the four steps,
+the WhatsApp nudge, and every label inside the quote form — "Your name", the
+button, the message people see after sending.
+
+Each box shows the wording it came with as grey placeholder text. Type over it
+to change it; **clear a box to go back to the original**. You can never end up
+with a blank label, because an empty box means "use the built-in wording"
+rather than "show nothing".
+
+Two useful details:
+
+- **Roast levels offered** is one option per line. Rewrite the list to change
+  what customers can pick from.
+- **Emptying both boxes for a step removes that step** from the page, if you
+  only want three.
+
+This is set up for the roasting page for now. The other pages still only offer
+their heading and paragraph.
+
+## Addresses
+
+Addresses are shaped like Indonesian addresses: **kelurahan** and **kecamatan**
+have their own fields, between the street and the kota. Those two used to be
+missing entirely, which is why people ended up typing an entire address into
+the street box.
+
+Both the checkout and the manual-order form have a **search** above them. Type
+part of a kelurahan or kecamatan and pick from the list; everything below fills
+in, including the postcode. The list comes from the courier's own database, so
+what the customer picks is a place the courier recognises — which is the
+difference between an accurate ongkir and a guess.
+
+If the lookup is unavailable — no courier API key, or their service is down —
+the search quietly says so and every field can still be typed. Nobody is ever
+unable to give their address because a courier is having a bad afternoon.
+
+Addresses saved before this existed are still perfectly good. They simply carry
+less detail, and are priced from the postcode as they always were.
+
+## Points for people without an account
+
+Somebody who orders over WhatsApp has usually never touched the website, and
+used to earn nothing. Now the points are **held against whatever contact detail
+the order carries** — their email if there is one, otherwise their phone number
+— and wait for them.
+
+- **If they sign up with that email**, the points land on their account the
+  first time they open it, and they are told so. Nothing for you to do.
+- **If the points are held against a phone number**, you hand them over: open
+  the customer in **Customers & loyalty**, find **Collect earlier points**, and
+  type the number the orders came from.
+
+That split is deliberate. An email address is confirmed — the person had to
+open a link, or sign in with Google. A phone number is not: it is whatever was
+typed into a form, so if points followed phone numbers automatically, anyone
+who entered a number that had been buying coffee would walk off with somebody
+else's balance. Handing those over is a judgement about whether this is the
+right person, and that is yours to make.
+
+Phone numbers are matched however they are written — `0812…`, `+62 812…` and
+`62812…` are one customer, not three.
+
+Voiding an order takes its held points back out again, the same as it does for
+a customer with an account.
 
 ## Unmatched payments
 

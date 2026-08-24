@@ -19,6 +19,7 @@ import {
   type PageBlock,
   type PageRecord,
 } from "@/lib/blocks";
+import { copySlotsFor } from "@/lib/page-text";
 import type { Category } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +50,9 @@ export default async function AdminPageBlocksPage({
   const href = record?.href ?? builtIn?.href ?? `/p/${slug}`;
   const shipped = BUILT_IN_COPY[slug];
   const replacing = record?.blocks_mode === "replace";
+  const slots = copySlotsFor(slug);
+  // In the order they first appear, so the admin reads the way the page does.
+  const sections = [...new Set(slots.map((slot) => slot.section))];
 
   return (
     <div>
@@ -119,6 +123,48 @@ export default async function AdminPageBlocksPage({
                     placeholder={shipped.intro}
                   />
                 </Field>
+              </div>
+            )}
+
+            {/* The rest of the page's wording, for pages that have any beyond
+                the heading. Grouped the way the page reads top to bottom, so
+                finding a phrase means looking where it appears. */}
+            {slots.length > 0 && (
+              <div className="space-y-5 rounded-lg border border-sea-200 p-4">
+                <p className="text-sm text-sea-800">
+                  Everything else this page says, including the labels inside
+                  its form. Each box shows the wording it came with — leave one
+                  empty to keep that.
+                </p>
+
+                {sections.map((section) => (
+                  <div key={section} className="space-y-3">
+                    <p className="text-xs uppercase tracking-wider text-sea-800">
+                      {section}
+                    </p>
+                    {slots
+                      .filter((slot) => slot.section === section)
+                      .map((slot) => (
+                        <Field key={slot.key} label={slot.label} hint={slot.hint}>
+                          {slot.multiline ? (
+                            <textarea
+                              name={`copy_${slot.key}`}
+                              className="input min-h-20"
+                              defaultValue={record.copy?.[slot.key] ?? ""}
+                              placeholder={slot.value}
+                            />
+                          ) : (
+                            <input
+                              name={`copy_${slot.key}`}
+                              className="input"
+                              defaultValue={record.copy?.[slot.key] ?? ""}
+                              placeholder={slot.value}
+                            />
+                          )}
+                        </Field>
+                      ))}
+                  </div>
+                ))}
               </div>
             )}
 

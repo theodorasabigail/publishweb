@@ -29,9 +29,20 @@ export default async function AdminOverviewPage() {
     { data: lowStock },
     { count: unmatchedCount },
   ] = await Promise.all([
-    supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(8),
-    supabase.from("orders").select("total_idr").gte("paid_at", thirtyDaysAgo).not("paid_at", "is", null),
-    supabase.from("orders").select("id", { count: "exact", head: true }).eq("status", "pending"),
+    supabase.from("orders")
+      .select("*")
+      .is("voided_at", null)
+      .order("created_at", { ascending: false })
+      .limit(8),
+    supabase.from("orders")
+      .select("total_idr")
+      .is("voided_at", null)
+      .gte("paid_at", thirtyDaysAgo)
+      .not("paid_at", "is", null),
+    supabase.from("orders")
+      .select("id", { count: "exact", head: true })
+      .is("voided_at", null)
+      .eq("status", "pending"),
     supabase.from("roasting_requests").select("*").eq("status", "new").order("created_at", { ascending: false }).limit(5),
     supabase
       .from("product_variants")

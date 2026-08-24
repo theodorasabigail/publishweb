@@ -99,10 +99,16 @@ export interface Address {
   phone: string;
   line1: string;
   line2: string | null;
+  /** Kelurahan or desa. */
+  village: string | null;
+  /** Kecamatan. */
+  district: string | null;
   city: string;
   province: string | null;
   postal_code: string | null;
   country: string;
+  /** Biteship's key for this place, when it came from the area lookup. */
+  area_id: string | null;
   is_default: boolean;
   created_at: string;
 }
@@ -154,7 +160,6 @@ export interface Product {
   category_id: string | null;
   image_url: string | null;
   image_alt: string | null;
-  accent_color: string;
   /** Publish flavour scale, 1–6. Null until assigned. See lib/flavour.ts. */
   flavour_level: number | null;
   is_active: boolean;
@@ -184,16 +189,36 @@ export interface OrderItem {
   quantity: number;
 }
 
+/**
+ * The address an order is going to, copied onto the order at the time.
+ *
+ * A snapshot rather than a reference: a customer who edits their saved address
+ * next year must not silently rewrite where last year's parcel went.
+ *
+ * `village` and `district` are the two levels an Indonesian address has that
+ * the generic western set leaves out — kelurahan and kecamatan. `area_id` is
+ * Biteship's key for the place, present when the address was picked from the
+ * lookup rather than typed, and what makes an accurate rate (and a real
+ * courier booking) possible.
+ *
+ * All three are optional: addresses recorded before the lookup existed are
+ * still perfectly good addresses.
+ */
 export interface ShippingAddressSnapshot {
   recipient_name: string;
   phone: string;
   email?: string | null;
   line1: string;
   line2?: string | null;
+  /** Kelurahan or desa. */
+  village?: string | null;
+  /** Kecamatan. */
+  district?: string | null;
   city: string;
   province?: string | null;
   postal_code?: string | null;
   country: string;
+  area_id?: string | null;
 }
 
 export interface Order {
@@ -217,6 +242,10 @@ export interface Order {
   shipping_idr: number;
   /** What the roastery absorbed on this order's shipping. */
   shipping_discount_idr: number;
+  /** Taken off the coffee — kept apart from shipping_discount_idr so the two
+   *  never have to be untangled afterwards. */
+  discount_idr: number;
+  discount_reason: string | null;
   unique_code: number;
   total_idr: number;
   payment_method: string | null;
@@ -252,6 +281,36 @@ export interface Order {
    *  shipped, and correctable afterwards — a parcel is often posted a day
    *  before anyone gets round to updating the site. */
   shipped_at: string | null;
+  /** Set when an order was undone as a mistake. A voided order keeps its row
+   *  but is excluded from every report, list and total. */
+  voided_at: string | null;
+  voided_reason: string | null;
+  voided_by: string | null;
+  /** Whether it was holding reserved stock when voided, so restoring knows to
+   *  put the hold back. */
+  voided_held_stock: boolean;
+  /** The bucket this order's points went into, when there was no account to
+   *  award them to. */
+  pending_loyalty_id: string | null;
+}
+
+/**
+ * Loyalty points earned by someone who had no account at the time.
+ *
+ * Keyed on a contact detail rather than a person, because `profiles` needs an
+ * `auth.users` row behind it and these people have not signed up yet.
+ */
+export interface PendingLoyalty {
+  id: string;
+  kind: "email" | "phone";
+  identifier: string;
+  points: number;
+  lifetime_points: number;
+  order_count: number;
+  first_seen_at: string;
+  last_seen_at: string;
+  claimed_by: string | null;
+  claimed_at: string | null;
 }
 
 export interface OrderWithItems extends Order {
