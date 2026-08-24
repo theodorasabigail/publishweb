@@ -34,6 +34,7 @@ export default async function AdminOrdersPage({
   // Voided orders are mistakes, so they are out of the way rather than gone:
   // findable on purpose, never in the way by accident.
   const showVoided = show === "voided";
+  const showScheduled = show === "scheduled";
   const active = status && ORDER_STATUSES.includes(status as OrderStatus) ? status : "all";
   const activeChannel =
     channel && channel in CHANNEL_LABELS ? (channel as SalesChannel) : "all";
@@ -47,6 +48,7 @@ export default async function AdminOrdersPage({
     p_status: active === "all" ? null : active,
     p_channel: activeChannel === "all" ? null : activeChannel,
     p_voided: showVoided,
+    p_scheduled: showScheduled,
     p_limit: 200,
   });
   const orders = (data ?? []) as Order[];
@@ -137,6 +139,17 @@ export default async function AdminOrdersPage({
           </Link>
         ))}
         <Link
+          href={href({ show: showScheduled ? null : "scheduled", status: null })}
+          className={cn(
+            "badge",
+            showScheduled
+              ? "bg-sea-800 text-cream"
+              : "border border-sea-200 bg-white text-sea-700 hover:border-sea-400",
+          )}
+        >
+          Scheduled
+        </Link>
+        <Link
           href={href({ show: showVoided ? null : "voided", status: null })}
           className={cn(
             "badge",
@@ -223,6 +236,14 @@ export default async function AdminOrdersPage({
                           address to come
                         </span>
                       )}
+                    {order.ship_after && (
+                      <span
+                        className="ml-1.5 text-xs text-sea-800"
+                        title={`Do not ship before ${order.ship_after}`}
+                      >
+                        for {order.ship_after}
+                      </span>
+                    )}
                     {order.stock_reserved_at && (
                       <span
                         className="ml-1.5 text-xs text-amber-700"
@@ -246,7 +267,9 @@ export default async function AdminOrdersPage({
             ? `Nothing matches “${search}”.`
             : showVoided
               ? "Nothing has been voided."
-              : "No orders with that status."}
+              : showScheduled
+                ? "No orders scheduled for a future date."
+                : "No orders with that status."}
         </EmptyRow>
       )}
     </div>

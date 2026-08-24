@@ -268,6 +268,12 @@ export async function updateOrderDetails(formData: FormData) {
       channel_reference: optionalText(formData, "channel_reference"),
       ...(placedAt ? { created_at: placedAt } : {}),
       paid_at: paidAt,
+      // A plain YYYY-MM-DD date, or null to clear. A malformed one is dropped
+      // rather than saved as a bad date -- a date input from a modern browser
+      // is validated already, so this is a belt to the browser's braces.
+      ship_after: /^\d{4}-\d{2}-\d{2}$/.test(optionalText(formData, "ship_after") ?? "")
+        ? optionalText(formData, "ship_after")
+        : null,
       shipped_at: fromShopDateTimeInput(optionalText(formData, "shipped_at")),
       shipping_address: address,
     })

@@ -21,7 +21,7 @@ import {
   type Profile,
   type SalesChannel,
 } from "@/lib/types";
-import { formatDateTime, formatIDR, toShopDateTimeInput } from "@/lib/utils";
+import { formatDate, formatDateTime, formatIDR, toShopDateTimeInput } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -79,7 +79,17 @@ export default async function AdminOrderDetailPage({
               ? `Sold at the counter, ${formatDateTime(order.created_at)}`
               : `Taken by hand via ${CHANNEL_LABELS[order.channel]}, ${formatDateTime(order.created_at)}`
         }
-        action={<OrderStatusBadge status={order.status} />}
+        action={
+          <div className="flex items-center gap-3">
+            <OrderStatusBadge status={order.status} />
+            <Link
+              href={`/admin/orders/${order.id}/invoice`}
+              className="btn-secondary py-1.5 text-xs"
+            >
+              Receipt
+            </Link>
+          </div>
+        }
       />
 
       {isVoided && (
@@ -308,6 +318,18 @@ export default async function AdminOrderDetailPage({
                 </Field>
               </div>
 
+              <Field
+                label="Do not ship before"
+                hint="For a PO to be shipped later. Leave empty for as soon as it is ready."
+              >
+                <input
+                  type="date"
+                  name="ship_after"
+                  className="input"
+                  defaultValue={order.ship_after ?? ""}
+                />
+              </Field>
+
               <fieldset className="space-y-4 border-t border-sea-200 pt-4">
                 <legend className="text-xs uppercase tracking-wider text-sea-800">
                   Where it is going
@@ -484,6 +506,9 @@ export default async function AdminOrderDetailPage({
                 label="Shipped at"
                 value={order.shipped_at ? formatDateTime(order.shipped_at) : "Not yet"}
               />
+              {order.ship_after && (
+                <Row label="Ship after" value={formatDate(order.ship_after)} />
+              )}
               <Row label="Points awarded" value={String(order.points_awarded)} />
               {order.cash_received_idr !== null && (
                 <>

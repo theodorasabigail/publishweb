@@ -323,6 +323,33 @@ which is the main reason to encourage accounts.
 To change how points are earned, go to **Admin → Site settings → Loyalty**.
 Changes apply from then on; past orders are not recalculated.
 
+## Scheduled orders (POs)
+
+A customer who says "post it on the 15th, ready for our event on the 20th" is
+placing a PO. On the manual-order form, **Do not ship before** takes a date.
+
+- The order is recorded now, holds its coffee like any other manual order, and
+  is priced against today's stock.
+- It **does not appear in your everyday orders list** until the date arrives.
+  Use the **Scheduled** chip to see the ones sitting ahead.
+- The customer's receipt says when you will post it, rather than reading like a
+  parcel is on its way tomorrow.
+- On the day, it drops into the ordinary list as ready to pack, and everything
+  from there is the same as any other order.
+
+You can add or change the date on any existing order under **Correct the
+details → Do not ship before**.
+
+## Making a receipt
+
+Every order has a **Receipt** button next to its status. It opens a clean,
+printable version — no admin chrome, ready for Ctrl-P. Choose **Save as PDF**
+in the print dialog to get a PDF file. The page shows your company name (taken
+from the transfer account name in Site settings, or Publish Coffee Roasters if
+that is empty), your contact details, the order lines and the totals, exactly
+as they were charged. Discounts and their reason appear on the receipt; kode
+unik and voided orders do too where they apply.
+
 ## Rewording a page
 
 **Admin → Pages → Jasa Roasting.** The heading and the paragraph under it have

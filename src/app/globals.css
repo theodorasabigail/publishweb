@@ -369,3 +369,28 @@
   margin-top: -1.5em;
   margin-bottom: 2.5em;
 }
+
+/* --------------------------------------------------------------------------
+ * Print. Anything with data-print="only" is left alone; the rest of the admin
+ * frame -- side nav, top nav, footers -- is not printed. Keeps the invoice on
+ * one clean sheet no matter which page it was reached from.
+ * -------------------------------------------------------------------------- */
+@media print {
+  @page {
+    margin: 14mm;
+  }
+  body {
+    background: #ffffff !important;
+  }
+  /* Hide the admin's own scaffolding on invoice prints. The invoice page uses
+     print:hidden on anything else that should not print, so those disappear
+     automatically. */
+  header nav,
+  aside,
+  [data-admin-chrome] {
+    display: none !important;
+  }
+  a[href]:after {
+    content: "" !important;
+  }
+}
