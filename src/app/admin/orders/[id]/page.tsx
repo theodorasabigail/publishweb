@@ -16,6 +16,7 @@ import {
   CHANNEL_LABELS,
   CHANNEL_REFERENCE_LABELS,
   ORDER_STATUSES,
+  addressIsComplete,
   type OrderWithItems,
   type Profile,
   type SalesChannel,
@@ -56,6 +57,7 @@ export default async function AdminOrderDetailPage({
   // whether an address was recorded, not which channel the order came from.
   // A WhatsApp order can be either.
   const ships = Boolean(address);
+  const addressReady = addressIsComplete(address);
   const isManual = order.channel !== "online";
   const isVoided = Boolean(order.voided_at);
 
@@ -193,7 +195,16 @@ export default async function AdminOrderDetailPage({
               <p className="text-sm text-sea-800">No address recorded.</p>
             )}
 
-            {ships && (
+            {ships && !addressReady && (
+              <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">
+                This address is not finished. The order is recorded and can wait
+                here as long as it needs to — but it cannot be given a tracking
+                number until it has a name, a phone number, a street and a city.
+                Fill them in under <strong>Correct the details</strong>.
+              </p>
+            )}
+
+            {ships && addressReady && (
             <form action={updateOrderFulfilment} className="mt-5 space-y-4 border-t border-sea-200 pt-5">
               <input type="hidden" name="id" value={order.id} />
               <Field
