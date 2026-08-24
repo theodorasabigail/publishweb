@@ -14,6 +14,13 @@ export interface PosSaleLine {
   unitPriceIdr?: number | null;
 }
 
+/**
+ * The four one-tap buttons the till shows. The database no longer restricts
+ * to these -- 0035 opened `record_manual_order` up to any non-empty string,
+ * so the admin's Settings-managed list works there too. Kept here as a type
+ * so the till's own UI stays typed for its four cases; other callers pass
+ * plain strings.
+ */
 export type PosPaymentMethod = "cash" | "qris" | "card" | "transfer";
 
 /**

@@ -346,6 +346,7 @@ export default async function AdminOrderDetailPage({
                   you agreed after the order was drafted. Line prices are set
                   on the till at the time of the order and are not editable
                   here — the receipt is a record of what was charged.
+                  {order.paid_at ? " Editing shipping or discount here recomputes the total shown to you and on the receipt, but does not adjust points already awarded — those were locked in at the moment the order was paid." : ""}
                 </p>
 
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -560,6 +561,17 @@ export default async function AdminOrderDetailPage({
                 Setting this to <strong>paid</strong> does everything a real
                 payment does: it takes the stock down and awards loyalty points.
                 Only use it when you have confirmed the money arrived.
+              </p>
+            )}
+
+            {order.paid_at && (
+              <p className="mt-3 rounded-lg bg-sea-50 p-3 text-xs text-sea-800">
+                Setting a paid order to <strong>cancelled</strong> here marks
+                it cancelled but <strong>does not</strong> put the stock or
+                loyalty points back. That is a physical refund, not a bookkeeping
+                one — adjust the stock by hand once the coffee is back on the
+                shelf. If the order was entered in error, use{" "}
+                <strong>Void</strong> below instead, which reverses everything.
               </p>
             )}
 
