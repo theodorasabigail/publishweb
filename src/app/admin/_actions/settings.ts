@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { sendOrderConfirmation } from "@/lib/email/notify";
-import { adminClient, boolean, integer, optionalText, text } from "./guard";
+import { adminClient, boolean, describeDbError, integer, optionalText, text } from "./guard";
 
 /**
  * The bounded presentation controls (spec §7.2) plus the operational knobs.
@@ -67,7 +67,7 @@ export async function updateSiteSettings(formData: FormData) {
     })
     .eq("id", true);
 
-  if (error) throw new Error("Could not save the settings.");
+  if (error) throw new Error(describeDbError(error, "Could not save the settings."));
 
   revalidatePath("/", "layout");
 }
@@ -203,7 +203,7 @@ export async function resolvePaymentEvent(formData: FormData) {
       p_payment_ref: text(formData, "reference") || null,
       p_payment_method: "bank_transfer",
     });
-    if (error) throw new Error("Could not settle that order.");
+    if (error) throw new Error(describeDbError(error, "Could not settle that order."));
     await sendOrderConfirmation(orderId);
   }
 
@@ -233,7 +233,7 @@ export async function deleteUnusedMedia(): Promise<void> {
   const { supabase } = await adminClient();
 
   const { data, error } = await supabase.rpc("unused_media");
-  if (error) throw new Error("Could not work out which files are unused.");
+  if (error) throw new Error(describeDbError(error, "Could not work out which files are unused."));
 
   const names = ((data ?? []) as { name: string }[]).map((row) => row.name);
   if (!names.length) return;
