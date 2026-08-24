@@ -90,6 +90,82 @@ const PROBES: Probe[] = [
       return !error;
     },
   },
+
+  // 0019 onward — the whole order-workflow chapter. Each probe picks the
+  // youngest column its migration added, so one probe stands in for one paste.
+  {
+    label: "Orders that hold their coffee",
+    migration: "0019",
+    run: async (supabase) => {
+      const { error } = await supabase
+        .from("product_variants")
+        .select("reserved")
+        .limit(1);
+      return !error;
+    },
+  },
+  {
+    label: "When an order actually shipped",
+    migration: "0020",
+    run: async (supabase) => {
+      const { error } = await supabase.from("orders").select("shipped_at").limit(1);
+      return !error;
+    },
+  },
+  {
+    label: "Voiding a mis-typed order",
+    migration: "0021",
+    run: async (supabase) => {
+      const { error } = await supabase.from("orders").select("voided_at").limit(1);
+      return !error;
+    },
+  },
+  {
+    label: "Points for people without an account",
+    migration: "0023",
+    run: async (supabase) => {
+      const { error } = await supabase.from("pending_loyalty").select("id").limit(1);
+      return !error;
+    },
+  },
+  {
+    label: "Indonesian address fields (kelurahan, kecamatan, area id)",
+    migration: "0026",
+    run: async (supabase) => {
+      const { error } = await supabase.from("addresses").select("area_id").limit(1);
+      return !error;
+    },
+  },
+  {
+    label: "Scheduled orders (POs)",
+    migration: "0029",
+    run: async (supabase) => {
+      const { error } = await supabase.from("orders").select("ship_after").limit(1);
+      return !error;
+    },
+  },
+  {
+    label: "Coffees in more than one category",
+    migration: "0031",
+    run: async (supabase) => {
+      const { error } = await supabase
+        .from("product_categories")
+        .select("product_id")
+        .limit(1);
+      return !error;
+    },
+  },
+  {
+    label: "Your own list of payment methods",
+    migration: "0032",
+    run: async (supabase) => {
+      const { error } = await supabase
+        .from("site_settings")
+        .select("payment_methods")
+        .limit(1);
+      return !error;
+    },
+  },
 ];
 
 export async function SchemaCheck() {

@@ -235,12 +235,11 @@ export function parseWebhook(body: unknown): BiteshipWebhook {
  * than guessing, because a wrong "delivered" is worse than a missing one.
  */
 const SHIPPED_STATUSES = new Set(["picked", "dropping_off", "in_transit", "on_delivery"]);
-const DELIVERED_STATUSES = new Set(["delivered"]);
-
-export function orderStatusFor(courierStatus: string | null): "shipped" | "completed" | null {
+export function orderStatusFor(courierStatus: string | null): "shipped" | null {
   if (!courierStatus) return null;
   const normalised = courierStatus.trim().toLowerCase();
-  if (DELIVERED_STATUSES.has(normalised)) return "completed";
+  // Delivered used to promote to `completed`, but the shop does not track
+  // delivery as a distinct state -- `shipped` is terminal for anything posted.
   if (SHIPPED_STATUSES.has(normalised)) return "shipped";
   return null;
 }

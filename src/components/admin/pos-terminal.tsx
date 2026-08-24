@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import {
   customerAddresses,
+  findCustomerByPhone,
   findCustomers,
   recordManualOrder,
   type ManualAddress,
@@ -113,6 +114,10 @@ export function PosTerminal({
     userId: "",
     rows: [],
   });
+  // A suggestion of who the manual order might belong to, matched on the
+  // channel reference when it looks like a phone number. Null means "have
+  // not found one".
+  const [suggested, setSuggested] = useState<Customer | null>(null);
   const [shippingIdr, setShippingIdr] = useState<number | null>(null);
   const [shipAfter, setShipAfter] = useState("");
   const [note, setNote] = useState("");
@@ -153,6 +158,38 @@ export function PosTerminal({
         (product.tasting_notes ?? "").toLowerCase().includes(term),
     );
   }, [products, query]);
+
+  // If the reference looks like a phone number and nobody is attached, try
+  // to find a customer already carrying it. That is exactly what the operator
+  // would search for a moment later, so doing it up front removes a step.
+  // Debounced. Nothing is *cleared* here; whether to show the suggestion is
+  // derived below, so a keystroke that invalidates the search shows the empty
+  // state on the next render without a second setState.
+  useEffect(() => {
+    if (customer || !isManual || channel !== "whatsapp") return;
+    const query = channelReference.trim();
+    if (query.length < 6) return;
+
+    let live = true;
+    const timer = setTimeout(async () => {
+      const found = await findCustomerByPhone(query);
+      if (live) setSuggested(found);
+    }, 350);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [customer, isManual, channel, channelReference]);
+
+  // Derived rather than cleared in the effect: one source of truth for
+  // whether the suggestion is showable *right now*.
+  const showSuggested =
+    !customer &&
+    isManual &&
+    channel === "whatsapp" &&
+    channelReference.trim().length >= 6
+      ? suggested
+      : null;
 
   // Addresses the shop already has for this customer. Only worth fetching once
   // there is somewhere to put them.
@@ -367,6 +404,31 @@ export function PosTerminal({
       setDiscountReason("");
     });
   }
+
+  // Enter completes the sale; Esc clears the basket. Ignored while a text
+  // field is focused, so the operator can type freely. Meta/Ctrl-scoped so a
+  // single Enter in a size button does not fire twice.
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName;
+      const typing =
+        tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" ||
+        target?.getAttribute("contenteditable") === "true";
+
+      if (event.key === "Enter" && !typing && !pending && !blocker && lines.length > 0) {
+        event.preventDefault();
+        submit();
+      } else if (event.key === "Escape" && !typing && lines.length > 0) {
+        event.preventDefault();
+        resetSale();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending, blocker, lines.length]);
+
 
   // ---- Order saved -------------------------------------------------------
   if (receipt) {
@@ -668,6 +730,22 @@ export function PosTerminal({
                   }
                   className="input text-sm"
                 />
+
+                {showSuggested && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomer(showSuggested);
+                      setSuggested(null);
+                    }}
+                    className="mt-2 flex w-full items-center justify-between gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-left text-xs text-emerald-900 hover:border-emerald-400"
+                  >
+                    <span className="min-w-0 truncate">
+                      This is <strong>{showSuggested.display_name || showSuggested.email}</strong>?
+                    </span>
+                    <span className="shrink-0 font-medium">Attach</span>
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -1118,6 +1196,9 @@ export function PosTerminal({
                   ? `Take ${formatIDR(total)}`
                   : `Save order · ${formatIDR(total)}`}
             </button>
+            <p className="mt-2 text-center text-[10px] text-sea-800">
+              Enter to save · Esc to clear
+            </p>
           </div>
         </aside>
       </div>

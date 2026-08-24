@@ -8,12 +8,22 @@ export type LoyaltyTier = "bronze" | "silver" | "gold";
  * between 200g and 1kg with nobody maintaining a list.
  */
 export type VariantSize = string;
+/**
+ * Where an order sits in the shop's own workflow. Payment is separate --
+ * paid_at is the truth about that -- so "paid" here really means "paid,
+ * waiting to be roasted", the same way "roasting" means "being roasted".
+ *
+ * `completed` used to be a distinct terminal state for delivery, but delivery
+ * is not something this shop tracks: a counter sale is done at "paid" and a
+ * posted order is done at "shipped". Retired everywhere in the flow. The
+ * database enum keeps the value only because Postgres cannot drop enum
+ * members; nothing writes it and the dropdown no longer offers it.
+ */
 export type OrderStatus =
   | "pending"
   | "paid"
   | "roasting"
   | "shipped"
-  | "completed"
   | "cancelled";
 export type RoastingStatus = "new" | "quoted" | "accepted" | "declined" | "done";
 export type PostStatus = "draft" | "scheduled" | "published";
@@ -40,7 +50,6 @@ export const ORDER_STATUSES: OrderStatus[] = [
   "paid",
   "roasting",
   "shipped",
-  "completed",
   "cancelled",
 ];
 

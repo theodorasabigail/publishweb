@@ -6,6 +6,7 @@ import { OrderPositionBadges } from "@/components/status-badge";
 import {
   assignOrderCustomer,
   deleteOrder,
+  quickShipAndPay,
   restoreOrder,
   updateOrderDetails,
   updateOrderFulfilment,
@@ -517,23 +518,49 @@ export default async function AdminOrderDetailPage({
             </Panel>
           )}
 
+          {!order.paid_at && isManual && (
+            <Panel
+              title="Add shipping & mark paid"
+              description="When the postage was agreed after the order was written and the money has just landed. Sets the shipping, records the payment method, and emails the customer a receipt in one go."
+            >
+              <form action={quickShipAndPay} className="space-y-3">
+                <input type="hidden" name="id" value={order.id} />
+                <Field
+                  label="Shipping"
+                  hint={`Current: ${formatIDR(order.shipping_idr)}. Leave 0 for collection at the shop.`}
+                >
+                  <input
+                    type="number"
+                    name="shipping_idr"
+                    min={0}
+                    step={1000}
+                    className="input"
+                    defaultValue={order.shipping_idr}
+                  />
+                </Field>
+                <Field label="How it was paid">
+                  <PaymentMethodSelect
+                    name="payment_method"
+                    methods={settings.payment_methods}
+                    defaultValue={order.payment_method}
+                  />
+                </Field>
+                <button type="submit" className="btn-primary w-full">
+                  Save shipping & mark paid
+                </button>
+              </form>
+            </Panel>
+          )}
+
           <Panel title="Move this order along">
             <form action={updateOrderStatus} className="space-y-3">
               <input type="hidden" name="id" value={order.id} />
               <select name="status" className="input" defaultValue={order.status}>
-                {ORDER_STATUSES
-                  // Counter sales auto-complete when rung up, and a shipped
-                  // order is the terminal state for anything posted -- there
-                  // is no separate "delivered" moment the shop tracks. So
-                  // "completed" is never a status the operator picks by hand;
-                  // it stays in the enum only so those auto-completed rows
-                  // still display correctly.
-                  .filter((option) => option !== "completed" || order.status === "completed")
-                  .map((status) => (
-                    <option key={status} value={status} className="capitalize">
-                      {status}
-                    </option>
-                  ))}
+                {ORDER_STATUSES.map((status) => (
+                  <option key={status} value={status} className="capitalize">
+                    {status}
+                  </option>
+                ))}
               </select>
 
               <Field

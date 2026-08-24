@@ -240,3 +240,48 @@ export async function customerAddresses(userId: string) {
 
   return (data ?? []) as Address[];
 }
+
+/**
+ * Find a profile by phone number, matching however it was typed.
+ *
+ * Uses the same normaliser the loyalty bucket uses -- 0812, +62 812 and
+ * 62812 all reach one match -- so a WA order for a number that already
+ * belongs to a signed-up customer can be attached automatically at the till.
+ * Empty string when nothing matches, or when the input is too short to be a
+ * real number.
+ */
+export async function findCustomerByPhone(phone: string) {
+  const { supabase } = await adminClient();
+  const trimmed = phone.trim();
+  if (trimmed.length < 4) return null;
+
+  const { data: normalised } = await supabase.rpc("normalise_loyalty_phone", {
+    p_value: trimmed,
+  });
+  const canonical = (normalised as string | null) ?? null;
+  if (!canonical) return null;
+
+  // profiles.phone is free text, so an exact match after normalisation is the
+  // safe thing to do. Any tighter and we would surprise the operator; any
+  // looser and we would attach the wrong Anwar.
+  const digits = canonical.replace(/[^0-9]/g, "");
+  const alt = digits.startsWith("62") ? `0${digits.slice(2)}` : digits;
+
+  const { data } = await supabase
+    .from("profiles")
+    .select("id, display_name, email, phone, loyalty_points, tier")
+    .or(`phone.eq.${digits},phone.eq.${alt},phone.eq.+${digits},phone.eq.${trimmed}`)
+    .limit(1);
+
+  const row = (data ?? [])[0];
+  if (!row) return null;
+
+  return row as {
+    id: string;
+    display_name: string | null;
+    email: string | null;
+    phone: string | null;
+    loyalty_points: number;
+    tier: string;
+  };
+}
