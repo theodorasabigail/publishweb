@@ -6,6 +6,8 @@ import { OrderPositionBadges } from "@/components/status-badge";
 import {
   assignOrderCustomer,
   deleteOrder,
+  markOrderInvoiced,
+  markOrderPaid,
   quickShipAndPay,
   restoreOrder,
   updateOrderDetails,
@@ -359,7 +361,7 @@ export default async function AdminOrderDetailPage({
                       type="number"
                       name="shipping_idr"
                       min={0}
-                      step={1000}
+                      step={1}
                       className="input"
                       defaultValue={order.shipping_idr}
                     />
@@ -369,7 +371,7 @@ export default async function AdminOrderDetailPage({
                       type="number"
                       name="discount_idr"
                       min={0}
-                      step={1000}
+                      step={1}
                       className="input"
                       defaultValue={order.discount_idr}
                     />
@@ -533,7 +535,7 @@ export default async function AdminOrderDetailPage({
                     type="number"
                     name="shipping_idr"
                     min={0}
-                    step={1000}
+                    step={1}
                     className="input"
                     defaultValue={order.shipping_idr}
                   />
@@ -552,7 +554,10 @@ export default async function AdminOrderDetailPage({
             </Panel>
           )}
 
-          <Panel title="Move this order along">
+          <Panel
+            title="Fulfilment"
+            description="Where the coffee is in the shop's own workflow. Payment and invoicing are tracked separately below."
+          >
             <form action={updateOrderStatus} className="space-y-3">
               <input type="hidden" name="id" value={order.id} />
               <select name="status" className="input" defaultValue={order.status}>
@@ -562,43 +567,17 @@ export default async function AdminOrderDetailPage({
                   </option>
                 ))}
               </select>
-
-              <Field
-                label={order.paid_at ? "How it was paid" : "How it will be paid"}
-                hint={
-                  order.paid_at
-                    ? "Recorded when it was marked paid. Correct it if the wrong one was picked."
-                    : "Used when you mark this order paid. Manage the list under Settings."
-                }
-              >
-                <PaymentMethodSelect
-                  name="payment_method"
-                  methods={settings.payment_methods}
-                  defaultValue={order.payment_method}
-                />
-              </Field>
-
               <button type="submit" className="btn-primary w-full">
-                Update
+                Update fulfilment
               </button>
             </form>
 
-            {!order.paid_at && (
-              <p className="mt-3 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">
-                Setting this to <strong>paid</strong> does everything a real
-                payment does: it takes the stock down and awards loyalty points.
-                Only use it when you have confirmed the money arrived.
-              </p>
-            )}
-
-            {order.paid_at && (
+            {order.status === "cancelled" && order.paid_at && (
               <p className="mt-3 rounded-lg bg-sea-50 p-3 text-xs text-sea-800">
-                Setting a paid order to <strong>cancelled</strong> here marks
-                it cancelled but <strong>does not</strong> put the stock or
-                loyalty points back. That is a physical refund, not a bookkeeping
-                one — adjust the stock by hand once the coffee is back on the
-                shelf. If the order was entered in error, use{" "}
-                <strong>Void</strong> below instead, which reverses everything.
+                Cancelling a paid order marks it cancelled but does not put the
+                stock or loyalty points back. That is a physical refund, not a
+                bookkeeping one. If the order was entered in error, use{" "}
+                <strong>Void</strong> below instead.
               </p>
             )}
 
@@ -610,6 +589,68 @@ export default async function AdminOrderDetailPage({
                 real stock reduction; cancelling puts the coffee back on the
                 shelf.
               </p>
+            )}
+          </Panel>
+
+          <Panel
+            title={order.paid_at ? "Payment" : "Payment — not yet"}
+            description={
+              order.paid_at
+                ? undefined
+                : "Recording payment takes the stock down and awards loyalty points. Do it once the money has actually arrived."
+            }
+          >
+            <form action={markOrderPaid} className="space-y-3">
+              <input type="hidden" name="id" value={order.id} />
+              <Field
+                label={order.paid_at ? "How it was paid" : "How it will be paid"}
+                hint={order.paid_at ? "Correct it if the wrong one was picked." : undefined}
+              >
+                <PaymentMethodSelect
+                  name="payment_method"
+                  methods={settings.payment_methods}
+                  defaultValue={order.payment_method}
+                />
+              </Field>
+              <button
+                type="submit"
+                className="btn-primary w-full"
+                disabled={Boolean(order.paid_at)}
+              >
+                {order.paid_at
+                  ? `Paid on ${formatDateTime(order.paid_at)}`
+                  : "Mark this order paid"}
+              </button>
+            </form>
+          </Panel>
+
+          <Panel
+            title="Invoice"
+            description="For bulk / wholesale orders where an invoice is sent as a separate step. Retail counter sales rarely need this."
+          >
+            {order.invoiced_at ? (
+              <form action={markOrderInvoiced} className="space-y-3">
+                <input type="hidden" name="id" value={order.id} />
+                <input type="hidden" name="undo" value="true" />
+                <p className="rounded-lg bg-emerald-50 p-3 text-xs text-emerald-900">
+                  Invoice sent on <strong>{formatDateTime(order.invoiced_at)}</strong>.
+                </p>
+                <button type="submit" className="btn-secondary w-full py-2 text-xs">
+                  Un-mark (sent by mistake)
+                </button>
+              </form>
+            ) : (
+              <form action={markOrderInvoiced} className="space-y-3">
+                <input type="hidden" name="id" value={order.id} />
+                <p className="text-sm text-sea-800">
+                  Mark this once the invoice has been sent to the customer.
+                  Independent of payment — it can go before, with, or after
+                  the money.
+                </p>
+                <button type="submit" className="btn-primary w-full">
+                  Mark invoice sent
+                </button>
+              </form>
             )}
           </Panel>
 

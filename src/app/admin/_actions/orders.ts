@@ -23,25 +23,17 @@ export async function updateOrderStatus(formData: FormData) {
     throw new Error("Unknown order status.");
   }
 
-  // Whatever the operator picked from the payment-method dropdown, if any.
-  // Empty and blank both mean "leave it as it is" -- unset stays unset, and
-  // a set method stays set.
-  const chosenMethod = optionalText(formData, "payment_method");
+  // updateOrderStatus is fulfilment only now. `paid` moved out into its own
+  // action (markOrderPaid), and this refuses it defensively -- an operator
+  // whose bookmark points at old code should not accidentally revert an
+  // order's fulfilment progress by picking a status that no longer exists.
+  if ((status as string) === "paid") {
+    throw new Error(
+      "Payment is recorded separately now. Use the 'Mark paid' button below the fulfilment status.",
+    );
+  }
 
-  // Marking an order paid by hand must behave exactly like a webhook: same
-  // stock decrement, same loyalty award, same idempotency. On a manual order
-  // it is also what turns a hold on stock into a real decrement.
-  if (status === "paid") {
-    const { error } = await supabase.rpc("mark_order_paid", {
-      p_order_id: id,
-      p_payment_ref: null,
-      // What the operator picked, falling back to a note that this was set by
-      // hand -- useful when nothing was picked because the list is empty.
-      p_payment_method: chosenMethod ?? "manual_admin",
-    });
-    if (error) throw new Error("Could not mark the order paid.");
-    await sendOrderConfirmation(id);
-  } else if (status === "cancelled") {
+  if (status === "cancelled") {
     // Cancelling has to put back any stock the order was holding, or a
     // WhatsApp order that fell through keeps that coffee off the website
     // forever. Only the *hold* comes back: once an order has been paid the
@@ -62,7 +54,7 @@ export async function updateOrderStatus(formData: FormData) {
     // the order is cancelled instead, the hold comes back. Both already work.
     // Paid orders are left alone by the function itself, so re-selecting a
     // status on one cannot take the same bags off twice.
-    if (status === "roasting" || status === "shipped") {
+    if (status === "roasting" || status === "packing" || status === "shipped" || status === "delivered") {
       const { error } = await supabase.rpc("reserve_order_stock", { p_order_id: id });
       // The function names the coffee that is short, which is the only version
       // of this message the operator can act on.
@@ -94,11 +86,6 @@ export async function updateOrderStatus(formData: FormData) {
       }
     }
 
-    // The dropdown is always live -- a paid order can have its method
-    // corrected without changing status. Apply it here.
-    if (chosenMethod !== null) {
-      (patch as Record<string, unknown>).payment_method = chosenMethod;
-    }
     const { error } = await supabase.from("orders").update(patch).eq("id", id);
     if (error) throw new Error(describeDbError(error, "Could not update the order."));
 
@@ -129,6 +116,67 @@ export async function updateOrderStatus(formData: FormData) {
  * shipped, and a despatch date corrected by hand is not overwritten by the
  * moment the form was saved.
  */
+/**
+ * Record a payment against an order.
+ *
+ * The counterpart to the status dropdown after 0037 -- payment lives on its
+ * own axis, not as a value in the fulfilment enum. All the behaviour that
+ * used to happen when the status dropdown was set to "paid" happens here:
+ * stock decrement, points award (direct or bucketed), receipt email,
+ * pending-hold release. Idempotent -- calling on an already-paid order is a
+ * no-op that just returns the current state.
+ */
+export async function markOrderPaid(formData: FormData) {
+  const { supabase } = await adminClient();
+  const id = text(formData, "id");
+  const method = optionalText(formData, "payment_method") ?? "manual_admin";
+
+  const { error } = await supabase.rpc("mark_order_paid", {
+    p_order_id: id,
+    p_payment_ref: null,
+    p_payment_method: method,
+  });
+  if (error) throw new Error(describeDbError(error, "Could not mark the order paid."));
+
+  await sendOrderConfirmation(id);
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${id}`);
+  revalidatePath("/admin");
+  revalidatePath("/");
+  revalidatePath("/shop");
+}
+
+/**
+ * Mark that an invoice was sent for this order.
+ *
+ * Independent of paid_at, deliberately: some invoices go before payment (net
+ * terms), some go after ("we already have your money, here's the paper"),
+ * and some never go at all (retail counter sales). A timestamp is enough --
+ * receipts and invoices are the same document in this shop, and marking that
+ * one was sent is what the accounts side of the workflow wants to see.
+ *
+ * Reversible: calling with p_undo=true clears the flag, so an invoice sent
+ * to the wrong customer can be un-marked.
+ */
+export async function markOrderInvoiced(formData: FormData) {
+  const { supabase, session } = await adminClient();
+  const id = text(formData, "id");
+  const undo = text(formData, "undo") === "true";
+
+  const { error } = await supabase
+    .from("orders")
+    .update(
+      undo
+        ? { invoiced_at: null, invoiced_by: null }
+        : { invoiced_at: new Date().toISOString(), invoiced_by: session.userId },
+    )
+    .eq("id", id);
+  if (error) throw new Error(describeDbError(error, "Could not update the invoice status."));
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${id}`);
+}
+
 export async function updateOrderFulfilment(formData: FormData) {
   const { supabase } = await adminClient();
   const id = text(formData, "id");
