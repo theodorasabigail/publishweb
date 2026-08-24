@@ -23,6 +23,11 @@ export async function updateOrderStatus(formData: FormData) {
     throw new Error("Unknown order status.");
   }
 
+  // Whatever the operator picked from the payment-method dropdown, if any.
+  // Empty and blank both mean "leave it as it is" -- unset stays unset, and
+  // a set method stays set.
+  const chosenMethod = optionalText(formData, "payment_method");
+
   // Marking an order paid by hand must behave exactly like a webhook: same
   // stock decrement, same loyalty award, same idempotency. On a manual order
   // it is also what turns a hold on stock into a real decrement.
@@ -30,7 +35,9 @@ export async function updateOrderStatus(formData: FormData) {
     const { error } = await supabase.rpc("mark_order_paid", {
       p_order_id: id,
       p_payment_ref: null,
-      p_payment_method: "manual_admin",
+      // What the operator picked, falling back to a note that this was set by
+      // hand -- useful when nothing was picked because the list is empty.
+      p_payment_method: chosenMethod ?? "manual_admin",
     });
     if (error) throw new Error("Could not mark the order paid.");
     await sendOrderConfirmation(id);
@@ -87,6 +94,11 @@ export async function updateOrderStatus(formData: FormData) {
       }
     }
 
+    // The dropdown is always live -- a paid order can have its method
+    // corrected without changing status. Apply it here.
+    if (chosenMethod !== null) {
+      (patch as Record<string, unknown>).payment_method = chosenMethod;
+    }
     const { error } = await supabase.from("orders").update(patch).eq("id", id);
     if (error) throw new Error(describeDbError(error, "Could not update the order."));
 

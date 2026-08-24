@@ -430,6 +430,10 @@ export interface SiteSettings {
   featured_post_id: string | null;
   announcement_note: string | null;
   loyalty_rupiah_per_point: number;
+  /** Every method the operator can pick from when marking an order paid, in
+   *  the order they should appear in the dropdown. Free text -- whatever is
+   *  in here is what the receipt will read. */
+  payment_methods: string[];
   tier_silver_threshold: number;
   tier_gold_threshold: number;
   whatsapp_number: string | null;

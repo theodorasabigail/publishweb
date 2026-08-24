@@ -20,13 +20,17 @@ export default async function EditProductPage({
   const { saved, duplicated } = await searchParams;
 
   const supabase = createAdminClient();
-  const [{ data: product }, { data: categories }] = await Promise.all([
+  const [{ data: product }, { data: categories }, { data: extraLinks }] = await Promise.all([
     supabase
       .from("products")
       .select("*, product_variants (*)")
       .eq("id", id)
       .maybeSingle(),
     supabase.from("categories").select("*").order("sort_order"),
+    supabase
+      .from("product_categories")
+      .select("category_id")
+      .eq("product_id", id),
   ]);
 
   if (!product) notFound();
@@ -64,7 +68,13 @@ export default async function EditProductPage({
         </p>
       )}
 
-      <ProductForm product={typed} categories={(categories ?? []) as Category[]} />
+      <ProductForm
+        product={typed}
+        categories={(categories ?? []) as Category[]}
+        extraCategoryIds={((extraLinks ?? []) as { category_id: string }[]).map(
+          (row) => row.category_id,
+        )}
+      />
 
       <form action={deleteProduct} className="mt-10 border-t border-sea-200 pt-6">
         <input type="hidden" name="id" value={typed.id} />

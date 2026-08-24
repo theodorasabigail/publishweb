@@ -37,6 +37,24 @@ export async function updateSiteSettings(formData: FormData) {
         1,
         integer(formData, "loyalty_rupiah_per_point", 10000),
       ),
+      // One per line in the box. Trim + dedupe + drop blanks -- an
+      // accidental trailing newline should not add an empty method to the
+      // dropdown. Fall back to a sensible default only when the box is
+      // entirely empty, so the operator can never save themselves into a
+      // shop with no way to record a payment method.
+      payment_methods: (() => {
+        const seen = new Set<string>();
+        const list: string[] = [];
+        for (const line of text(formData, "payment_methods").split("\n")) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          const key = trimmed.toLowerCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          list.push(trimmed);
+        }
+        return list.length ? list : ["Cash", "QRIS", "Transfer BCA", "Card"];
+      })(),
       tier_silver_threshold: Math.max(1, integer(formData, "tier_silver_threshold", 100)),
       tier_gold_threshold: Math.max(2, integer(formData, "tier_gold_threshold", 500)),
       whatsapp_number: optionalText(formData, "whatsapp_number"),

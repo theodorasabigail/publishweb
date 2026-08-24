@@ -137,6 +137,7 @@ export async function createProduct(formData: FormData) {
   }
 
   await upsertVariants(supabase, data.id, formData);
+  await upsertExtraCategories(supabase, data.id, formData, fields.category_id);
   revalidateStorefront(data.slug);
   redirect(`/admin/products/${data.id}?saved=1`);
 }
@@ -158,8 +159,40 @@ export async function updateProduct(formData: FormData) {
   }
 
   await upsertVariants(supabase, id, formData);
+  await upsertExtraCategories(supabase, id, formData, fields.category_id);
   revalidateStorefront(fields.slug);
   redirect(`/admin/products/${id}?saved=1`);
+}
+
+/**
+ * The "also appears in" set: every extra category this coffee should show
+ * under, over and above its primary one.
+ *
+ * The primary lives in `products.category_id` and is never repeated here --
+ * doubling it would make the shop count the coffee twice on its own category
+ * page. Removed rows are deleted; whatever the form submits becomes truth.
+ */
+async function upsertExtraCategories(
+  supabase: Awaited<ReturnType<typeof adminClient>>["supabase"],
+  productId: string,
+  formData: FormData,
+  primaryCategoryId: string | null,
+) {
+  const chosen = new Set(
+    formData
+      .getAll("extra_category_ids")
+      .map((value) => String(value).trim())
+      .filter(Boolean),
+  );
+  if (primaryCategoryId) chosen.delete(primaryCategoryId);
+
+  await supabase.from("product_categories").delete().eq("product_id", productId);
+
+  if (chosen.size === 0) return;
+
+  await supabase.from("product_categories").insert(
+    Array.from(chosen).map((category_id) => ({ product_id: productId, category_id })),
+  );
 }
 
 /** Copy a product and its pricing, deactivated and renamed, so a new lot can

@@ -4137,3 +4137,74 @@ begin
   return v_order;
 end;
 $$;
+
+-- ===========================================================================
+-- migrations/0031_product_extra_categories.sql
+-- ===========================================================================
+
+-- ===========================================================================
+-- Publish Coffee Roasters -- coffees that live in more than one category
+--
+-- `products.category_id` is a single foreign key, so a coffee could be in
+-- Naturals *or* Java but not both. That is right for the primary label a
+-- coffee shows on its card and for the URL it lives at -- one canonical answer
+-- is what routing needs -- but many coffees genuinely belong on more than one
+-- shelf: a natural Java is naturally on both.
+--
+-- `category_id` stays as the primary. Extras live in a small join table, and
+-- the shop-by-category page reads the union. Existing coffees keep their
+-- single home unchanged and appear nowhere new.
+--
+-- Run this in Supabase -> SQL Editor, after 0030.
+-- ===========================================================================
+
+create table if not exists public.product_categories (
+  product_id uuid not null references public.products(id) on delete cascade,
+  category_id uuid not null references public.categories(id) on delete cascade,
+  primary key (product_id, category_id)
+);
+
+comment on table public.product_categories is
+  'Extra categories a coffee should also appear in. products.category_id remains the primary -- the one shown on the card and used for the URL. This is the "also appears in" set.';
+
+-- Reading a category's products in one query means indexing the far side.
+create index if not exists product_categories_category_idx
+  on public.product_categories(category_id);
+
+alter table public.product_categories enable row level security;
+
+drop policy if exists "product_categories: public read" on public.product_categories;
+create policy "product_categories: public read"
+  on public.product_categories for select using (true);
+
+drop policy if exists "product_categories: admin write" on public.product_categories;
+create policy "product_categories: admin write"
+  on public.product_categories for all
+  using (public.is_admin()) with check (public.is_admin());
+
+-- ===========================================================================
+-- migrations/0032_payment_methods_list.sql
+-- ===========================================================================
+
+-- ===========================================================================
+-- Publish Coffee Roasters -- the operator's own list of payment methods
+--
+-- "Paid" was one button and the method was always written as `manual_admin` --
+-- fine when the site was the only path, useless once the shop takes payment
+-- half a dozen different ways: cash, QRIS Shopee, QRIS BTN, transfer BCA, and
+-- so on. Which one the money came through matters for reconciliation.
+--
+-- The list lives on site_settings so the operator maintains it themselves.
+-- Starter values reflect what a shop that has not customised anything would
+-- reach for; they are replaced the moment the operator saves the settings.
+--
+-- Run this in Supabase -> SQL Editor, after 0031.
+-- ===========================================================================
+
+alter table public.site_settings
+  add column if not exists payment_methods text[] not null default array[
+    'Cash', 'QRIS', 'Transfer BCA', 'Card'
+  ]::text[];
+
+comment on column public.site_settings.payment_methods is
+  'The list the operator picks from when marking an order paid by hand. Free text: reads back on the receipt exactly as typed, so use names your bookkeeping will recognise.';
