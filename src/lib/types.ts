@@ -312,6 +312,9 @@ export interface Order {
   /** Whether it was holding reserved stock when voided, so restoring knows to
    *  put the hold back. */
   voided_held_stock: boolean;
+  /** Do not ship before this date. An order carrying one is a scheduled
+   *  order (a "PO"); nothing else about it is different. */
+  ship_after: string | null;
   /** The bucket this order's points went into, when there was no account to
    *  award them to. */
   pending_loyalty_id: string | null;

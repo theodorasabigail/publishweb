@@ -83,6 +83,8 @@ export async function recordManualOrder(input: {
   shippingIdr?: number | null;
   discountIdr?: number | null;
   discountReason?: string | null;
+  /** YYYY-MM-DD, in shop time. Recorded as a plain date, not an instant. */
+  shipAfter?: string | null;
 }): Promise<PosSaleResult> {
   const { supabase, session } = await adminClient();
 
@@ -125,6 +127,18 @@ export async function recordManualOrder(input: {
     p_discount_idr: Math.max(0, Math.round(input.discountIdr ?? 0)),
     p_discount_reason: input.discountReason?.trim() || null,
   });
+
+  // The database function knows nothing about ship_after. Set it as a plain
+  // column update rather than adding another argument to the settlement RPC.
+  if (input.shipAfter && data) {
+    const orderRow = Array.isArray(data) ? data[0] : data;
+    if (orderRow?.id) {
+      await supabase
+        .from("orders")
+        .update({ ship_after: input.shipAfter })
+        .eq("id", orderRow.id);
+    }
+  }
 
   if (error) {
     // The function raises messages written to be read at the counter ("Only 2

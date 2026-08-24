@@ -114,6 +114,7 @@ export function PosTerminal({
     rows: [],
   });
   const [shippingIdr, setShippingIdr] = useState<number | null>(null);
+  const [shipAfter, setShipAfter] = useState("");
   const [note, setNote] = useState("");
   const [customPricing, setCustomPricing] = useState(false);
   const [discountIdr, setDiscountIdr] = useState<number | null>(null);
@@ -247,6 +248,7 @@ export function PosTerminal({
     setShips(false);
     setAddress(BLANK_ADDRESS);
     setShippingIdr(null);
+    setShipAfter("");
     setNote("");
     setCustomPricing(false);
     setDiscountIdr(null);
@@ -333,6 +335,7 @@ export function PosTerminal({
         shippingIdr: isManual && ships ? (shippingIdr ?? 0) : 0,
         discountIdr: discount,
         discountReason: discount > 0 ? discountReason : null,
+        shipAfter: shipAfter || null,
       });
 
       if (!result.ok || !result.order) {
@@ -357,6 +360,7 @@ export function PosTerminal({
       setChannelReference("");
       setAddress(BLANK_ADDRESS);
       setShippingIdr(null);
+      setShipAfter("");
       setNote("");
       setCustomPricing(false);
       setDiscountIdr(null);
@@ -801,6 +805,27 @@ export function PosTerminal({
                     onChange={setAddress}
                     idPrefix="pos-address"
                   />
+
+                  <div>
+                    <label
+                      htmlFor="manual-ship-after"
+                      className="mb-1 block text-xs text-sea-800"
+                    >
+                      Do not ship before
+                    </label>
+                    <input
+                      id="manual-ship-after"
+                      type="date"
+                      value={shipAfter}
+                      onChange={(event) => setShipAfter(event.target.value)}
+                      className="input text-sm"
+                    />
+                    <p className="mt-1 text-xs text-sea-800">
+                      Leave empty for as soon as possible. A future date holds
+                      the coffee for this order and hides it from the ready-to-
+                      pack list until the date arrives.
+                    </p>
+                  </div>
 
                   <div>
                     <label
