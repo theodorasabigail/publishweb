@@ -9,22 +9,26 @@ export type LoyaltyTier = "bronze" | "silver" | "gold";
  */
 export type VariantSize = string;
 /**
- * Where an order sits in the shop's own workflow. Payment is separate --
- * paid_at is the truth about that -- so "paid" here really means "paid,
- * waiting to be roasted", the same way "roasting" means "being roasted".
+ * Fulfilment status: where the coffee is in the shop's own physical workflow.
  *
- * `completed` used to be a distinct terminal state for delivery, but delivery
- * is not something this shop tracks: a counter sale is done at "paid" and a
- * posted order is done at "shipped". Retired everywhere in the flow. The
- * database enum keeps the value only because Postgres cannot drop enum
- * members; nothing writes it and the dropdown no longer offers it.
+ * Deliberately no reference to payment -- paid_at is the truth about money,
+ * and invoiced_at about invoicing, and the two axes move on their own. An
+ * order can be paid and pending (money in, nothing done yet), or shipped and
+ * unpaid (posted before the invoice landed).
+ *
+ * `paid` and `completed` are inert history left in the enum because Postgres
+ * cannot drop members -- nothing writes them and the dropdown does not offer
+ * them.
  */
 export type OrderStatus =
   | "pending"
-  | "paid"
   | "roasting"
+  | "packing"
   | "shipped"
-  | "cancelled";
+  | "delivered"
+  | "cancelled"
+  | "paid"
+  | "completed";
 export type RoastingStatus = "new" | "quoted" | "accepted" | "declined" | "done";
 export type PostStatus = "draft" | "scheduled" | "published";
 /**
@@ -45,11 +49,16 @@ export type SalesChannel =
 /** Offered as a starting point in the admin, not a limit. */
 export const SUGGESTED_SIZES = ["100g", "200g", "250g", "500g", "1kg"];
 
+/**
+ * The values the operator picks from. `paid` and `completed` are omitted --
+ * they are inert historical values kept in the enum only.
+ */
 export const ORDER_STATUSES: OrderStatus[] = [
   "pending",
-  "paid",
   "roasting",
+  "packing",
   "shipped",
+  "delivered",
   "cancelled",
 ];
 
@@ -327,6 +336,10 @@ export interface Order {
   /** The bucket this order's points went into, when there was no account to
    *  award them to. */
   pending_loyalty_id: string | null;
+  /** When an invoice was sent for this order. Independent of paid_at --
+   *  an invoice can go before, with, or long after the money. */
+  invoiced_at: string | null;
+  invoiced_by: string | null;
 }
 
 /**

@@ -3,10 +3,14 @@ import { cn } from "@/lib/utils";
 
 const ORDER_STYLES: Record<OrderStatus, string> = {
   pending: "bg-amber-100 text-amber-800",
-  paid: "bg-emerald-100 text-emerald-800",
   roasting: "bg-orange-100 text-orange-800",
+  packing: "bg-fuchsia-100 text-fuchsia-800",
   shipped: "bg-sky-100 text-sky-800",
+  delivered: "bg-emerald-100 text-emerald-800",
   cancelled: "bg-red-100 text-red-800",
+  // Historical only -- nothing writes these any more.
+  paid: "bg-emerald-100 text-emerald-800",
+  completed: "bg-sea-100 text-sea-800",
 };
 
 /**
@@ -19,10 +23,13 @@ const ORDER_STYLES: Record<OrderStatus, string> = {
  */
 const ORDER_LABELS: Record<OrderStatus, string> = {
   pending: "Awaiting fulfilment",
-  paid: "Paid",
   roasting: "Roasting",
+  packing: "Packing",
   shipped: "Shipped",
+  delivered: "Delivered",
   cancelled: "Cancelled",
+  paid: "Paid",
+  completed: "Completed",
 };
 
 const ROASTING_STYLES: Record<RoastingStatus, string> = {
