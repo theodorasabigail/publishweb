@@ -41,6 +41,7 @@ export const FALLBACK_SETTINGS: SiteSettings = {
   featured_post_id: null,
   announcement_note: null,
   loyalty_rupiah_per_point: 10000,
+  payment_methods: ["Cash", "QRIS", "Transfer BCA", "Card"],
   tier_silver_threshold: 100,
   tier_gold_threshold: 500,
   whatsapp_number: null,

@@ -12,6 +12,8 @@ import {
   voidOrder,
 } from "@/app/admin/_actions/orders";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getSiteSettings } from "@/lib/queries";
+import { PaymentMethodSelect } from "@/components/admin/payment-method-select";
 import {
   CHANNEL_LABELS,
   CHANNEL_REFERENCE_LABELS,
@@ -33,11 +35,14 @@ export default async function AdminOrderDetailPage({
   const { id } = await params;
   const supabase = createAdminClient();
 
-  const { data } = await supabase
-    .from("orders")
-    .select("*, order_items (*)")
-    .eq("id", id)
-    .maybeSingle();
+  const [{ data }, settings] = await Promise.all([
+    supabase
+      .from("orders")
+      .select("*, order_items (*)")
+      .eq("id", id)
+      .maybeSingle(),
+    getSiteSettings(supabase),
+  ]);
 
   const order = data as OrderWithItems | null;
   if (!order) notFound();
@@ -519,8 +524,24 @@ export default async function AdminOrderDetailPage({
                   </option>
                 ))}
               </select>
+
+              <Field
+                label={order.paid_at ? "How it was paid" : "How it will be paid"}
+                hint={
+                  order.paid_at
+                    ? "Recorded when it was marked paid. Correct it if the wrong one was picked."
+                    : "Used when you mark this order paid. Manage the list under Settings."
+                }
+              >
+                <PaymentMethodSelect
+                  name="payment_method"
+                  methods={settings.payment_methods}
+                  defaultValue={order.payment_method}
+                />
+              </Field>
+
               <button type="submit" className="btn-primary w-full">
-                Update status
+                Update
               </button>
             </form>
 

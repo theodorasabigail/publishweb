@@ -302,6 +302,21 @@ export default async function AdminSettingsPage() {
               Save settings
             </button>
           </div>
+
+          <section className="rounded-xl border border-sea-200 bg-white p-5">
+            <h2 className="text-lg font-medium">Payment methods</h2>
+            <p className="mt-1 text-sm text-sea-800">
+              The list you pick from when marking an order paid by hand. One
+              per line. Written back onto the receipt exactly as typed — use
+              names your bookkeeping will recognise (e.g. &ldquo;QRIS Shopee&rdquo;, &ldquo;Transfer BCA&rdquo;).
+            </p>
+            <textarea
+              name="payment_methods"
+              className="input mt-3 min-h-32"
+              defaultValue={(site?.payment_methods ?? []).join("\n")}
+              placeholder="Cash&#10;QRIS Shopee&#10;QRIS BTN&#10;Transfer BCA&#10;Card"
+            />
+          </section>
         </form>
       </div>
     </div>

@@ -439,6 +439,26 @@ Phone numbers are matched however they are written — `0812…`, `+62 812…` a
 Voiding an order takes its held points back out again, the same as it does for
 a customer with an account.
 
+## Payment methods
+
+**Admin → Site settings → Payment methods.** One method per line, in whatever
+order you want them to appear. What you type is what shows on the receipt, so
+use names your bookkeeping recognises — "QRIS Shopee", "QRIS BTN",
+"Transfer BCA" rather than a generic "QRIS" or "Transfer".
+
+When you mark an order paid on its page, a dropdown of these appears above the
+Update button. Pick one; it is recorded against the order. An **Other…** option
+at the bottom of the dropdown reveals a text box for a one-off method, so a
+wallet a customer used once does not need a trip to Settings to be recorded
+correctly.
+
+An order that was already paid can have its method corrected on the same page
+— useful when the wrong one was picked in a hurry.
+
+The counter till still shows the four broad buttons (cash / QRIS / card /
+transfer) so a walk-in sale stays one-tap. Reach for the order page later if
+you want to be more specific.
+
 ## Unmatched payments
 
 Only relevant on the bank-transfer setup. If a customer types the wrong amount,
