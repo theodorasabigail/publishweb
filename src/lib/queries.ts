@@ -134,7 +134,23 @@ export async function getProducts(
     .order("sort_order")
     .order("created_at", { ascending: false });
 
-  if (options.categoryId) query = query.eq("category_id", options.categoryId);
+  if (options.categoryId) {
+    // A coffee counts as belonging to a category if it is that category's
+    // primary, OR if the join table records it as an extra. Read the extra
+    // set first, then match the primary or the extras.
+    const { data: extras } = await supabase
+      .from("product_categories")
+      .select("product_id")
+      .eq("category_id", options.categoryId);
+    const extraIds = (extras ?? []).map((row) => (row as { product_id: string }).product_id);
+
+    if (extraIds.length) {
+      const list = extraIds.join(",");
+      query = query.or(`category_id.eq.${options.categoryId},id.in.(${list})`);
+    } else {
+      query = query.eq("category_id", options.categoryId);
+    }
+  }
   if (options.featuredOnly) query = query.eq("is_featured", true);
   if (options.limit) query = query.limit(options.limit);
 

@@ -9,9 +9,12 @@ import type { Category, ProductWithVariants } from "@/lib/types";
 export function ProductForm({
   product,
   categories,
+  extraCategoryIds = [],
 }: {
   product?: ProductWithVariants;
   categories: Category[];
+  /** Category ids the product also appears in, beyond its primary one. */
+  extraCategoryIds?: string[];
 }) {
   const isEdit = Boolean(product);
 
@@ -48,7 +51,10 @@ export function ProductForm({
             />
           </Field>
 
-          <Field label="Category">
+          <Field
+            label="Primary category"
+            hint="The one shown on the coffee's card and used in its URL."
+          >
             <select
               name="category_id"
               className="input"
@@ -61,6 +67,37 @@ export function ProductForm({
                 </option>
               ))}
             </select>
+          </Field>
+
+          <Field
+            label="Also appears in"
+            hint="Ticked categories list this coffee too. The primary above is not repeated."
+          >
+            <div className="flex flex-wrap gap-3">
+              {categories.length === 0 && (
+                <p className="text-sm text-sea-800">
+                  No other categories yet. Add one under Categories.
+                </p>
+              )}
+              {categories.map((category) => {
+                const chosen = extraCategoryIds.includes(category.id);
+                return (
+                  <label
+                    key={category.id}
+                    className="flex items-center gap-2 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      name="extra_category_ids"
+                      value={category.id}
+                      defaultChecked={chosen}
+                      className="rounded border-sea-300"
+                    />
+                    {category.name}
+                  </label>
+                );
+              })}
+            </div>
           </Field>
         </div>
       </Panel>

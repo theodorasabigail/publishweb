@@ -281,6 +281,16 @@ That is the whole job.
 **Duplicate**, then edit. The copy starts hidden with zero stock, so you can
 get it right before anyone sees it.
 
+## Putting a coffee in more than one category
+
+Each coffee has a **primary category** — the one shown on its card and used in
+its URL. Under it in the product form is **Also appears in**, a set of tick
+boxes for every other category the coffee should show up under too.
+
+A natural Java can be primary in Naturals and also appear in Java, without
+being duplicated on the Naturals page itself. Ticking a coffee's primary
+category here is ignored on purpose: the shop cannot count it twice.
+
 ## Changing the order coffees appear in
 
 **Admin → Products.** Drag a row, or use the up/down arrows, then click **Save
