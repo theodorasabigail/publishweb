@@ -32,7 +32,7 @@ export default async function AccountOverviewPage({
 
   const orders = (orderRows ?? []) as Order[];
   const paidOrders = orders.filter((order) =>
-    ["paid", "roasting", "shipped", "completed"].includes(order.status),
+    ["paid", "roasting", "shipped"].includes(order.status),
   );
   const activeOrders = orders.filter((order) =>
     ["pending", "paid", "roasting", "shipped"].includes(order.status),

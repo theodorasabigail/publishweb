@@ -4,7 +4,9 @@ import { ArrowLeft } from "lucide-react";
 import { Field, PageHeader, Panel } from "@/components/admin/ui";
 import { OrderPositionBadges } from "@/components/status-badge";
 import {
+  assignOrderCustomer,
   deleteOrder,
+  quickShipAndPay,
   restoreOrder,
   updateOrderDetails,
   updateOrderFulfilment,
@@ -14,6 +16,7 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSiteSettings } from "@/lib/queries";
 import { PaymentMethodSelect } from "@/components/admin/payment-method-select";
+import { CustomerPicker } from "@/components/admin/customer-picker";
 import {
   CHANNEL_LABELS,
   CHANNEL_REFERENCE_LABELS,
@@ -344,6 +347,7 @@ export default async function AdminOrderDetailPage({
                   you agreed after the order was drafted. Line prices are set
                   on the till at the time of the order and are not editable
                   here — the receipt is a record of what was charged.
+                  {order.paid_at ? " Editing shipping or discount here recomputes the total shown to you and on the receipt, but does not adjust points already awarded — those were locked in at the moment the order was paid." : ""}
                 </p>
 
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -514,6 +518,40 @@ export default async function AdminOrderDetailPage({
             </Panel>
           )}
 
+          {!order.paid_at && isManual && (
+            <Panel
+              title="Add shipping & mark paid"
+              description="When the postage was agreed after the order was written and the money has just landed. Sets the shipping, records the payment method, and emails the customer a receipt in one go."
+            >
+              <form action={quickShipAndPay} className="space-y-3">
+                <input type="hidden" name="id" value={order.id} />
+                <Field
+                  label="Shipping"
+                  hint={`Current: ${formatIDR(order.shipping_idr)}. Leave 0 for collection at the shop.`}
+                >
+                  <input
+                    type="number"
+                    name="shipping_idr"
+                    min={0}
+                    step={1000}
+                    className="input"
+                    defaultValue={order.shipping_idr}
+                  />
+                </Field>
+                <Field label="How it was paid">
+                  <PaymentMethodSelect
+                    name="payment_method"
+                    methods={settings.payment_methods}
+                    defaultValue={order.payment_method}
+                  />
+                </Field>
+                <button type="submit" className="btn-primary w-full">
+                  Save shipping & mark paid
+                </button>
+              </form>
+            </Panel>
+          )}
+
           <Panel title="Move this order along">
             <form action={updateOrderStatus} className="space-y-3">
               <input type="hidden" name="id" value={order.id} />
@@ -550,6 +588,17 @@ export default async function AdminOrderDetailPage({
                 Setting this to <strong>paid</strong> does everything a real
                 payment does: it takes the stock down and awards loyalty points.
                 Only use it when you have confirmed the money arrived.
+              </p>
+            )}
+
+            {order.paid_at && (
+              <p className="mt-3 rounded-lg bg-sea-50 p-3 text-xs text-sea-800">
+                Setting a paid order to <strong>cancelled</strong> here marks
+                it cancelled but <strong>does not</strong> put the stock or
+                loyalty points back. That is a physical refund, not a bookkeeping
+                one — adjust the stock by hand once the coffee is back on the
+                shelf. If the order was entered in error, use{" "}
+                <strong>Void</strong> below instead, which reverses everything.
               </p>
             )}
 
@@ -706,17 +755,31 @@ export default async function AdminOrderDetailPage({
 
           <Panel title="Customer">
             {customer ? (
-              <div className="space-y-2 text-sm">
+              <div className="space-y-3 text-sm">
                 <Row label="Name" value={customer.display_name ?? "—"} />
                 <Row label="Email" value={customer.email ?? "—"} />
                 <Row label="Tier" value={customer.tier} />
                 <Row label="Points" value={String(customer.loyalty_points)} />
                 <Link
                   href={`/admin/customers/${customer.id}`}
-                  className="mt-2 block text-xs underline"
+                  className="block text-xs underline"
                 >
                   Open customer record
                 </Link>
+                <div className="border-t border-sea-200 pt-3">
+                  <p className="mb-2 text-xs uppercase tracking-wider text-sea-800">
+                    Attached to
+                  </p>
+                  <CustomerPicker
+                    orderId={order.id}
+                    current={{
+                      id: customer.id,
+                      display_name: customer.display_name,
+                      email: customer.email,
+                    }}
+                    action={assignOrderCustomer}
+                  />
+                </div>
               </div>
             ) : (
               <p className="text-sm text-sea-800">

@@ -4208,3 +4208,676 @@ alter table public.site_settings
 
 comment on column public.site_settings.payment_methods is
   'The list the operator picks from when marking an order paid by hand. Free text: reads back on the receipt exactly as typed, so use names your bookkeeping will recognise.';
+
+-- ===========================================================================
+-- migrations/0033_reassign_order_customer.sql
+-- ===========================================================================
+
+-- ===========================================================================
+-- Publish Coffee Roasters -- attach a customer to an order after the fact
+--
+-- Orders written without a customer -- a walk-in that later turned out to be
+-- a regular, a WhatsApp order for someone who has since signed up -- had no
+-- way to be attached to a real account. And doing this correctly is more than
+-- just setting user_id: an order paid without an account puts its points into
+-- a pending-loyalty bucket keyed on the buyer's email or phone. Attaching a
+-- customer needs to collect those held points into the customer's balance too,
+-- otherwise the operator sees the account and the ledger disagree on what the
+-- customer earned.
+--
+-- Run this in Supabase -> SQL Editor, after 0032.
+-- ===========================================================================
+
+create or replace function public.assign_order_customer(
+  p_order_id uuid,
+  p_user_id uuid
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order public.orders;
+  v_bucket public.pending_loyalty;
+begin
+  select * into v_order from public.orders where id = p_order_id for update;
+  if v_order is null then
+    raise exception 'order % not found', p_order_id;
+  end if;
+  if v_order.voided_at is not null then
+    raise exception 'That order was voided; put it back first.';
+  end if;
+
+  -- No-op if we are asked for the same customer that is already attached,
+  -- so a save-then-save cannot double-award points.
+  if v_order.user_id is not distinct from p_user_id then
+    return v_order;
+  end if;
+
+  update public.orders set user_id = p_user_id where id = p_order_id;
+
+  -- If the order paid into a pending-loyalty bucket, move those points to the
+  -- newly attached customer through the ledger, and mark the bucket claimed.
+  -- Handled by direction, not idempotency: this branch only runs when a real
+  -- transfer is due (unclaimed bucket, some points, a user to give them to).
+  if p_user_id is not null and v_order.pending_loyalty_id is not null then
+    select * into v_bucket
+      from public.pending_loyalty
+     where id = v_order.pending_loyalty_id
+       and claimed_at is null
+       for update;
+
+    if v_bucket.id is not null and v_bucket.points > 0 then
+      perform public.award_loyalty_points(
+        p_user_id,
+        v_bucket.points,
+        'Order ' || v_order.human_ref || ' attached to customer',
+        p_order_id,
+        null
+      );
+
+      update public.pending_loyalty
+         set points = 0, claimed_by = p_user_id, claimed_at = now()
+       where id = v_bucket.id;
+    end if;
+  end if;
+
+  -- If the order is being *detached* (user_id set to null) and it had already
+  -- been paid to a real customer, take those points back the same way voiding
+  -- does. Anything else and there is nothing to unwind.
+  if p_user_id is null
+     and v_order.user_id is not null
+     and v_order.paid_at is not null
+     and v_order.points_awarded > 0 then
+    perform public.award_loyalty_points(
+      v_order.user_id,
+      -v_order.points_awarded,
+      'Customer detached from order ' || v_order.human_ref,
+      p_order_id,
+      null
+    );
+  end if;
+
+  select * into v_order from public.orders where id = p_order_id;
+  return v_order;
+end;
+$$;
+
+revoke all on function public.assign_order_customer(uuid, uuid) from anon, authenticated;
+
+-- ===========================================================================
+-- migrations/0034_void_and_reassign_fixes.sql
+-- ===========================================================================
+
+-- ===========================================================================
+-- Publish Coffee Roasters -- two soundness fixes on the order workflow
+--
+-- Both surfaced by a real trace through what the operator can do.
+--
+-- 1. `void_order` reversed stock and points on any paid order, including one
+--    that had already shipped. The coffee is physically gone once a parcel
+--    leaves; putting the stock back on paper leaves the shop believing it has
+--    bags it does not. Voiding is for "this order was never real"; a shipped
+--    order plainly was. It is refused now, with a message that names the
+--    right tool.
+--
+-- 2. `assign_order_customer` transferred points into a newly attached
+--    customer, but did not handle *reassignment* -- attaching Alice then
+--    reassigning to Bob left Alice holding the points and gave Bob nothing.
+--    The reversal was there for a full detach and never chained with the
+--    reattach. The fixed version routes points off the old customer and onto
+--    the new one atomically, so any move (attach, reassign, detach) leaves
+--    exactly one balance changed by the right amount.
+--
+-- Run this in Supabase -> SQL Editor, after 0033.
+-- ===========================================================================
+
+-- --------------------------------------------------------------------------
+-- Void: refuse anything that has shipped.
+--
+-- Everything else is unchanged from 0023's definition. A shipped-then-void
+-- silently rewrote stock, which is the class of bug that only surfaces the
+-- day the operator counts the shelf.
+-- --------------------------------------------------------------------------
+create or replace function public.void_order(
+  p_order_id uuid,
+  p_reason text default null,
+  p_by uuid default null
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order public.orders;
+  v_held boolean;
+begin
+  select * into v_order from public.orders where id = p_order_id for update;
+  if v_order is null then
+    raise exception 'order % not found', p_order_id;
+  end if;
+
+  if v_order.channel = 'online' then
+    raise exception 'A website order cannot be voided -- a real payment went through for it. Cancel it instead, so the record still matches what the customer was charged.';
+  end if;
+
+  -- A parcel that has left cannot be undone by ticking a box. Guard by
+  -- shipped_at OR the status past it, either being enough on its own -- old
+  -- data may only carry the status, and status alone is what the operator sees.
+  if v_order.shipped_at is not null
+     or v_order.status in ('shipped'::order_status, 'completed'::order_status) then
+    raise exception 'This order has already shipped, so it cannot be voided -- the coffee has left the building and the stock count would be wrong. If the customer is returning it, mark the order cancelled and adjust the stock by hand once the parcel is back.';
+  end if;
+
+  if v_order.voided_at is not null then
+    return v_order;
+  end if;
+
+  v_held := v_order.stock_reserved_at is not null;
+  if v_held then
+    perform public.release_order_stock(p_order_id);
+  end if;
+
+  if v_order.paid_at is not null then
+    update public.product_variants v
+       set stock = v.stock + i.qty
+      from (
+        select variant_id, sum(quantity)::integer as qty
+          from public.order_items
+         where order_id = p_order_id and variant_id is not null
+         group by variant_id
+      ) i
+     where v.id = i.variant_id;
+
+    if v_order.points_awarded > 0 then
+      if v_order.user_id is not null then
+        perform public.award_loyalty_points(
+          v_order.user_id, -v_order.points_awarded,
+          'Voided order ' || v_order.human_ref, p_order_id, p_by
+        );
+      else
+        perform public.debit_pending_points(p_order_id, v_order.points_awarded);
+      end if;
+    end if;
+  end if;
+
+  update public.orders
+     set voided_at = now(),
+         voided_reason = p_reason,
+         voided_by = p_by,
+         voided_held_stock = v_held
+   where id = p_order_id
+  returning * into v_order;
+
+  return v_order;
+end;
+$$;
+
+-- --------------------------------------------------------------------------
+-- Reassignment: money moves off the old customer and onto the new one in one
+-- step, however the id changes.
+--
+-- The three shapes:
+--
+--   null -> user      attach. Take from the pending bucket if there is one;
+--                     otherwise award `points_awarded` directly, since that
+--                     is what the order says it earned.
+--   user -> user      reassign. Reverse the old, award the new. Skip if the
+--                     two are the same, so a save-then-save is inert.
+--   user -> null      detach. Reverse the old only.
+--
+-- All three are gated on paid_at: nothing to move for an unpaid order.
+-- --------------------------------------------------------------------------
+create or replace function public.assign_order_customer(
+  p_order_id uuid,
+  p_user_id uuid
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order public.orders;
+  v_bucket public.pending_loyalty;
+  v_previous_user uuid;
+  v_points integer;
+begin
+  select * into v_order from public.orders where id = p_order_id for update;
+  if v_order is null then
+    raise exception 'order % not found', p_order_id;
+  end if;
+  if v_order.voided_at is not null then
+    raise exception 'That order was voided; put it back first.';
+  end if;
+
+  -- Same customer already: no work.
+  if v_order.user_id is not distinct from p_user_id then
+    return v_order;
+  end if;
+
+  v_previous_user := v_order.user_id;
+  v_points := v_order.points_awarded;
+
+  update public.orders set user_id = p_user_id where id = p_order_id;
+
+  -- Nothing to move if not paid. Points get awarded on payment against
+  -- whoever is attached at that moment.
+  if v_order.paid_at is null then
+    select * into v_order from public.orders where id = p_order_id;
+    return v_order;
+  end if;
+
+  -- Take back from the previous customer, if there was one. Uses the ledger,
+  -- so their history keeps both the award and the reversal and adds up.
+  if v_previous_user is not null and v_points > 0 then
+    perform public.award_loyalty_points(
+      v_previous_user, -v_points,
+      'Order ' || v_order.human_ref || ' moved to another customer', p_order_id, null
+    );
+  end if;
+
+  -- Give to the new customer, if there is one.
+  if p_user_id is not null and v_points > 0 then
+    -- Prefer the pending bucket when it still has the points -- keeps the
+    -- narrative on the ledger honest ("collected from the bucket") for the
+    -- most common path (first attach). Reassignment (chaining after a
+    -- previous attach) sees an empty bucket and falls through to a direct
+    -- award of what the order recorded earning.
+    select * into v_bucket
+      from public.pending_loyalty
+     where id = v_order.pending_loyalty_id
+       and claimed_at is null
+       for update;
+
+    if v_bucket.id is not null and v_bucket.points > 0 then
+      perform public.award_loyalty_points(
+        p_user_id, v_bucket.points,
+        'Order ' || v_order.human_ref || ' attached to customer',
+        p_order_id, null
+      );
+      update public.pending_loyalty
+         set points = 0, claimed_by = p_user_id, claimed_at = now()
+       where id = v_bucket.id;
+    else
+      perform public.award_loyalty_points(
+        p_user_id, v_points,
+        'Order ' || v_order.human_ref || ' attached to customer',
+        p_order_id, null
+      );
+    end if;
+  end if;
+
+  select * into v_order from public.orders where id = p_order_id;
+  return v_order;
+end;
+$$;
+
+-- ===========================================================================
+-- migrations/0035_flexible_payment_method.sql
+-- ===========================================================================
+
+-- ===========================================================================
+-- Publish Coffee Roasters -- accept the operator's own payment method names
+--
+-- `record_manual_order` restricted `payment_method` to one of four fixed
+-- strings -- 'cash', 'qris', 'card', 'transfer'. That fit when the till's
+-- four buttons were the only way in, but 0032 let the operator keep their own
+-- list ("QRIS Shopee", "Transfer BCA"). The admin order page passes those
+-- through; a call to record_manual_order for a paid order carrying one gets
+-- refused. The two entry points now disagree, and the till's list is the
+-- narrower one for no principled reason.
+--
+-- The check drops to "not empty", matching how the admin already treats it.
+-- The till keeps its four buttons because that is a one-tap till design, not
+-- a data constraint. A method the operator types anywhere else is respected.
+--
+-- Run this in Supabase -> SQL Editor, after 0034.
+-- ===========================================================================
+
+create or replace function public.record_manual_order(
+  p_items jsonb,
+  p_channel text default 'pos',
+  p_payment_method text default null,
+  p_mark_paid boolean default true,
+  p_cash_received integer default null,
+  p_user_id uuid default null,
+  p_staff_id uuid default null,
+  p_note text default null,
+  p_channel_reference text default null,
+  p_shipping_address jsonb default null,
+  p_shipping_idr integer default 0,
+  p_discount_idr integer default 0,
+  p_discount_reason text default null
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order public.orders;
+  v_order_id uuid;
+  v_subtotal integer := 0;
+  v_shipping integer := greatest(0, coalesce(p_shipping_idr, 0));
+  v_discount integer := greatest(0, coalesce(p_discount_idr, 0));
+  v_total integer;
+  v_item jsonb;
+  v_variant record;
+  v_quantity integer;
+  v_price integer;
+  v_ships boolean := p_shipping_address is not null;
+begin
+  if p_items is null or jsonb_array_length(p_items) = 0 then
+    raise exception 'An order needs at least one item.';
+  end if;
+
+  if p_channel not in ('pos', 'whatsapp', 'instagram', 'marketplace', 'other') then
+    raise exception 'Unknown channel %. Orders from the website are written by the checkout, not here.', p_channel;
+  end if;
+
+  -- Paid orders need *a* method recorded. Which one is the operator's
+  -- decision -- their list in Settings, or a one-off they typed at the till.
+  -- Anything nonblank passes.
+  if p_mark_paid and coalesce(btrim(p_payment_method), '') = '' then
+    raise exception 'Say how the money arrived.';
+  end if;
+
+  for v_item in select * from jsonb_array_elements(p_items)
+  loop
+    v_quantity := (v_item ->> 'quantity')::integer;
+    if v_quantity is null or v_quantity <= 0 then
+      raise exception 'Every line needs a quantity of at least 1.';
+    end if;
+
+    select v.id, v.price_idr, v.available, v.size, v.is_active,
+           p.id as product_id, p.name as product_name, p.slug as product_slug
+      into v_variant
+      from public.product_variants v
+      join public.products p on p.id = v.product_id
+     where v.id = (v_item ->> 'variant_id')::uuid
+     for update of v;
+
+    if v_variant.id is null then
+      raise exception 'That coffee is no longer on the list.';
+    end if;
+    if not v_variant.is_active then
+      raise exception '% (%) is not currently for sale.',
+        v_variant.product_name, v_variant.size;
+    end if;
+    if v_variant.available < v_quantity then
+      raise exception 'Only % of % (%) available -- the rest is either sold or held by another order.',
+        v_variant.available, v_variant.product_name, v_variant.size;
+    end if;
+
+    v_price := coalesce((v_item ->> 'unit_price_idr')::integer, v_variant.price_idr);
+    if v_price < 0 then
+      raise exception 'A price cannot be negative.';
+    end if;
+
+    v_subtotal := v_subtotal + (v_price * v_quantity);
+  end loop;
+
+  v_discount := least(v_discount, v_subtotal);
+  v_total := (v_subtotal - v_discount) + v_shipping;
+
+  if p_mark_paid
+     and p_payment_method = 'cash'
+     and p_cash_received is not null
+     and p_cash_received < v_total then
+    raise exception 'Cash received is less than the total.';
+  end if;
+
+  insert into public.orders (
+    human_ref, channel, channel_reference, user_id, status,
+    subtotal_idr, shipping_idr, unique_code, total_idr,
+    discount_idr, discount_reason,
+    payment_method, cash_received_idr, staff_id, customer_note,
+    shipping_address, stock_reserved_at
+  )
+  values (
+    case
+      when p_channel = 'pos'
+        then 'POS-' || lpad(nextval('public.pos_ref_seq')::text, 5, '0')
+      else 'MAN-' || lpad(nextval('public.manual_ref_seq')::text, 5, '0')
+    end,
+    p_channel, p_channel_reference, p_user_id, 'pending',
+    v_subtotal, v_shipping, 0, v_total,
+    v_discount, nullif(btrim(coalesce(p_discount_reason, '')), ''),
+    p_payment_method,
+    case when p_mark_paid and p_payment_method = 'cash' then p_cash_received else null end,
+    p_staff_id, p_note,
+    p_shipping_address, now()
+  )
+  returning id into v_order_id;
+
+  for v_item in select * from jsonb_array_elements(p_items)
+  loop
+    v_quantity := (v_item ->> 'quantity')::integer;
+
+    insert into public.order_items (
+      order_id, product_id, variant_id,
+      name_snapshot, size_snapshot, slug_snapshot,
+      unit_price_idr, quantity
+    )
+    select v_order_id, p.id, v.id, p.name, v.size::text, p.slug,
+           coalesce((v_item ->> 'unit_price_idr')::integer, v.price_idr),
+           v_quantity
+      from public.product_variants v
+      join public.products p on p.id = v.product_id
+     where v.id = (v_item ->> 'variant_id')::uuid;
+  end loop;
+
+  update public.product_variants v
+     set reserved = v.reserved + i.qty
+    from (
+      select variant_id, sum(quantity)::integer as qty
+        from public.order_items
+       where order_id = v_order_id and variant_id is not null
+       group by variant_id
+    ) i
+   where v.id = i.variant_id;
+
+  if p_mark_paid then
+    perform public.mark_order_paid(v_order_id, null, p_payment_method);
+    if not v_ships then
+      update public.orders set status = 'completed' where id = v_order_id;
+    end if;
+  end if;
+
+  select * into v_order from public.orders where id = v_order_id;
+  return v_order;
+end;
+$$;
+
+-- ===========================================================================
+-- migrations/0036_drop_completed_terminal.sql
+-- ===========================================================================
+
+-- ===========================================================================
+-- Publish Coffee Roasters -- retire "completed" as a status the flow reaches
+--
+-- Two moments used to promote an order to `completed`:
+--
+--   record_manual_order   for a counter sale (no address to ship to)
+--   biteship webhook      when the courier reported delivery
+--
+-- Neither adds anything for this shop. A counter sale is done the moment it
+-- is rung up -- `paid` says that already. A shipped parcel is done the moment
+-- it ships; delivery is not a state the shop tracks, and treating it as one
+-- pretends to know something Biteship's own webhooks are not reliable enough
+-- to answer.
+--
+-- Existing rows are remapped by their shipped_at: a completed order that
+-- shipped becomes `shipped`, one that never did becomes `paid`. Going
+-- forward, nothing writes `completed` at all; the enum value stays because
+-- Postgres cannot drop enum values, but it is inert.
+--
+-- Run this in Supabase -> SQL Editor, after 0035.
+-- ===========================================================================
+
+update public.orders
+   set status = case
+                  when shipped_at is not null then 'shipped'::order_status
+                  else 'paid'::order_status
+                end
+ where status = 'completed';
+
+-- --------------------------------------------------------------------------
+-- record_manual_order without the auto-complete branch. Everything else is
+-- unchanged from 0035; only the one line that promoted to 'completed' when
+-- there was no address is gone.
+-- --------------------------------------------------------------------------
+create or replace function public.record_manual_order(
+  p_items jsonb,
+  p_channel text default 'pos',
+  p_payment_method text default null,
+  p_mark_paid boolean default true,
+  p_cash_received integer default null,
+  p_user_id uuid default null,
+  p_staff_id uuid default null,
+  p_note text default null,
+  p_channel_reference text default null,
+  p_shipping_address jsonb default null,
+  p_shipping_idr integer default 0,
+  p_discount_idr integer default 0,
+  p_discount_reason text default null
+)
+returns public.orders
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order public.orders;
+  v_order_id uuid;
+  v_subtotal integer := 0;
+  v_shipping integer := greatest(0, coalesce(p_shipping_idr, 0));
+  v_discount integer := greatest(0, coalesce(p_discount_idr, 0));
+  v_total integer;
+  v_item jsonb;
+  v_variant record;
+  v_quantity integer;
+  v_price integer;
+begin
+  if p_items is null or jsonb_array_length(p_items) = 0 then
+    raise exception 'An order needs at least one item.';
+  end if;
+
+  if p_channel not in ('pos', 'whatsapp', 'instagram', 'marketplace', 'other') then
+    raise exception 'Unknown channel %. Orders from the website are written by the checkout, not here.', p_channel;
+  end if;
+
+  if p_mark_paid and coalesce(btrim(p_payment_method), '') = '' then
+    raise exception 'Say how the money arrived.';
+  end if;
+
+  for v_item in select * from jsonb_array_elements(p_items)
+  loop
+    v_quantity := (v_item ->> 'quantity')::integer;
+    if v_quantity is null or v_quantity <= 0 then
+      raise exception 'Every line needs a quantity of at least 1.';
+    end if;
+
+    select v.id, v.price_idr, v.available, v.size, v.is_active,
+           p.id as product_id, p.name as product_name, p.slug as product_slug
+      into v_variant
+      from public.product_variants v
+      join public.products p on p.id = v.product_id
+     where v.id = (v_item ->> 'variant_id')::uuid
+     for update of v;
+
+    if v_variant.id is null then
+      raise exception 'That coffee is no longer on the list.';
+    end if;
+    if not v_variant.is_active then
+      raise exception '% (%) is not currently for sale.',
+        v_variant.product_name, v_variant.size;
+    end if;
+    if v_variant.available < v_quantity then
+      raise exception 'Only % of % (%) available -- the rest is either sold or held by another order.',
+        v_variant.available, v_variant.product_name, v_variant.size;
+    end if;
+
+    v_price := coalesce((v_item ->> 'unit_price_idr')::integer, v_variant.price_idr);
+    if v_price < 0 then
+      raise exception 'A price cannot be negative.';
+    end if;
+
+    v_subtotal := v_subtotal + (v_price * v_quantity);
+  end loop;
+
+  v_discount := least(v_discount, v_subtotal);
+  v_total := (v_subtotal - v_discount) + v_shipping;
+
+  if p_mark_paid
+     and p_payment_method = 'cash'
+     and p_cash_received is not null
+     and p_cash_received < v_total then
+    raise exception 'Cash received is less than the total.';
+  end if;
+
+  insert into public.orders (
+    human_ref, channel, channel_reference, user_id, status,
+    subtotal_idr, shipping_idr, unique_code, total_idr,
+    discount_idr, discount_reason,
+    payment_method, cash_received_idr, staff_id, customer_note,
+    shipping_address, stock_reserved_at
+  )
+  values (
+    case
+      when p_channel = 'pos'
+        then 'POS-' || lpad(nextval('public.pos_ref_seq')::text, 5, '0')
+      else 'MAN-' || lpad(nextval('public.manual_ref_seq')::text, 5, '0')
+    end,
+    p_channel, p_channel_reference, p_user_id, 'pending',
+    v_subtotal, v_shipping, 0, v_total,
+    v_discount, nullif(btrim(coalesce(p_discount_reason, '')), ''),
+    p_payment_method,
+    case when p_mark_paid and p_payment_method = 'cash' then p_cash_received else null end,
+    p_staff_id, p_note,
+    p_shipping_address, now()
+  )
+  returning id into v_order_id;
+
+  for v_item in select * from jsonb_array_elements(p_items)
+  loop
+    v_quantity := (v_item ->> 'quantity')::integer;
+
+    insert into public.order_items (
+      order_id, product_id, variant_id,
+      name_snapshot, size_snapshot, slug_snapshot,
+      unit_price_idr, quantity
+    )
+    select v_order_id, p.id, v.id, p.name, v.size::text, p.slug,
+           coalesce((v_item ->> 'unit_price_idr')::integer, v.price_idr),
+           v_quantity
+      from public.product_variants v
+      join public.products p on p.id = v.product_id
+     where v.id = (v_item ->> 'variant_id')::uuid;
+  end loop;
+
+  update public.product_variants v
+     set reserved = v.reserved + i.qty
+    from (
+      select variant_id, sum(quantity)::integer as qty
+        from public.order_items
+       where order_id = v_order_id and variant_id is not null
+       group by variant_id
+    ) i
+   where v.id = i.variant_id;
+
+  if p_mark_paid then
+    perform public.mark_order_paid(v_order_id, null, p_payment_method);
+    -- No auto-promotion to `completed` here. A counter sale ends at `paid` --
+    -- there is nothing to ship, so nothing left to do -- and any manual order
+    -- with an address ends at `paid` until the operator ships it, exactly
+    -- like a website order does.
+  end if;
+
+  select * into v_order from public.orders where id = v_order_id;
+  return v_order;
+end;
+$$;

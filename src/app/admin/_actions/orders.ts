@@ -62,7 +62,7 @@ export async function updateOrderStatus(formData: FormData) {
     // the order is cancelled instead, the hold comes back. Both already work.
     // Paid orders are left alone by the function itself, so re-selecting a
     // status on one cannot take the same bags off twice.
-    if (status === "roasting" || status === "shipped" || status === "completed") {
+    if (status === "roasting" || status === "shipped") {
       const { error } = await supabase.rpc("reserve_order_stock", { p_order_id: id });
       // The function names the coffee that is short, which is the only version
       // of this message the operator can act on.
@@ -429,4 +429,105 @@ function revalidateOrder(id: string) {
   revalidatePath("/admin");
   revalidatePath("/");
   revalidatePath("/shop");
+}
+
+/**
+ * Attach a customer to an order that was written without one, or move it to a
+ * different customer, or detach entirely.
+ *
+ * The database function does the work: it sets user_id, and -- crucially --
+ * transfers any pending-loyalty points sitting against the order's email or
+ * phone into the newly-attached customer's balance through the ledger. Without
+ * that transfer the account and the ledger would disagree on what the customer
+ * earned, which the operator would notice weeks later and could not explain.
+ *
+ * A no-op when the same customer is chosen again, so a save-then-save cannot
+ * double-award points.
+ */
+export async function assignOrderCustomer(formData: FormData) {
+  const { supabase } = await adminClient();
+  const id = text(formData, "id");
+  const userId = optionalText(formData, "user_id");
+
+  const { error } = await supabase.rpc("assign_order_customer", {
+    p_order_id: id,
+    p_user_id: userId,
+  });
+  if (error) throw new Error(describeDbError(error, "Could not attach the customer."));
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${id}`);
+  revalidatePath("/admin/customers");
+  if (userId) revalidatePath(`/admin/customers/${userId}`);
+}
+
+/**
+ * Add shipping and mark an order paid in one step.
+ *
+ * The common case for a manual order: it was written up before postage was
+ * agreed, and now the money has landed. Right now that is three trips --
+ * corrections panel to add shipping, then the status form to mark paid, then
+ * a refresh -- and the shipping edit is trivial each time. This is that
+ * flow, condensed. Reuses mark_order_paid, so stock, points and the receipt
+ * email land in the same place.
+ *
+ * Refuses to run on an already-paid order (the corrections panel handles
+ * that), and refuses to add shipping when there is no address to ship to.
+ */
+export async function quickShipAndPay(formData: FormData) {
+  const { supabase } = await adminClient();
+  const id = text(formData, "id");
+  const shippingRaw = optionalText(formData, "shipping_idr");
+  const shippingIdr = shippingRaw ? Math.max(0, Math.round(Number(shippingRaw))) : 0;
+  const method = optionalText(formData, "payment_method") ?? "manual_admin";
+
+  const { data: current } = await supabase
+    .from("orders")
+    .select("paid_at, subtotal_idr, discount_idr, unique_code, shipping_address")
+    .eq("id", id)
+    .maybeSingle();
+  const order = current as {
+    paid_at: string | null;
+    subtotal_idr: number;
+    discount_idr: number;
+    unique_code: number;
+    shipping_address: unknown;
+  } | null;
+
+  if (!order) throw new Error("That order no longer exists.");
+  if (order.paid_at) {
+    throw new Error(
+      "This order has already been paid. Use the corrections panel to change shipping.",
+    );
+  }
+
+  // Apply shipping and total first, then settle. If the settle fails, the
+  // shipping edit stays -- the operator can retry marking paid without
+  // re-typing.
+  const { error: writeError } = await supabase
+    .from("orders")
+    .update({
+      shipping_idr: shippingIdr,
+      total_idr: Math.max(
+        0,
+        (order.subtotal_idr ?? 0) - (order.discount_idr ?? 0) + shippingIdr + (order.unique_code ?? 0),
+      ),
+    })
+    .eq("id", id);
+
+  if (writeError) {
+    throw new Error(describeDbError(writeError, "Could not save the shipping cost."));
+  }
+
+  const { error: payError } = await supabase.rpc("mark_order_paid", {
+    p_order_id: id,
+    p_payment_ref: null,
+    p_payment_method: method,
+  });
+  if (payError) throw new Error(describeDbError(payError, "Could not mark the order paid."));
+
+  await sendOrderConfirmation(id);
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${id}`);
+  revalidatePath("/admin");
 }

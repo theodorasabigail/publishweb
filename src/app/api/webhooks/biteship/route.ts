@@ -98,7 +98,7 @@ export async function POST(request: Request) {
     const next = orderStatusFor(parsed.status);
     if (next && order.status !== "cancelled") {
       const rank: Record<string, number> = {
-        pending: 0, paid: 1, roasting: 2, shipped: 3, completed: 4, cancelled: 9,
+        pending: 0, paid: 1, roasting: 2, shipped: 3, cancelled: 9,
       };
       if ((rank[next] ?? 0) > (rank[order.status] ?? 0)) {
         update.status = next;

@@ -6,7 +6,6 @@ const ORDER_STYLES: Record<OrderStatus, string> = {
   paid: "bg-emerald-100 text-emerald-800",
   roasting: "bg-orange-100 text-orange-800",
   shipped: "bg-sky-100 text-sky-800",
-  completed: "bg-sea-100 text-sea-800",
   cancelled: "bg-red-100 text-red-800",
 };
 
@@ -23,7 +22,6 @@ const ORDER_LABELS: Record<OrderStatus, string> = {
   paid: "Paid",
   roasting: "Roasting",
   shipped: "Shipped",
-  completed: "Completed",
   cancelled: "Cancelled",
 };
 
