@@ -21,7 +21,11 @@ import {
   type PosPaymentMethod,
 } from "@/app/admin/_actions/pos";
 import { AddressFields, EMPTY_ADDRESS } from "@/components/shop/address-fields";
-import type { Address } from "@/lib/types";
+import {
+  addressIsComplete,
+  type Address,
+  type ShippingAddressSnapshot,
+} from "@/lib/types";
 import {
   CHANNEL_LABELS,
   CHANNEL_REFERENCE_LABELS,
@@ -127,6 +131,7 @@ export function PosTerminal({
   const [pending, startTransition] = useTransition();
 
   const isManual = mode === "manual";
+  const addressComplete = addressIsComplete(address as ShippingAddressSnapshot);
   const paid = isManual ? markPaid : true;
   const shipping = isManual && ships ? (shippingIdr ?? 0) : 0;
 
@@ -297,14 +302,8 @@ export function PosTerminal({
     if (discount > 0 && !discountReason.trim()) {
       return "Say what the discount is for.";
     }
-    if (isManual && ships) {
-      if (!address.recipient_name.trim()) return "A parcel needs a name to go to.";
-      if (!address.phone.trim()) return "The courier will need a phone number.";
-      if (!address.line1.trim()) return "Add a street address.";
-      if (!address.city.trim()) return "Add a city.";
-    }
     return null;
-  }, [lines, paid, method, cashReceived, total, isManual, ships, address, discount, discountReason]);
+  }, [lines, paid, method, cashReceived, total, discount, discountReason]);
 
   function submit() {
     setError(null);
@@ -1059,6 +1058,14 @@ export function PosTerminal({
                   </p>
                 )}
               </div>
+            )}
+
+            {isManual && ships && !addressComplete && lines.length > 0 && (
+              <p className="mt-3 rounded-lg bg-sea-50 p-2.5 text-xs text-sea-800">
+                The address is not finished. You can save this now and fill it
+                in on the order when they send it — it just cannot be given a
+                tracking number until then.
+              </p>
             )}
 
             {isManual && !markPaid && lines.length > 0 && (

@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   CHANNEL_LABELS,
   ORDER_STATUSES,
+  addressIsComplete,
   type Order,
   type OrderStatus,
   type SalesChannel,
@@ -213,6 +214,15 @@ export default async function AdminOrdersPage({
                   </td>
                   <td className="px-4 py-3">
                     <OrderStatusBadge status={order.status} />
+                    {order.shipping_address &&
+                      !addressIsComplete(order.shipping_address) && (
+                        <span
+                          className="ml-1.5 text-xs text-amber-700"
+                          title="Saved without a full address — it cannot be given a tracking number yet."
+                        >
+                          address to come
+                        </span>
+                      )}
                     {order.stock_reserved_at && (
                       <span
                         className="ml-1.5 text-xs text-amber-700"

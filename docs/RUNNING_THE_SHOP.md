@@ -38,6 +38,18 @@ records the date, as well as emailing the customer — those used to be three
 separate things, and the customer could be told a parcel was on its way while
 the admin still said it was only paid.
 
+**Moving an order past "awaiting payment" holds its coffee.** Setting one to
+roasting, shipped or completed takes those bags off what the shop can sell,
+even before the money has arrived — an order you are roasting beans for is an
+order those beans are spoken for. Marking it paid turns that hold into a real
+stock reduction; cancelling it, or moving it back to awaiting payment, puts the
+coffee back. If there is not enough free to set aside, the site says which
+coffee is short and by how much, and leaves the order where it was.
+
+Manual orders already held their coffee from the moment you wrote them down, so
+this changes nothing for those. It is website orders that used to sit there
+committing nothing until they were paid.
+
 Marking an order **Shipped** also records *when*, the first time you do it.
 Re-selecting it later will not move that date, and neither will anything else —
 if the parcel actually went out yesterday and you only got round to the site
@@ -162,7 +174,12 @@ questions the counter never has to ask:
 - **Came in through** — WhatsApp, Instagram, Marketplace or somewhere else, plus
   their number or handle. That is what lets you find the conversation again in a
   fortnight when they ask where it is.
-- **Collecting or Shipping** — Shipping opens an address form. Type a few
+- **Collecting or Shipping** — Shipping opens an address form. **You do not
+  have to finish it.** An order agreed before the address arrives is still a
+  real order: save it, and fill the address in later under **Correct the
+  details**. It waits as long as it needs to. The one thing it cannot do is be
+  given a tracking number — a parcel cannot have gone to half an address — and
+  the order says so until it has a name, phone, street and city. Type a few
   letters of the kelurahan or kecamatan into the search box and pick from the
   list: provinsi, kota, kecamatan, kelurahan and the postcode all fill in, and
   the order remembers the courier's own code for that place, which is what

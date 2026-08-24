@@ -221,6 +221,29 @@ export interface ShippingAddressSnapshot {
   area_id?: string | null;
 }
 
+/**
+ * Whether an address has enough on it to put a parcel in the post.
+ *
+ * Deliberately not enforced when an order is *saved*. An order agreed over
+ * WhatsApp often arrives before the address does — "I'll send it later" — and
+ * refusing to record the order until then means it lives in the chat instead
+ * of in the shop's books, which is the thing all of this exists to stop.
+ *
+ * It is enforced at the point it actually matters: a tracking number means a
+ * parcel has gone somewhere, and it cannot have gone to half an address.
+ */
+export function addressIsComplete(
+  address: ShippingAddressSnapshot | null | undefined,
+): boolean {
+  if (!address) return false;
+  return Boolean(
+    address.recipient_name?.trim() &&
+      address.phone?.trim() &&
+      address.line1?.trim() &&
+      address.city?.trim(),
+  );
+}
+
 export interface Order {
   id: string;
   human_ref: string;

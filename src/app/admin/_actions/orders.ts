@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import {
   CHANNEL_LABELS,
   ORDER_STATUSES,
+  addressIsComplete,
   type OrderStatus,
   type SalesChannel,
   type ShippingAddressSnapshot,
@@ -42,6 +43,34 @@ export async function updateOrderStatus(formData: FormData) {
     const { error } = await supabase.rpc("cancel_order", { p_order_id: id });
     if (error) throw new Error("Could not cancel the order.");
   } else {
+    // An order that has stopped merely waiting has its coffee spoken for.
+    //
+    // Stock used to move at exactly one moment — payment — which was right
+    // when the website was the only path. Driven by hand it leaves a gap: an
+    // order being roasted is an order somebody is roasting beans for, and the
+    // shop would go on selling those bags until the transfer landed.
+    //
+    // Holding rather than decrementing, because no money has arrived yet.
+    // When it does, mark_order_paid turns the hold into a real decrement; if
+    // the order is cancelled instead, the hold comes back. Both already work.
+    // Paid orders are left alone by the function itself, so re-selecting a
+    // status on one cannot take the same bags off twice.
+    if (status === "roasting" || status === "shipped" || status === "completed") {
+      const { error } = await supabase.rpc("reserve_order_stock", { p_order_id: id });
+      // The function names the coffee that is short, which is the only version
+      // of this message the operator can act on.
+      if (error) {
+        throw new Error(describeDbError(error, error.message ?? "Could not set the coffee aside."));
+      }
+    }
+
+    // ...and a step back to "waiting" un-commits it, so an order parked back
+    // in pending does not go on holding coffee nobody is working on.
+    if (status === "pending") {
+      const { error } = await supabase.rpc("release_order_stock", { p_order_id: id });
+      if (error) throw new Error(describeDbError(error, "Could not release the coffee."));
+    }
+
     // Marking an order shipped records when, if nothing has yet. Only when it
     // is missing: re-selecting "shipped" on an order that already shipped
     // must not move the date to today, and a date the operator corrected by
@@ -70,8 +99,8 @@ export async function updateOrderStatus(formData: FormData) {
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${id}`);
   revalidatePath(`/order/${id}`);
-  // Paying or cancelling moves what the shop can sell, so the storefront's
-  // stock counts are now stale.
+  // Any of these moves what the shop can sell, so the storefront's stock
+  // counts are now stale.
   revalidatePath("/");
   revalidatePath("/shop");
 }
@@ -95,10 +124,24 @@ export async function updateOrderFulfilment(formData: FormData) {
 
   const { data: existing } = await supabase
     .from("orders")
-    .select("status, shipped_at")
+    .select("status, shipped_at, shipping_address")
     .eq("id", id)
     .maybeSingle();
-  const before = existing as { status: OrderStatus; shipped_at: string | null } | null;
+  const before = existing as {
+    status: OrderStatus;
+    shipped_at: string | null;
+    shipping_address: ShippingAddressSnapshot | null;
+  } | null;
+
+  // An order can be saved with half an address, or none. It cannot be *posted*
+  // to one: a tracking number says a parcel has gone somewhere, and it cannot
+  // have gone somewhere that is not written down.
+  if (tracking && !addressIsComplete(before?.shipping_address)) {
+    throw new Error(
+      "This order needs a full address before it can be given a tracking number — " +
+        "a name, a phone number, a street and a city. Add them under “Correct the details”.",
+    );
+  }
 
   const patch: {
     tracking_number: string | null;
@@ -182,12 +225,25 @@ export async function updateOrderDetails(formData: FormData) {
     );
   }
 
-  // An address is either recorded in full or not at all. A half-written one is
-  // worse than none: the courier form would silently take it.
+  // A part-written address is saved as it stands. It is how an order whose
+  // address is still coming gets recorded at all, and `addressIsComplete`
+  // guards the one place it would actually matter — putting a parcel in the
+  // post. An address with nothing on it at all is null, which reads as "the
+  // customer is collecting".
   const recipient = optionalText(formData, "recipient_name");
-  const address: ShippingAddressSnapshot | null = recipient
+  const hasAnything = [
+    recipient,
+    optionalText(formData, "phone"),
+    optionalText(formData, "line1"),
+    optionalText(formData, "city"),
+    optionalText(formData, "village"),
+    optionalText(formData, "district"),
+    optionalText(formData, "postal_code"),
+  ].some(Boolean);
+
+  const address: ShippingAddressSnapshot | null = hasAnything
     ? {
-        recipient_name: recipient,
+        recipient_name: recipient ?? "",
         phone: text(formData, "phone"),
         email: optionalText(formData, "email"),
         line1: text(formData, "line1"),
@@ -204,10 +260,6 @@ export async function updateOrderDetails(formData: FormData) {
         area_id: optionalText(formData, "area_id"),
       }
     : null;
-
-  if (address && (!address.phone || !address.line1 || !address.city)) {
-    throw new Error("An address needs at least a phone number, a street and a city.");
-  }
 
   const { error } = await supabase
     .from("orders")

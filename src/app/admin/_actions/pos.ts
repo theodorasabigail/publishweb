@@ -95,9 +95,10 @@ export async function recordManualOrder(input: {
   if (input.markPaid && !input.paymentMethod) {
     return { ok: false, error: "Say how the money arrived." };
   }
-  if (input.address && !input.address.recipient_name.trim()) {
-    return { ok: false, error: "A parcel needs a name to go to." };
-  }
+  // No completeness check here on purpose. An order whose address is still
+  // coming is a real order, and it belongs in the books now rather than in a
+  // chat thread until the customer gets round to sending it. What it cannot do
+  // is ship — that is guarded where a tracking number is saved.
 
   const { data, error } = await supabase.rpc("record_manual_order", {
     p_items: input.lines.map((line) => ({
