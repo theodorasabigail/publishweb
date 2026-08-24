@@ -196,10 +196,32 @@ export async function updateOrderDetails(formData: FormData) {
 
   const { data: current } = await supabase
     .from("orders")
-    .select("paid_at")
+    .select("paid_at, subtotal_idr, unique_code")
     .eq("id", id)
     .maybeSingle();
-  const wasPaid = Boolean((current as { paid_at: string | null } | null)?.paid_at);
+  const currentOrder = current as {
+    paid_at: string | null;
+    subtotal_idr: number;
+    unique_code: number;
+  } | null;
+  const wasPaid = Boolean(currentOrder?.paid_at);
+
+  // Money edits happen next, and touch the total. Kept apart from the payment
+  // path -- nothing here moves stock or points.
+  const rawShipping = optionalText(formData, "shipping_idr");
+  const rawDiscount = optionalText(formData, "discount_idr");
+  const shippingIdr = rawShipping ? Math.max(0, Math.round(Number(rawShipping))) : null;
+  const discountIdrRaw = rawDiscount ? Math.max(0, Math.round(Number(rawDiscount))) : null;
+  // A discount larger than the coffee is read as "this one is free" rather
+  // than allowed to go negative, matching how the till handles the same case.
+  const discountIdr = discountIdrRaw !== null && currentOrder
+    ? Math.min(discountIdrRaw, currentOrder.subtotal_idr)
+    : discountIdrRaw;
+  const discountReason = optionalText(formData, "discount_reason");
+
+  if ((discountIdr ?? 0) > 0 && !discountReason) {
+    throw new Error("Say what the discount is for.");
+  }
 
   // When the order was actually agreed, which for one written up days later
   // is not when it was typed in. Refused if it is in the future: a sale that
@@ -268,6 +290,20 @@ export async function updateOrderDetails(formData: FormData) {
       channel_reference: optionalText(formData, "channel_reference"),
       ...(placedAt ? { created_at: placedAt } : {}),
       paid_at: paidAt,
+      // Money edits: never negative, discount capped at the coffee subtotal
+      // (already done above), and the total is kept consistent with its parts.
+      // Any of the three left empty means "clear" -- an operator who removes
+      // a value expects that value to be gone.
+      shipping_idr: shippingIdr ?? 0,
+      discount_idr: discountIdr ?? 0,
+      discount_reason: (discountIdr ?? 0) > 0 ? discountReason : null,
+      total_idr: Math.max(
+        0,
+        (currentOrder?.subtotal_idr ?? 0)
+          - (discountIdr ?? 0)
+          + (shippingIdr ?? 0)
+          + (currentOrder?.unique_code ?? 0),
+      ),
       // A plain YYYY-MM-DD date, or null to clear. A malformed one is dropped
       // rather than saved as a bad date -- a date input from a modern browser
       // is validated already, so this is a belt to the browser's braces.

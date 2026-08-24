@@ -332,6 +332,55 @@ export default async function AdminOrderDetailPage({
 
               <fieldset className="space-y-4 border-t border-sea-200 pt-4">
                 <legend className="text-xs uppercase tracking-wider text-sea-800">
+                  Money
+                </legend>
+                <p className="text-xs text-sea-800">
+                  For adding shipping after the fact, or recording a discount
+                  you agreed after the order was drafted. Line prices are set
+                  on the till at the time of the order and are not editable
+                  here — the receipt is a record of what was charged.
+                </p>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field
+                    label="Shipping"
+                    hint={`Coffee subtotal is ${formatIDR(order.subtotal_idr)}.`}
+                  >
+                    <input
+                      type="number"
+                      name="shipping_idr"
+                      min={0}
+                      step={1000}
+                      className="input"
+                      defaultValue={order.shipping_idr}
+                    />
+                  </Field>
+                  <Field label="Discount off the coffee">
+                    <input
+                      type="number"
+                      name="discount_idr"
+                      min={0}
+                      step={1000}
+                      className="input"
+                      defaultValue={order.discount_idr}
+                    />
+                  </Field>
+                </div>
+                <Field
+                  label="What is the discount for?"
+                  hint="Required when there is a discount. Shows on the order and the receipt."
+                >
+                  <input
+                    name="discount_reason"
+                    className="input"
+                    defaultValue={order.discount_reason ?? ""}
+                    placeholder="Regular customer, 5kg order…"
+                  />
+                </Field>
+              </fieldset>
+
+              <fieldset className="space-y-4 border-t border-sea-200 pt-4">
+                <legend className="text-xs uppercase tracking-wider text-sea-800">
                   Where it is going
                 </legend>
                 <p className="text-xs text-sea-800">
