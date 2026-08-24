@@ -430,3 +430,33 @@ function revalidateOrder(id: string) {
   revalidatePath("/");
   revalidatePath("/shop");
 }
+
+/**
+ * Attach a customer to an order that was written without one, or move it to a
+ * different customer, or detach entirely.
+ *
+ * The database function does the work: it sets user_id, and -- crucially --
+ * transfers any pending-loyalty points sitting against the order's email or
+ * phone into the newly-attached customer's balance through the ledger. Without
+ * that transfer the account and the ledger would disagree on what the customer
+ * earned, which the operator would notice weeks later and could not explain.
+ *
+ * A no-op when the same customer is chosen again, so a save-then-save cannot
+ * double-award points.
+ */
+export async function assignOrderCustomer(formData: FormData) {
+  const { supabase } = await adminClient();
+  const id = text(formData, "id");
+  const userId = optionalText(formData, "user_id");
+
+  const { error } = await supabase.rpc("assign_order_customer", {
+    p_order_id: id,
+    p_user_id: userId,
+  });
+  if (error) throw new Error(describeDbError(error, "Could not attach the customer."));
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${id}`);
+  revalidatePath("/admin/customers");
+  if (userId) revalidatePath(`/admin/customers/${userId}`);
+}

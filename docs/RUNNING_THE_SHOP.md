@@ -55,6 +55,11 @@ Re-selecting it later will not move that date, and neither will anything else �
 if the parcel actually went out yesterday and you only got round to the site
 today, correct the date by hand (below) and it will stay corrected.
 
+**"Completed" is not in the status dropdown any more.** For your workflow —
+counter sales are done when rung up, and anything posted is done when shipped
+— it was a step that added nothing. Counter sales still auto-complete, and old
+orders that already ended up as *Completed* still display as such.
+
 **Payment is now shown separately from the fulfilment status.** An order that
 has been shipped but not yet paid reads as **Shipped · Awaiting payment**,
 which is honest — the coffee has gone and the money has not. Marking that
@@ -412,6 +417,21 @@ unable to give their address because a courier is having a bad afternoon.
 
 Addresses saved before this existed are still perfectly good. They simply carry
 less detail, and are priced from the postcode as they always were.
+
+## Attaching a customer to an order after the fact
+
+Any order — a walk-in you have since learned the name of, or a WhatsApp order
+from someone who has now signed up — can be attached to a customer on its
+page: **Customer → Attach a customer**, then search by name or email.
+
+If the order paid into a pending-points bucket keyed on their phone or email,
+attaching the customer here collects those points straight onto their balance
+(you will see it on the same page after saving).
+
+To move an order to a different customer, detach the current one with the
+small × next to their name and then attach the right one. Detaching a paid
+order takes back the points it awarded, cleanly through the ledger, so the
+customer's history still adds up.
 
 ## Points for people without an account
 

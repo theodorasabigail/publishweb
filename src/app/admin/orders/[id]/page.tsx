@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { Field, PageHeader, Panel } from "@/components/admin/ui";
 import { OrderPositionBadges } from "@/components/status-badge";
 import {
+  assignOrderCustomer,
   deleteOrder,
   restoreOrder,
   updateOrderDetails,
@@ -14,6 +15,7 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSiteSettings } from "@/lib/queries";
 import { PaymentMethodSelect } from "@/components/admin/payment-method-select";
+import { CustomerPicker } from "@/components/admin/customer-picker";
 import {
   CHANNEL_LABELS,
   CHANNEL_REFERENCE_LABELS,
@@ -518,11 +520,19 @@ export default async function AdminOrderDetailPage({
             <form action={updateOrderStatus} className="space-y-3">
               <input type="hidden" name="id" value={order.id} />
               <select name="status" className="input" defaultValue={order.status}>
-                {ORDER_STATUSES.map((status) => (
-                  <option key={status} value={status} className="capitalize">
-                    {status}
-                  </option>
-                ))}
+                {ORDER_STATUSES
+                  // Counter sales auto-complete when rung up, and a shipped
+                  // order is the terminal state for anything posted -- there
+                  // is no separate "delivered" moment the shop tracks. So
+                  // "completed" is never a status the operator picks by hand;
+                  // it stays in the enum only so those auto-completed rows
+                  // still display correctly.
+                  .filter((option) => option !== "completed" || order.status === "completed")
+                  .map((status) => (
+                    <option key={status} value={status} className="capitalize">
+                      {status}
+                    </option>
+                  ))}
               </select>
 
               <Field
@@ -706,17 +716,31 @@ export default async function AdminOrderDetailPage({
 
           <Panel title="Customer">
             {customer ? (
-              <div className="space-y-2 text-sm">
+              <div className="space-y-3 text-sm">
                 <Row label="Name" value={customer.display_name ?? "—"} />
                 <Row label="Email" value={customer.email ?? "—"} />
                 <Row label="Tier" value={customer.tier} />
                 <Row label="Points" value={String(customer.loyalty_points)} />
                 <Link
                   href={`/admin/customers/${customer.id}`}
-                  className="mt-2 block text-xs underline"
+                  className="block text-xs underline"
                 >
                   Open customer record
                 </Link>
+                <div className="border-t border-sea-200 pt-3">
+                  <p className="mb-2 text-xs uppercase tracking-wider text-sea-800">
+                    Attached to
+                  </p>
+                  <CustomerPicker
+                    orderId={order.id}
+                    current={{
+                      id: customer.id,
+                      display_name: customer.display_name,
+                      email: customer.email,
+                    }}
+                    action={assignOrderCustomer}
+                  />
+                </div>
               </div>
             ) : (
               <p className="text-sm text-sea-800">
