@@ -476,7 +476,7 @@ export function PosTerminal({
                   className="px-3 py-2"
                   style={{ backgroundColor: `${productColour(product)}1a` }}
                 >
-                  <p className="truncate text-sm font-medium">{product.name}</p>
+                  <p className="text-sm font-medium leading-tight">{product.name}</p>
                   {product.origin && (
                     <p className="truncate text-xs text-sea-800">{product.origin}</p>
                   )}
@@ -551,7 +551,7 @@ export function PosTerminal({
               {lines.map((line) => (
                 <li key={line.variantId} className="flex items-center gap-2 px-4 py-2.5">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{line.productName}</p>
+                    <p className="text-sm font-medium leading-tight">{line.productName}</p>
                     {customPricing ? (
                       <div className="mt-1 flex items-center gap-1.5">
                         <span className="text-xs text-sea-800">{line.size}</span>

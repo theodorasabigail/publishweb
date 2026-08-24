@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CheckCircle2, Clock, XCircle } from "lucide-react";
-import { OrderStatusBadge } from "@/components/status-badge";
+import { OrderPositionBadges } from "@/components/status-badge";
 import { PaymentPoller } from "@/components/shop/payment-poller";
 import { isSupabaseConfigured } from "@/lib/env";
 import { manualTransferDetails } from "@/lib/payments";
@@ -74,7 +74,7 @@ export default async function OrderPage({
             {formatDateTime(order.created_at)}
           </p>
           <div className="mt-3">
-            <OrderStatusBadge status={order.status} />
+            <OrderPositionBadges status={order.status} paidAt={order.paid_at} voidedAt={order.voided_at} />
           </div>
         </div>
       </div>
