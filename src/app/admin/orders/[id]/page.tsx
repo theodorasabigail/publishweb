@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Field, PageHeader, Panel } from "@/components/admin/ui";
-import { OrderStatusBadge } from "@/components/status-badge";
+import { OrderPositionBadges } from "@/components/status-badge";
 import {
   deleteOrder,
   restoreOrder,
@@ -81,7 +81,7 @@ export default async function AdminOrderDetailPage({
         }
         action={
           <div className="flex items-center gap-3">
-            <OrderStatusBadge status={order.status} />
+            <OrderPositionBadges status={order.status} paidAt={order.paid_at} voidedAt={order.voided_at} />
             <Link
               href={`/admin/orders/${order.id}/invoice`}
               className="btn-secondary py-1.5 text-xs"

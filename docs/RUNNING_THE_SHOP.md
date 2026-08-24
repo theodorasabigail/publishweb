@@ -55,6 +55,17 @@ Re-selecting it later will not move that date, and neither will anything else �
 if the parcel actually went out yesterday and you only got round to the site
 today, correct the date by hand (below) and it will stay corrected.
 
+**Payment is now shown separately from the fulfilment status.** An order that
+has been shipped but not yet paid reads as **Shipped · Awaiting payment**,
+which is honest — the coffee has gone and the money has not. Marking that
+order paid later on stamps the payment but leaves it as *Shipped*, rather than
+walking it backwards.
+
+**The Awaiting-payment tile on the dashboard now counts every unpaid order**,
+not only the ones that have not been started. Clicking it opens the orders
+list filtered to the same set (the **Awaiting payment** chip above the
+statuses).
+
 **Cancelling** an unpaid order puts its coffee back on the shelf. Cancelling one
 that was already paid does not — that coffee has left the building, and undoing
 it is a refund and a fresh stock count, which is a decision for you rather than

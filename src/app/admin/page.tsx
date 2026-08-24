@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { EmptyRow, PageHeader, Panel, StatCard } from "@/components/admin/ui";
-import { OrderStatusBadge } from "@/components/status-badge";
+import { OrderPositionBadges } from "@/components/status-badge";
 import { isSupabaseConfigured } from "@/lib/env";
 import { getPaymentProvider } from "@/lib/payments";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -42,7 +42,8 @@ export default async function AdminOverviewPage() {
     supabase.from("orders")
       .select("id", { count: "exact", head: true })
       .is("voided_at", null)
-      .eq("status", "pending"),
+      .is("paid_at", null)
+      .neq("status", "cancelled"),
     supabase.from("roasting_requests").select("*").eq("status", "new").order("created_at", { ascending: false }).limit(5),
     supabase
       .from("product_variants")
@@ -135,7 +136,7 @@ export default async function AdminOverviewPage() {
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-3">
-                      <OrderStatusBadge status={order.status} />
+                      <OrderPositionBadges status={order.status} paidAt={order.paid_at} voidedAt={order.voided_at} />
                       <span className="text-sm font-medium">
                         {formatIDR(order.total_idr)}
                       </span>

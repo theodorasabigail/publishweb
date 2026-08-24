@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { EmptyRow, PageHeader } from "@/components/admin/ui";
-import { OrderStatusBadge } from "@/components/status-badge";
+import { OrderPositionBadges } from "@/components/status-badge";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   CHANNEL_LABELS,
@@ -27,10 +27,14 @@ export default async function AdminOrdersPage({
     channel?: string;
     show?: string;
     q?: string;
+    unpaid?: string;
   }>;
 }) {
-  const { status, channel, show, q } = await searchParams;
+  const { status, channel, show, q, unpaid } = await searchParams;
   const search = (q ?? "").trim();
+  // Payment is its own filter now, because "awaiting payment" is a real state
+  // any order in fulfilment can be in -- not only status = pending.
+  const unpaidOnly = unpaid === "true";
   // Voided orders are mistakes, so they are out of the way rather than gone:
   // findable on purpose, never in the way by accident.
   const showVoided = show === "voided";
@@ -51,7 +55,10 @@ export default async function AdminOrdersPage({
     p_scheduled: showScheduled,
     p_limit: 200,
   });
-  const orders = (data ?? []) as Order[];
+  const raw = (data ?? []) as Order[];
+  const orders = unpaidOnly
+    ? raw.filter((order) => !order.paid_at && order.status !== "cancelled")
+    : raw;
 
   /** This page's own URL, keeping whatever filters are already on. */
   function href(overrides: Record<string, string | null>) {
@@ -59,7 +66,8 @@ export default async function AdminOrdersPage({
     const merged: Record<string, string | null> = {
       status: active === "all" ? null : active,
       channel: activeChannel === "all" ? null : activeChannel,
-      show: showVoided ? "voided" : null,
+      show: showScheduled ? "scheduled" : showVoided ? "voided" : null,
+      unpaid: unpaidOnly ? "true" : null,
       q: search || null,
       ...overrides,
     };
@@ -138,6 +146,17 @@ export default async function AdminOrdersPage({
             {filter.label}
           </Link>
         ))}
+        <Link
+          href={href({ unpaid: unpaidOnly ? null : "true", status: null, show: null })}
+          className={cn(
+            "badge",
+            unpaidOnly
+              ? "bg-amber-600 text-white"
+              : "border border-sea-200 bg-white text-sea-700 hover:border-sea-400",
+          )}
+        >
+          Awaiting payment
+        </Link>
         <Link
           href={href({ show: showScheduled ? null : "scheduled", status: null })}
           className={cn(
@@ -226,7 +245,7 @@ export default async function AdminOrdersPage({
                       : ""}
                   </td>
                   <td className="px-4 py-3">
-                    <OrderStatusBadge status={order.status} />
+                    <OrderPositionBadges status={order.status} paidAt={order.paid_at} voidedAt={order.voided_at} />
                     {order.shipping_address &&
                       !addressIsComplete(order.shipping_address) && (
                         <span
@@ -265,11 +284,13 @@ export default async function AdminOrdersPage({
         <EmptyRow>
           {search
             ? `Nothing matches “${search}”.`
-            : showVoided
-              ? "Nothing has been voided."
-              : showScheduled
-                ? "No orders scheduled for a future date."
-                : "No orders with that status."}
+            : unpaidOnly
+              ? "Nothing is awaiting payment."
+              : showVoided
+                ? "Nothing has been voided."
+                : showScheduled
+                  ? "No orders scheduled for a future date."
+                  : "No orders with that status."}
         </EmptyRow>
       )}
     </div>

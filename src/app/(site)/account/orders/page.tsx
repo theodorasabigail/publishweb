@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
-import { OrderStatusBadge } from "@/components/status-badge";
+import { OrderPositionBadges } from "@/components/status-badge";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { OrderWithItems } from "@/lib/types";
@@ -46,7 +46,7 @@ export default async function AccountOrdersPage() {
               <p className="text-sm text-sea-800">{formatDate(order.created_at)}</p>
             </div>
             <div className="flex items-center gap-4">
-              <OrderStatusBadge status={order.status} />
+              <OrderPositionBadges status={order.status} paidAt={order.paid_at} voidedAt={order.voided_at} />
               <span className="font-medium">{formatIDR(order.total_idr)}</span>
             </div>
           </div>
