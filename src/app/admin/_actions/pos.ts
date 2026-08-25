@@ -287,42 +287,65 @@ export async function findCustomerByPhone(phone: string) {
 }
 
 /**
- * Create a customer record from the till/order page.
+ * Create a customer record from the till or order page.
  *
  * Customers usually appear when they sign up on the website; this is the path
- * for the ones who never will -- a walk-in the operator learned the name of,
- * a WhatsApp regular who has never touched the site. The auth account is
- * created directly through the admin API with a random password, the profile
- * trigger picks it up, and the newly attached id comes back so the caller can
- * link an order to it in one flow.
+ * for the ones who never will -- a walk-in whose name was learned later, a
+ * WhatsApp regular who has never touched the site. Phone is required (that is
+ * how a WhatsApp customer is identifiable and what auto-suggest matches on),
+ * email is optional.
  *
- * Email is required (Supabase's admin API needs one), and if it collides with
- * an existing account we return that instead of failing -- the operator
- * wanted "the customer whose email is X"; if one already exists, that IS X.
+ * Supabase's admin API accepts either or both. If a profile already carries
+ * this phone or email, we return that one instead of failing -- the operator
+ * wanted "the customer with this number", and if one exists that IS them.
  */
 export async function createCustomer(input: {
   displayName?: string | null;
-  email: string;
-  phone?: string | null;
+  email?: string | null;
+  phone: string;
 }): Promise<{ id: string; display_name: string | null; email: string | null; phone: string | null }> {
   const { supabase } = await adminClient();
-  const email = input.email.trim().toLowerCase();
 
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    throw new Error("A customer needs a valid email address.");
+  const rawPhone = input.phone.trim();
+  const rawEmail = input.email?.trim().toLowerCase() ?? "";
+  const email = rawEmail || null;
+
+  if (!rawPhone) {
+    throw new Error("A customer needs a phone number.");
+  }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error("That email address does not look right.");
   }
 
-  // The existing profile check first -- an operator typing an email they
-  // already know is the customer wants to REACH that customer, not fail on
-  // a "already exists" error.
+  // Match either kind of identifier to an existing profile. Phone is
+  // normalised through the same function the loyalty bucket uses so
+  // "0812…" and "+62 812…" both find the same customer.
+  const { data: normalised } = await supabase.rpc("normalise_loyalty_phone", {
+    p_value: rawPhone,
+  });
+  const canonicalPhone = (normalised as string | null) ?? null;
+  const digitsIntl = canonicalPhone?.replace(/[^0-9]/g, "") ?? "";
+  const digitsLocal = digitsIntl.startsWith("62") ? `0${digitsIntl.slice(2)}` : digitsIntl;
+
+  const orTerms: string[] = [];
+  if (digitsIntl) {
+    orTerms.push(`phone.eq.${digitsIntl}`, `phone.eq.+${digitsIntl}`);
+  }
+  if (digitsLocal && digitsLocal !== digitsIntl) {
+    orTerms.push(`phone.eq.${digitsLocal}`);
+  }
+  orTerms.push(`phone.eq.${rawPhone}`);
+  if (email) orTerms.push(`email.eq.${email}`);
+
   const { data: existing } = await supabase
     .from("profiles")
     .select("id, display_name, email, phone")
-    .eq("email", email)
-    .maybeSingle();
+    .or(orTerms.join(","))
+    .limit(1);
 
-  if (existing) {
-    return existing as {
+  const found = (existing ?? [])[0];
+  if (found) {
+    return found as {
       id: string;
       display_name: string | null;
       email: string | null;
@@ -330,9 +353,16 @@ export async function createCustomer(input: {
     };
   }
 
+  // Supabase's admin API takes email or phone (or both). Phone must be in
+  // E.164 format, which is what the normaliser gives us as digits -- prefix
+  // a + and it is valid. The operator vouches for both, so we mark them
+  // confirmed to skip verification.
+  const e164 = canonicalPhone ? `+${digitsIntl}` : rawPhone;
+
   const { data: created, error: authError } = await supabase.auth.admin.createUser({
-    email,
-    email_confirm: true, // The operator vouches for it.
+    ...(email ? { email, email_confirm: true } : {}),
+    phone: e164,
+    phone_confirm: true,
     user_metadata: {
       full_name: input.displayName?.trim() || undefined,
     },
@@ -342,20 +372,19 @@ export async function createCustomer(input: {
     throw new Error(authError?.message ?? "Could not create the customer.");
   }
 
-  // The profile trigger runs after INSERT, so the row is there by now. Set
-  // the phone directly since createUser has no phone slot in this flow.
   await supabase
     .from("profiles")
     .update({
       display_name: input.displayName?.trim() || null,
-      phone: input.phone?.trim() || null,
+      email: email,
+      phone: digitsLocal || rawPhone,
     })
     .eq("id", created.user.id);
 
   return {
     id: created.user.id,
     display_name: input.displayName?.trim() || null,
-    email,
-    phone: input.phone?.trim() || null,
+    email: email,
+    phone: digitsLocal || rawPhone,
   };
 }

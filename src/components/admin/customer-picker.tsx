@@ -44,8 +44,8 @@ export function CustomerPicker({
       try {
         const made = await createCustomer({
           displayName: draft.display_name || null,
-          email: draft.email,
-          phone: draft.phone || null,
+          email: draft.email || null,
+          phone: draft.phone,
         });
         // Fill the assign form's hidden user_id and submit it.
         if (submitRef.current) {
@@ -138,7 +138,18 @@ export function CustomerPicker({
             type="button"
             onClick={() => {
               setCreating(true);
-              setDraft((d) => ({ ...d, email: d.email || (query.includes("@") ? query : "") }));
+              // Prefill whichever kind of identifier the query looks like:
+              // digits go to phone, an @-bearing string to email, everything
+              // else stays as a name suggestion.
+              setDraft((d) => {
+                const looksLikePhone = /^[+0-9\s-]{4,}$/.test(query);
+                const looksLikeEmail = query.includes("@");
+                return {
+                  display_name: !looksLikePhone && !looksLikeEmail ? query : d.display_name,
+                  email: looksLikeEmail ? query : d.email,
+                  phone: looksLikePhone ? query : d.phone,
+                };
+              });
             }}
             className="underline"
           >
@@ -161,8 +172,9 @@ export function CustomerPicker({
       {creating && (
         <div className="space-y-2 rounded-lg border border-sea-200 bg-sea-50 p-3">
           <p className="text-xs text-sea-800">
-            An email is required. The customer will be able to sign in with a
-            password reset later; you do not need to give them one now.
+            A phone number is required — that is how a WhatsApp customer is
+            found and auto-suggested at the till. Email is optional, and can
+            be added later once the customer signs up.
           </p>
           <input
             value={draft.display_name}
@@ -172,20 +184,22 @@ export function CustomerPicker({
             aria-label="Customer name"
           />
           <input
+            value={draft.phone}
+            onChange={(event) => setDraft({ ...draft, phone: event.target.value })}
+            placeholder="Phone (0812… or +62 812…)"
+            className="input text-sm"
+            aria-label="Customer phone"
+            inputMode="tel"
+            autoComplete="off"
+          />
+          <input
             value={draft.email}
             onChange={(event) => setDraft({ ...draft, email: event.target.value })}
-            placeholder="Email"
+            placeholder="Email (optional)"
             type="email"
             className="input text-sm"
             aria-label="Customer email"
             autoComplete="off"
-          />
-          <input
-            value={draft.phone}
-            onChange={(event) => setDraft({ ...draft, phone: event.target.value })}
-            placeholder="Phone (optional, so you can link WhatsApp orders)"
-            className="input text-sm"
-            aria-label="Customer phone"
           />
           {createError && (
             <p className="text-xs text-red-700" role="alert">
@@ -196,7 +210,7 @@ export function CustomerPicker({
             <button
               type="button"
               onClick={createAndAttach}
-              disabled={pending || !draft.email.trim()}
+              disabled={pending || !draft.phone.trim()}
               className="btn-primary flex-1 py-1.5 text-xs"
             >
               {pending ? "Creating…" : "Create and attach"}
