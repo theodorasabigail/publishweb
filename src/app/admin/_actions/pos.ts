@@ -285,3 +285,106 @@ export async function findCustomerByPhone(phone: string) {
     tier: string;
   };
 }
+
+/**
+ * Create a customer record from the till or order page.
+ *
+ * Customers usually appear when they sign up on the website; this is the path
+ * for the ones who never will -- a walk-in whose name was learned later, a
+ * WhatsApp regular who has never touched the site. Phone is required (that is
+ * how a WhatsApp customer is identifiable and what auto-suggest matches on),
+ * email is optional.
+ *
+ * Supabase's admin API accepts either or both. If a profile already carries
+ * this phone or email, we return that one instead of failing -- the operator
+ * wanted "the customer with this number", and if one exists that IS them.
+ */
+export async function createCustomer(input: {
+  displayName?: string | null;
+  email?: string | null;
+  phone: string;
+}): Promise<{ id: string; display_name: string | null; email: string | null; phone: string | null }> {
+  const { supabase } = await adminClient();
+
+  const rawPhone = input.phone.trim();
+  const rawEmail = input.email?.trim().toLowerCase() ?? "";
+  const email = rawEmail || null;
+
+  if (!rawPhone) {
+    throw new Error("A customer needs a phone number.");
+  }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error("That email address does not look right.");
+  }
+
+  // Match either kind of identifier to an existing profile. Phone is
+  // normalised through the same function the loyalty bucket uses so
+  // "0812…" and "+62 812…" both find the same customer.
+  const { data: normalised } = await supabase.rpc("normalise_loyalty_phone", {
+    p_value: rawPhone,
+  });
+  const canonicalPhone = (normalised as string | null) ?? null;
+  const digitsIntl = canonicalPhone?.replace(/[^0-9]/g, "") ?? "";
+  const digitsLocal = digitsIntl.startsWith("62") ? `0${digitsIntl.slice(2)}` : digitsIntl;
+
+  const orTerms: string[] = [];
+  if (digitsIntl) {
+    orTerms.push(`phone.eq.${digitsIntl}`, `phone.eq.+${digitsIntl}`);
+  }
+  if (digitsLocal && digitsLocal !== digitsIntl) {
+    orTerms.push(`phone.eq.${digitsLocal}`);
+  }
+  orTerms.push(`phone.eq.${rawPhone}`);
+  if (email) orTerms.push(`email.eq.${email}`);
+
+  const { data: existing } = await supabase
+    .from("profiles")
+    .select("id, display_name, email, phone")
+    .or(orTerms.join(","))
+    .limit(1);
+
+  const found = (existing ?? [])[0];
+  if (found) {
+    return found as {
+      id: string;
+      display_name: string | null;
+      email: string | null;
+      phone: string | null;
+    };
+  }
+
+  // Supabase's admin API takes email or phone (or both). Phone must be in
+  // E.164 format, which is what the normaliser gives us as digits -- prefix
+  // a + and it is valid. The operator vouches for both, so we mark them
+  // confirmed to skip verification.
+  const e164 = canonicalPhone ? `+${digitsIntl}` : rawPhone;
+
+  const { data: created, error: authError } = await supabase.auth.admin.createUser({
+    ...(email ? { email, email_confirm: true } : {}),
+    phone: e164,
+    phone_confirm: true,
+    user_metadata: {
+      full_name: input.displayName?.trim() || undefined,
+    },
+  });
+
+  if (authError || !created?.user) {
+    throw new Error(authError?.message ?? "Could not create the customer.");
+  }
+
+  await supabase
+    .from("profiles")
+    .update({
+      display_name: input.displayName?.trim() || null,
+      email: email,
+      phone: digitsLocal || rawPhone,
+    })
+    .eq("id", created.user.id);
+
+  return {
+    id: created.user.id,
+    display_name: input.displayName?.trim() || null,
+    email: email,
+    phone: digitsLocal || rawPhone,
+  };
+}

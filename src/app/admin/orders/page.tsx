@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { EmptyRow, PageHeader } from "@/components/admin/ui";
-import { OrderPositionBadges } from "@/components/status-badge";
+import { OrderStatusBadge, PaymentBadge } from "@/components/status-badge";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   CHANNEL_LABELS,
@@ -198,7 +198,8 @@ export default async function AdminOrdersPage({
                 <th className="px-4 py-3 font-medium">Customer</th>
                 <th className="px-4 py-3 font-medium">Where</th>
                 <th className="px-4 py-3 font-medium">Ships to</th>
-                <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">Fulfilment</th>
+                <th className="px-4 py-3 font-medium">Payment</th>
                 <th className="px-4 py-3 text-right font-medium">Total</th>
               </tr>
             </thead>
@@ -245,7 +246,7 @@ export default async function AdminOrdersPage({
                       : ""}
                   </td>
                   <td className="px-4 py-3">
-                    <OrderPositionBadges status={order.status} paidAt={order.paid_at} voidedAt={order.voided_at} />
+                    <OrderStatusBadge status={order.status} />
                     {order.shipping_address &&
                       !addressIsComplete(order.shipping_address) && (
                         <span

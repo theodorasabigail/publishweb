@@ -166,6 +166,27 @@ const PROBES: Probe[] = [
       return !error;
     },
   },
+  {
+    label: "Invoice tracking (invoiced_at) + fulfilment states packing/delivered",
+    migration: "0037",
+    run: async (supabase) => {
+      // Two things at once: the invoiced_at column, and the packing/delivered
+      // enum values. `invoiced_at` fails with 42703 if the column is missing;
+      // the enum values are checked via a filter that Postgres refuses if the
+      // literal is not a valid enum member (22P02).
+      const columnCheck = await supabase
+        .from("orders")
+        .select("invoiced_at")
+        .limit(1);
+      if (columnCheck.error) return false;
+      const enumCheck = await supabase
+        .from("orders")
+        .select("id", { head: true, count: "exact" })
+        .eq("status", "packing")
+        .limit(1);
+      return !enumCheck.error;
+    },
+  },
 ];
 
 export async function SchemaCheck() {
