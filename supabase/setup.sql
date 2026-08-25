@@ -4903,11 +4903,17 @@ $$;
 --   Invoice:     invoiced_at (not invoiced or invoiced), driven by its own action
 --
 -- `paid` leaves the fulfilment dropdown. Anything at status='paid' today gets
--- remapped: a counter sale to `delivered` (the customer walked away with it),
--- everything else to `pending` (payment is on paid_at, and the fulfilment
--- state reverts to "we have not started yet"). paid_at is unchanged, so no
--- payment history is lost. The enum keeps `paid` and `completed` as inert
--- historical values because Postgres cannot drop enum members.
+-- remapped to `pending` -- payment is on paid_at, and the fulfilment state
+-- reverts to "we have not started yet". paid_at is unchanged, so no payment
+-- history is lost. The enum keeps `paid` and `completed` as inert historical
+-- values because Postgres cannot drop enum members.
+--
+-- Historical POS orders at `paid` are moved to `pending` alongside everything
+-- else, rather than to the more accurate `delivered`, because Postgres refuses
+-- to reference a newly-added enum value in the same transaction as the ADD
+-- (and setup.sql is one transaction). The distinction is a cosmetic loss on
+-- past rows only; every new POS sale after this migration ends at `delivered`
+-- via record_manual_order.
 --
 -- `packing` and `delivered` are new. Packing is the step between roasting the
 -- coffee and putting the parcel in the post -- weighing, bagging, labelling.
@@ -4940,18 +4946,16 @@ comment on column public.orders.invoiced_at is
   'When the shop sent an invoice for this order. Independent of payment: an invoice can go before, with, or long after the money.';
 
 -- Data migration -----------------------------------------------------------
--- Counter sales that were `paid` are physically done -- the customer has the
--- coffee -- so they become `delivered`. Their paid_at is unchanged.
-update public.orders
-   set status = 'delivered'
- where status = 'paid'
-   and channel = 'pos';
-
--- Every other `paid` order becomes `pending` fulfilment. paid_at still says
--- the money is in; the fulfilment state now correctly says "we have not
+-- Every `paid` order becomes `pending` fulfilment. paid_at still says the
+-- money is in; the fulfilment state now correctly says "we have not
 -- physically done anything with it yet". The dashboard's "Paid, ready to
--- roast" tile is a compound condition (paid_at set AND status='pending') and
--- will read exactly those rows.
+-- roast" tile is a compound condition (paid_at set AND status='pending')
+-- and will read exactly those rows.
+--
+-- POS rows are not moved to `delivered` here (see header): the new value
+-- cannot be referenced in the same transaction it was added in. Any
+-- historical POS `paid` row is left at `pending`; new POS sales after this
+-- migration go straight to `delivered` via record_manual_order below.
 update public.orders
    set status = 'pending'
  where status = 'paid';
@@ -5037,7 +5041,16 @@ $$;
 -- record_manual_order: counter sales end at 'delivered', everything else at
 -- 'pending' fulfilment (payment goes onto paid_at as usual). Everything else
 -- is unchanged.
+--
+-- `check_function_bodies` is turned off for this CREATE because the body
+-- references the newly-added 'delivered' enum value, and Postgres refuses to
+-- resolve that reference in the same transaction as the ADD VALUE above.
+-- Setting it off defers plpgsql body parsing to first call, which happens
+-- after this migration has committed. Scoped by SET LOCAL so it reverts at
+-- transaction end.
 -- --------------------------------------------------------------------------
+set local check_function_bodies = off;
+
 create or replace function public.record_manual_order(
   p_items jsonb,
   p_channel text default 'pos',
