@@ -823,13 +823,20 @@ export default async function AdminOrderDetailPage({
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-sea-800">
-                {order.pending_loyalty_id && order.points_awarded > 0
-                  ? `No account yet, so ${order.points_awarded} points are being held against their contact details. They collect them by signing up with the same email — or you can hand them over from the customer's page.`
-                  : order.channel === "pos"
-                    ? "Walk-in customer, and no contact details to hold points against. Attach an account at the till next time."
-                    : `No account attached${order.guest_email ? ` — ${order.guest_email}` : ""}, and no email or phone on the order to hold points against.`}
-              </p>
+              <div className="space-y-3">
+                <p className="text-sm text-sea-800">
+                  {order.pending_loyalty_id && order.points_awarded > 0
+                    ? `No account yet — ${order.points_awarded} points are held against the contact details on this order. Attaching a customer hands the points to that account.`
+                    : order.channel === "pos"
+                      ? "Walk-in — no account attached. Attach one to record the sale against them and to hold loyalty points."
+                      : `No account attached${order.guest_email ? ` — ${order.guest_email}` : ""}. Attach one to hold loyalty points against.`}
+                </p>
+                <CustomerPicker
+                  orderId={order.id}
+                  current={null}
+                  action={assignOrderCustomer}
+                />
+              </div>
             )}
           </Panel>
         </div>
