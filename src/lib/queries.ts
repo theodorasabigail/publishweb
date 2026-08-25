@@ -15,7 +15,7 @@ import type {
 const PRODUCT_SELECT = `
   *,
   product_variants (*),
-  categories ( id, slug, name )
+  categories!category_id ( id, slug, name )
 `;
 
 const POST_SELECT = `

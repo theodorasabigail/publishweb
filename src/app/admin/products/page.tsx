@@ -12,7 +12,7 @@ export default async function AdminProductsPage() {
   const [{ data }, { data: categoryRows }] = await Promise.all([
     supabase
       .from("products")
-      .select("*, product_variants (*), categories ( id, slug, name )")
+      .select("*, product_variants (*), categories!category_id ( id, slug, name )")
       .order("sort_order")
       .order("created_at", { ascending: false }),
     supabase.from("categories").select("*").order("sort_order"),
