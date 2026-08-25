@@ -285,3 +285,77 @@ export async function findCustomerByPhone(phone: string) {
     tier: string;
   };
 }
+
+/**
+ * Create a customer record from the till/order page.
+ *
+ * Customers usually appear when they sign up on the website; this is the path
+ * for the ones who never will -- a walk-in the operator learned the name of,
+ * a WhatsApp regular who has never touched the site. The auth account is
+ * created directly through the admin API with a random password, the profile
+ * trigger picks it up, and the newly attached id comes back so the caller can
+ * link an order to it in one flow.
+ *
+ * Email is required (Supabase's admin API needs one), and if it collides with
+ * an existing account we return that instead of failing -- the operator
+ * wanted "the customer whose email is X"; if one already exists, that IS X.
+ */
+export async function createCustomer(input: {
+  displayName?: string | null;
+  email: string;
+  phone?: string | null;
+}): Promise<{ id: string; display_name: string | null; email: string | null; phone: string | null }> {
+  const { supabase } = await adminClient();
+  const email = input.email.trim().toLowerCase();
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error("A customer needs a valid email address.");
+  }
+
+  // The existing profile check first -- an operator typing an email they
+  // already know is the customer wants to REACH that customer, not fail on
+  // a "already exists" error.
+  const { data: existing } = await supabase
+    .from("profiles")
+    .select("id, display_name, email, phone")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (existing) {
+    return existing as {
+      id: string;
+      display_name: string | null;
+      email: string | null;
+      phone: string | null;
+    };
+  }
+
+  const { data: created, error: authError } = await supabase.auth.admin.createUser({
+    email,
+    email_confirm: true, // The operator vouches for it.
+    user_metadata: {
+      full_name: input.displayName?.trim() || undefined,
+    },
+  });
+
+  if (authError || !created?.user) {
+    throw new Error(authError?.message ?? "Could not create the customer.");
+  }
+
+  // The profile trigger runs after INSERT, so the row is there by now. Set
+  // the phone directly since createUser has no phone slot in this flow.
+  await supabase
+    .from("profiles")
+    .update({
+      display_name: input.displayName?.trim() || null,
+      phone: input.phone?.trim() || null,
+    })
+    .eq("id", created.user.id);
+
+  return {
+    id: created.user.id,
+    display_name: input.displayName?.trim() || null,
+    email,
+    phone: input.phone?.trim() || null,
+  };
+}

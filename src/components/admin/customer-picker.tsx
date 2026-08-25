@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Search, UserPlus, X } from "lucide-react";
-import { findCustomers } from "@/app/admin/_actions/pos";
+import { useRef, useState, useTransition } from "react";
+import { Plus, Search, UserPlus, X } from "lucide-react";
+import { createCustomer, findCustomers } from "@/app/admin/_actions/pos";
 
 /**
  * Search for a customer by name or email and hand back the picked id.
@@ -26,11 +26,40 @@ export function CustomerPicker({
     { id: string; display_name: string | null; email: string | null; loyalty_points: number }[]
   >([]);
   const [pending, startTransition] = useTransition();
+  const [creating, setCreating] = useState(false);
+  const [draft, setDraft] = useState({ display_name: "", email: "", phone: "" });
+  const [createError, setCreateError] = useState<string | null>(null);
+  const submitRef = useRef<HTMLFormElement | null>(null);
 
   function search(value: string) {
     setQuery(value);
     startTransition(async () => {
       setResults(await findCustomers(value));
+    });
+  }
+
+  function createAndAttach() {
+    setCreateError(null);
+    startTransition(async () => {
+      try {
+        const made = await createCustomer({
+          displayName: draft.display_name || null,
+          email: draft.email,
+          phone: draft.phone || null,
+        });
+        // Fill the assign form's hidden user_id and submit it.
+        if (submitRef.current) {
+          const input = submitRef.current.querySelector<HTMLInputElement>(
+            'input[name="user_id"]',
+          );
+          if (input) input.value = made.id;
+          submitRef.current.requestSubmit();
+        }
+      } catch (error) {
+        setCreateError(
+          error instanceof Error ? error.message : "Could not create the customer.",
+        );
+      }
     });
   }
 
@@ -102,8 +131,95 @@ export function CustomerPicker({
           ))}
         </ul>
       )}
-      {query.length >= 2 && !pending && results.length === 0 && (
-        <p className="text-xs text-sea-800">Nobody found. Check the spelling.</p>
+      {query.length >= 2 && !pending && results.length === 0 && !creating && (
+        <p className="text-xs text-sea-800">
+          Nobody found.{" "}
+          <button
+            type="button"
+            onClick={() => {
+              setCreating(true);
+              setDraft((d) => ({ ...d, email: d.email || (query.includes("@") ? query : "") }));
+            }}
+            className="underline"
+          >
+            Create a new customer instead
+          </button>
+          .
+        </p>
+      )}
+
+      {!creating && query.length < 2 && (
+        <button
+          type="button"
+          onClick={() => setCreating(true)}
+          className="mt-1 flex items-center gap-1.5 text-xs text-sea-800 hover:text-sea-900"
+        >
+          <Plus className="h-3 w-3" /> Or create a new customer
+        </button>
+      )}
+
+      {creating && (
+        <div className="space-y-2 rounded-lg border border-sea-200 bg-sea-50 p-3">
+          <p className="text-xs text-sea-800">
+            An email is required. The customer will be able to sign in with a
+            password reset later; you do not need to give them one now.
+          </p>
+          <input
+            value={draft.display_name}
+            onChange={(event) => setDraft({ ...draft, display_name: event.target.value })}
+            placeholder="Name"
+            className="input text-sm"
+            aria-label="Customer name"
+          />
+          <input
+            value={draft.email}
+            onChange={(event) => setDraft({ ...draft, email: event.target.value })}
+            placeholder="Email"
+            type="email"
+            className="input text-sm"
+            aria-label="Customer email"
+            autoComplete="off"
+          />
+          <input
+            value={draft.phone}
+            onChange={(event) => setDraft({ ...draft, phone: event.target.value })}
+            placeholder="Phone (optional, so you can link WhatsApp orders)"
+            className="input text-sm"
+            aria-label="Customer phone"
+          />
+          {createError && (
+            <p className="text-xs text-red-700" role="alert">
+              {createError}
+            </p>
+          )}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={createAndAttach}
+              disabled={pending || !draft.email.trim()}
+              className="btn-primary flex-1 py-1.5 text-xs"
+            >
+              {pending ? "Creating…" : "Create and attach"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCreating(false);
+                setCreateError(null);
+              }}
+              className="text-xs text-sea-800 underline"
+            >
+              Cancel
+            </button>
+          </div>
+
+          {/* The action form the create flow submits into. Hidden — its own
+              user_id gets filled in from the new profile before submit. */}
+          <form ref={submitRef} action={action} className="hidden">
+            <input type="hidden" name="id" value={orderId} />
+            <input type="hidden" name="user_id" value="" />
+          </form>
+        </div>
       )}
     </div>
   );
