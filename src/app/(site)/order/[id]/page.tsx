@@ -6,6 +6,7 @@ import { OrderPositionBadges } from "@/components/status-badge";
 import { PaymentPoller } from "@/components/shop/payment-poller";
 import { isSupabaseConfigured } from "@/lib/env";
 import { manualTransferDetails } from "@/lib/payments";
+import { getSiteSettings } from "@/lib/queries";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { OrderWithItems } from "@/lib/types";
 import { formatDateTime, formatIDR } from "@/lib/utils";
@@ -45,12 +46,21 @@ export default async function OrderPage({
   const isPending = order.status === "pending";
   const isCancelled = order.status === "cancelled";
   const manual = manualTransferDetails();
+  // International "we'll follow up" orders: no payment page, no bank details,
+  // no transfer instructions -- the customer is waiting on us to reach out
+  // with a shipping quote. The header, the summary line and the contact
+  // block all key off this one flag.
+  const awaitingQuote = order.payment_method === "manual_quote";
+  const settings = awaitingQuote ? await getSiteSettings(supabase) : null;
   const showManualInstructions =
-    isPending && order.payment_method === "bank_transfer" && order.unique_code > 0;
+    isPending &&
+    order.payment_method === "bank_transfer" &&
+    order.unique_code > 0 &&
+    !awaitingQuote;
 
   return (
     <div className="container-page max-w-3xl py-14">
-      {isPending && <PaymentPoller />}
+      {isPending && !awaitingQuote && <PaymentPoller />}
 
       <div className="flex items-start gap-4">
         {isPending ? (
@@ -63,11 +73,13 @@ export default async function OrderPage({
 
         <div>
           <h1 className="text-3xl sm:text-4xl">
-            {isPending
-              ? "Almost there"
-              : isCancelled
-                ? "Order cancelled"
-                : "Thank you — we've got your order"}
+            {awaitingQuote
+              ? "Thanks — we'll be in touch"
+              : isPending
+                ? "Almost there"
+                : isCancelled
+                  ? "Order cancelled"
+                  : "Thank you — we've got your order"}
           </h1>
           <p className="mt-2 text-sea-800">
             Order <span className="font-medium text-sea-900">{order.human_ref}</span> ·{" "}
@@ -79,7 +91,65 @@ export default async function OrderPage({
         </div>
       </div>
 
-      {isPending && order.payment_url && (
+      {awaitingQuote && (
+        <div className="card mt-8 p-6">
+          <h2 className="text-xl">Working out shipping with you</h2>
+          <p className="mt-2 text-sm text-sea-800">
+            International shipping is arranged by hand — a courier and a
+            price for {order.shipping_address?.country ?? "your country"}
+            depend on the parcel and how quickly you need it. We&apos;ll be
+            in touch with a quote and a payment link, usually within a day.
+            {" "}
+            <strong>You have not been charged.</strong>
+          </p>
+
+          {(settings?.whatsapp_number ||
+            settings?.instagram_url ||
+            settings?.contact_email) && (
+            <div className="mt-5 space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wider text-sea-800">
+                Faster: message us
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {settings.whatsapp_number && (
+                  <a
+                    href={waLink(settings.whatsapp_number, order.human_ref)}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="btn-primary py-1.5 text-sm"
+                  >
+                    WhatsApp
+                  </a>
+                )}
+                {settings.instagram_url && (
+                  <a
+                    href={settings.instagram_url}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="btn-secondary py-1.5 text-sm"
+                  >
+                    Instagram
+                  </a>
+                )}
+                {settings.contact_email && (
+                  <a
+                    href={`mailto:${settings.contact_email}?subject=${encodeURIComponent(`Order ${order.human_ref} — international shipping`)}`}
+                    className="btn-secondary py-1.5 text-sm"
+                  >
+                    Email
+                  </a>
+                )}
+              </div>
+              <p className="text-xs text-sea-800">
+                Mention order <strong>{order.human_ref}</strong> so we can
+                pull it up straight away.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {isPending && !awaitingQuote && order.payment_url && (
         <div className="card mt-8 p-6">
           <h2 className="text-xl">Complete your payment</h2>
           <p className="mt-2 text-sm text-sea-800">
@@ -192,7 +262,13 @@ export default async function OrderPage({
           </div>
           <div className="flex justify-between">
             <dt className="text-sea-800">Shipping</dt>
-            <dd>{order.shipping_idr === 0 ? "Free" : formatIDR(order.shipping_idr)}</dd>
+            <dd>
+              {awaitingQuote
+                ? "Quoted separately"
+                : order.shipping_idr === 0
+                  ? "Free"
+                  : formatIDR(order.shipping_idr)}
+            </dd>
           </div>
           {order.unique_code > 0 && (
             <div className="flex justify-between">
@@ -201,9 +277,14 @@ export default async function OrderPage({
             </div>
           )}
           <div className="flex justify-between border-t border-sea-200/70 pt-2 text-base font-medium">
-            <dt>Total</dt>
-            <dd>{formatIDR(order.total_idr)}</dd>
+            <dt>{awaitingQuote ? "Coffee subtotal" : "Total"}</dt>
+            <dd>{formatIDR(awaitingQuote ? order.subtotal_idr : order.total_idr)}</dd>
           </div>
+          {awaitingQuote && (
+            <p className="pt-1 text-xs text-sea-800">
+              Shipping is added once we&apos;ve worked it out with you.
+            </p>
+          )}
           {order.points_awarded > 0 && (
             <p className="pt-1 text-xs text-emerald-700">
               {order.points_awarded} loyalty points earned on this order.
@@ -274,4 +355,17 @@ export default async function OrderPage({
       </div>
     </div>
   );
+}
+
+/** WhatsApp chat deeplink for a specific order.
+ *  Strips everything but digits from the operator's stored number -- wa.me
+ *  expects a bare international format (no +, no spaces, no punctuation) --
+ *  and prefills a message naming the order reference so the shop can pull it
+ *  up straight away. */
+function waLink(rawNumber: string, orderRef: string): string {
+  const digits = rawNumber.replace(/\D+/g, "");
+  const text = encodeURIComponent(
+    `Hi Publish Coffee, I'm following up on international order ${orderRef} — could you send a shipping quote?`,
+  );
+  return `https://wa.me/${digits}?text=${text}`;
 }

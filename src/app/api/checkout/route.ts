@@ -30,6 +30,11 @@ const checkoutSchema = z.object({
   note: z.string().max(1000).optional(),
   saveAddress: z.boolean().optional(),
   address: addressSchema,
+  // "quote" is the default -- price shipping from the provider and hand off
+  // to the payment provider now. "manual" is for international destinations
+  // where the shop wants to work shipping out by hand: no rate, no payment,
+  // just record the order and reach out afterwards on WhatsApp/IG/email.
+  shippingMode: z.enum(["quote", "manual"]).optional(),
   items: z
     .array(
       z.object({
@@ -58,8 +63,19 @@ export async function POST(request: Request) {
   }
 
   const { email, note, address, items, saveAddress } = parsed.data;
+  const shippingMode = parsed.data.shippingMode ?? "quote";
   const supabase = createAdminClient();
   const session = await getSession();
+
+  // Manual-quote mode is for international only. A domestic order can be
+  // priced live, so refusing this here stops the button from being used to
+  // bypass payment on a route we can actually quote.
+  if (shippingMode === "manual" && address.country.trim().toUpperCase() === "ID") {
+    return NextResponse.json(
+      { error: "Indonesian orders are priced automatically -- pick a payment method to check out." },
+      { status: 400 },
+    );
+  }
 
   // -----------------------------------------------------------------------
   // Price the order from the database, never from the client's cart payload.
@@ -110,6 +126,99 @@ export async function POST(request: Request) {
   }
 
   const subtotalIdr = lines.reduce((sum, line) => sum + line.lineTotal, 0);
+
+  // -----------------------------------------------------------------------
+  // Manual-quote branch: record the order, skip live shipping and payment.
+  // The shop follows up on WhatsApp/IG/email with a quote and a payment
+  // link once shipping is agreed. Kept above the auto-quote path so a
+  // failure in either does not cross-contaminate.
+  // -----------------------------------------------------------------------
+  if (shippingMode === "manual") {
+    const { data: orderRow, error: orderError } = await supabase
+      .from("orders")
+      .insert({
+        user_id: session?.userId ?? null,
+        guest_email: session ? null : email,
+        status: "pending",
+        subtotal_idr: subtotalIdr,
+        // Shipping and unique-code are zero until the shop quotes them. The
+        // total is subtotal only for now; it is corrected in the admin when
+        // shipping is agreed, and the payment link is sent then.
+        shipping_idr: 0,
+        shipping_discount_idr: 0,
+        unique_code: 0,
+        total_idr: subtotalIdr,
+        // Sentinel that both the admin list and the customer's order page
+        // read to switch into "shipping quote pending" mode. Not one of the
+        // real provider ids -- no payment intent exists here.
+        payment_method: "manual_quote",
+        shipping_zone: null,
+        shipping_address: { ...address, email },
+        // Preserve the customer's own note, and prefix a marker so the
+        // admin's list makes the reason for the "manual_quote" method
+        // obvious at a glance.
+        customer_note: [
+          "[International — shipping quote pending]",
+          note?.trim() || null,
+        ]
+          .filter(Boolean)
+          .join(" — "),
+      })
+      .select("*")
+      .single();
+
+    if (orderError || !orderRow) {
+      return NextResponse.json(
+        { error: "Could not create the order. Please try again." },
+        { status: 500 },
+      );
+    }
+
+    const { error: itemsError } = await supabase.from("order_items").insert(
+      lines.map((line) => ({
+        order_id: orderRow.id,
+        product_id: line.variant.product_id,
+        variant_id: line.variant.id,
+        name_snapshot: line.variant.products?.name ?? "Coffee",
+        size_snapshot: line.variant.size,
+        slug_snapshot: line.variant.products?.slug ?? null,
+        unit_price_idr: line.variant.price_idr,
+        quantity: line.quantity,
+      })),
+    );
+
+    if (itemsError) {
+      await supabase.from("orders").delete().eq("id", orderRow.id);
+      return NextResponse.json(
+        { error: "Could not save the order items. Please try again." },
+        { status: 500 },
+      );
+    }
+
+    if (saveAddress && session) {
+      await supabase.from("addresses").insert({
+        user_id: session.userId,
+        recipient_name: address.recipient_name,
+        phone: address.phone,
+        line1: address.line1,
+        line2: address.line2 ?? null,
+        village: address.village ?? null,
+        district: address.district ?? null,
+        city: address.city,
+        province: address.province ?? null,
+        postal_code: address.postal_code ?? null,
+        country: address.country,
+        area_id: address.area_id ?? null,
+        is_default: true,
+      });
+    }
+
+    return NextResponse.json({
+      orderId: orderRow.id,
+      humanRef: orderRow.human_ref,
+      redirectUrl: null,
+    });
+  }
 
   // -----------------------------------------------------------------------
   // Shipping

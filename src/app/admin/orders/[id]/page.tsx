@@ -19,6 +19,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getSiteSettings } from "@/lib/queries";
 import { PaymentMethodSelect } from "@/components/admin/payment-method-select";
 import { CustomerPicker } from "@/components/admin/customer-picker";
+import { BiteshipBooker } from "@/components/admin/biteship-booker";
+import { env } from "@/lib/env";
 import {
   CHANNEL_LABELS,
   CHANNEL_REFERENCE_LABELS,
@@ -70,6 +72,18 @@ export default async function AdminOrderDetailPage({
   const addressReady = addressIsComplete(address);
   const isManual = order.channel !== "online";
   const isVoided = Boolean(order.voided_at);
+  // The booker only makes sense when Biteship is the active provider (it
+  // calls Biteship's Create Order endpoint), the order has been paid, has an
+  // address a driver can reach, is not voided, and has not already been
+  // booked once. Anything else and the panel does not render.
+  const biteshipActive =
+    (env.optional("SHIPPING_PROVIDER") ?? "flat_zones").toLowerCase() === "biteship";
+  const canBookBiteship =
+    biteshipActive &&
+    Boolean(order.paid_at) &&
+    !isVoided &&
+    addressReady &&
+    !order.courier_order_id;
 
   return (
     <div>
@@ -692,6 +706,12 @@ export default async function AdminOrderDetailPage({
               </a>
             )}
           </Panel>
+
+          {canBookBiteship && (
+            <Panel title="Ship with Biteship">
+              <BiteshipBooker orderId={order.id} />
+            </Panel>
+          )}
 
           {order.courier_order_id && (
             <Panel title="Courier">

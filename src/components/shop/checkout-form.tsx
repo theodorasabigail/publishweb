@@ -102,10 +102,14 @@ export function CheckoutForm({
 
   const requestRef = useRef(0);
 
+  // International addresses skip the live quote entirely -- checkout switches
+  // into "we'll follow up with a quote" mode, so no rate call is meaningful.
+  const isManualQuote = form.country !== "ID";
+
   useEffect(() => {
     // No setState here: whether a quote is meaningful is derived below, so
     // an empty cart cannot leave a stale figure on screen.
-    if (!lines.length || !form.country) return;
+    if (!lines.length || !form.country || isManualQuote) return;
 
     // Debounced: the postcode field fires this on every keystroke otherwise.
     const timer = window.setTimeout(async () => {
@@ -151,10 +155,13 @@ export function CheckoutForm({
     }, 400);
 
     return () => window.clearTimeout(timer);
-  }, [quoteKey, form.country, form.province, form.city, form.postal_code, form.area_id, lines]);
+  }, [quoteKey, form.country, form.province, form.city, form.postal_code, form.area_id, lines, isManualQuote]);
 
-  // A quote only counts while there is something to ship it to.
-  const quote = lines.length && form.country ? fetchedQuote : null;
+  // A quote only counts while there is something to ship it to, and only
+  // while we are in the auto-quote path. Switching country to non-ID makes
+  // `isManualQuote` true, which nulls this out immediately -- no stale
+  // domestic figure survives the switch, and no state clear is needed.
+  const quote = lines.length && form.country && !isManualQuote ? fetchedQuote : null;
   const shipping = quote?.amountIdr ?? 0;
   const total = subtotal + shipping;
 
@@ -180,6 +187,7 @@ export function CheckoutForm({
           email,
           note,
           saveAddress,
+          shippingMode: isManualQuote ? "manual" : "quote",
           address: form,
           items: lines.map((line) => ({
             variantId: line.variantId,
@@ -485,7 +493,9 @@ export function CheckoutForm({
               Shipping{quote ? ` — ${quote.zoneName}` : ""}
             </dt>
             <dd>
-              {quoteLoading && !quote ? (
+              {isManualQuote ? (
+                <span className="text-sea-800">Quoted separately</span>
+              ) : quoteLoading && !quote ? (
                 <span className="text-sea-800">…</span>
               ) : quote?.isFree ? (
                 "Free"
@@ -504,21 +514,34 @@ export function CheckoutForm({
             </div>
           )}
 
-          {quote?.estimate && (
+          {quote?.estimate && !isManualQuote && (
             <p className="text-xs text-sea-800">Estimated {quote.estimate}</p>
           )}
-          {quoteError && (
+          {quoteError && !isManualQuote && (
             <p className="text-xs text-red-700" role="status">
               {quoteError}
             </p>
           )}
           <div className="flex justify-between border-t border-sea-200/70 pt-3 text-base font-medium">
-            <dt>Total</dt>
-            <dd>{formatIDR(total)}</dd>
+            <dt>{isManualQuote ? "Coffee subtotal" : "Total"}</dt>
+            <dd>{formatIDR(isManualQuote ? subtotal : total)}</dd>
           </div>
         </dl>
 
-        {providerIsManual && (
+        {isManualQuote && (
+          <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+            <p className="font-medium">Shipping to {countryName(form.country)}</p>
+            <p className="mt-1">
+              International shipping is arranged individually — the courier and
+              price depend on the destination and how quickly you want it.
+              Place the order and we&apos;ll be in touch on WhatsApp, Instagram
+              or email with a quote and a payment link.{" "}
+              <strong>Nothing is charged until you agree the total.</strong>
+            </p>
+          </div>
+        )}
+
+        {providerIsManual && !isManualQuote && (
           <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">
             A unique 3-digit code is added to your total on the next screen. Pay
             that exact amount so we can match your transfer automatically.
@@ -533,16 +556,18 @@ export function CheckoutForm({
 
         <button
           type="submit"
-          disabled={submitting || quoteLoading || !quote}
+          disabled={submitting || (!isManualQuote && (quoteLoading || !quote))}
           className="btn-primary mt-5 w-full"
         >
           {submitting
             ? "Placing order…"
-            : quoteLoading
-              ? "Working out shipping…"
-              : !quote
-                ? "Enter a delivery address"
-                : "Place order"}
+            : isManualQuote
+              ? "Place order — we'll be in touch"
+              : quoteLoading
+                ? "Working out shipping…"
+                : !quote
+                  ? "Enter a delivery address"
+                  : "Place order"}
         </button>
 
         <p className="mt-3 text-center text-xs text-sea-800">
@@ -551,6 +576,10 @@ export function CheckoutForm({
       </aside>
     </form>
   );
+}
+
+function countryName(code: string): string {
+  return COUNTRIES.find((c) => c.code === code)?.name ?? code;
 }
 
 function Field({
