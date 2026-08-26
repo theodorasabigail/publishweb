@@ -1,6 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import {
+  ArrowLeft,
+  Banknote,
+  CalendarClock,
+  CreditCard,
+  FileText,
+  MapPin,
+  Package,
+  Receipt,
+  Truck,
+  User,
+} from "lucide-react";
 import { Field, PageHeader, Panel } from "@/components/admin/ui";
 import { OrderPositionBadges } from "@/components/status-badge";
 import {
@@ -10,8 +21,10 @@ import {
   markOrderPaid,
   quickShipAndPay,
   restoreOrder,
-  updateOrderDetails,
+  updateOrderAddress,
+  updateOrderChannelAndDates,
   updateOrderFulfilment,
+  updateOrderMoney,
   updateOrderStatus,
   voidOrder,
 } from "@/app/admin/_actions/orders";
@@ -129,7 +142,7 @@ export default async function AdminOrderDetailPage({
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
-          <Panel title="Items">
+          <Panel title="Items" icon={<Package className="h-4 w-4" />}>
             <ul className="divide-y divide-sea-200">
               {order.order_items.map((item) => (
                 <li key={item.id} className="flex justify-between gap-4 py-3">
@@ -191,7 +204,11 @@ export default async function AdminOrderDetailPage({
             </Panel>
           )}
 
-          <Panel title={ships ? "Shipping" : "Collected"}>
+          <Panel
+            title={ships ? "Ships to" : "Collected"}
+            icon={<Truck className="h-4 w-4" />}
+            accent="sky"
+          >
             {!ships ? (
               <p className="text-sm text-sea-800">
                 {order.channel === "pos"
@@ -234,7 +251,7 @@ export default async function AdminOrderDetailPage({
                 This address is not finished. The order is recorded and can wait
                 here as long as it needs to — but it cannot be given a tracking
                 number until it has a name, a phone number, a street and a city.
-                Fill them in under <strong>Correct the details</strong>.
+                Fill them in under <a href="#edit-address" className="underline"><strong>Shipping address</strong></a>.
               </p>
             )}
 
@@ -266,12 +283,119 @@ export default async function AdminOrderDetailPage({
             )}
           </Panel>
 
-          <div id="correct-details" className="scroll-mt-6">
           <Panel
-            title="Correct the details"
-            description="For fixing what was written down, not for changing what happened. Nothing here moves stock, money or points."
+            id="edit-address"
+            title="Shipping address"
+            icon={<MapPin className="h-4 w-4" />}
+            accent="sky"
+            description="Where the parcel is going. Clear the name to mark it as a collection instead."
           >
-            <form action={updateOrderDetails} className="space-y-4">
+            <form action={updateOrderAddress} className="space-y-4">
+              <input type="hidden" name="id" value={order.id} />
+
+              <Field label="Name">
+                <input
+                  name="recipient_name"
+                  className="input"
+                  defaultValue={address?.recipient_name ?? ""}
+                />
+              </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Phone">
+                  <input
+                    name="phone"
+                    className="input"
+                    defaultValue={address?.phone ?? ""}
+                  />
+                </Field>
+                <Field label="Email">
+                  <input
+                    name="email"
+                    className="input"
+                    defaultValue={address?.email ?? ""}
+                  />
+                </Field>
+              </div>
+              <Field label="Street address">
+                <input
+                  name="line1"
+                  className="input"
+                  defaultValue={address?.line1 ?? ""}
+                />
+              </Field>
+              <Field label="RT / RW, patokan">
+                <input
+                  name="line2"
+                  className="input"
+                  defaultValue={address?.line2 ?? ""}
+                />
+              </Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Kelurahan / desa">
+                  <input
+                    name="village"
+                    className="input"
+                    defaultValue={address?.village ?? ""}
+                  />
+                </Field>
+                <Field label="Kecamatan">
+                  <input
+                    name="district"
+                    className="input"
+                    defaultValue={address?.district ?? ""}
+                  />
+                </Field>
+              </div>
+              <input
+                type="hidden"
+                name="area_id"
+                value={address?.area_id ?? ""}
+              />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Kota / kabupaten">
+                  <input
+                    name="city"
+                    className="input"
+                    defaultValue={address?.city ?? ""}
+                  />
+                </Field>
+                <Field label="Provinsi">
+                  <input
+                    name="province"
+                    className="input"
+                    defaultValue={address?.province ?? ""}
+                  />
+                </Field>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Kode pos">
+                  <input
+                    name="postal_code"
+                    className="input"
+                    defaultValue={address?.postal_code ?? ""}
+                  />
+                </Field>
+                <Field label="Country">
+                  <input
+                    name="country"
+                    className="input"
+                    defaultValue={address?.country ?? "ID"}
+                  />
+                </Field>
+              </div>
+
+              <button type="submit" className="btn-secondary py-2 text-xs">
+                Save address
+              </button>
+            </form>
+          </Panel>
+
+          <Panel
+            title="Order details"
+            icon={<CalendarClock className="h-4 w-4" />}
+            description="Where it came from, and the dates that matter. Nothing here moves stock, money or points."
+          >
+            <form action={updateOrderChannelAndDates} className="space-y-4">
               <input type="hidden" name="id" value={order.id} />
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -318,7 +442,7 @@ export default async function AdminOrderDetailPage({
                   hint={
                     order.paid_at
                       ? "Jakarta time."
-                      : "Not paid yet — use the status control, which also takes the stock down."
+                      : "Not paid yet — use the payment panel, which also takes the stock down."
                   }
                 >
                   <input
@@ -354,168 +478,72 @@ export default async function AdminOrderDetailPage({
                 />
               </Field>
 
-              <fieldset className="space-y-4 border-t border-sea-200 pt-4">
-                <legend className="text-xs uppercase tracking-wider text-sea-800">
-                  Money
-                </legend>
-                <p className="text-xs text-sea-800">
-                  For adding shipping after the fact, or recording a discount
-                  you agreed after the order was drafted. Line prices are set
-                  on the till at the time of the order and are not editable
-                  here — the receipt is a record of what was charged.
-                  {order.paid_at ? " Editing shipping or discount here recomputes the total shown to you and on the receipt, but does not adjust points already awarded — those were locked in at the moment the order was paid." : ""}
-                </p>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field
-                    label="Shipping"
-                    hint={`Coffee subtotal is ${formatIDR(order.subtotal_idr)}.`}
-                  >
-                    <input
-                      type="number"
-                      name="shipping_idr"
-                      min={0}
-                      step={1}
-                      className="input"
-                      defaultValue={order.shipping_idr}
-                    />
-                  </Field>
-                  <Field label="Discount off the coffee">
-                    <input
-                      type="number"
-                      name="discount_idr"
-                      min={0}
-                      step={1}
-                      className="input"
-                      defaultValue={order.discount_idr}
-                    />
-                  </Field>
-                </div>
-                <Field
-                  label="What is the discount for?"
-                  hint="Required when there is a discount. Shows on the order and the receipt."
-                >
-                  <input
-                    name="discount_reason"
-                    className="input"
-                    defaultValue={order.discount_reason ?? ""}
-                    placeholder="Regular customer, 5kg order…"
-                  />
-                </Field>
-              </fieldset>
-
-              <fieldset className="space-y-4 border-t border-sea-200 pt-4">
-                <legend className="text-xs uppercase tracking-wider text-sea-800">
-                  Where it is going
-                </legend>
-                <p className="text-xs text-sea-800">
-                  Clearing the name empties the address entirely, which marks
-                  the order as one the customer is collecting.
-                </p>
-
-                <Field label="Name">
-                  <input
-                    name="recipient_name"
-                    className="input"
-                    defaultValue={address?.recipient_name ?? ""}
-                  />
-                </Field>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Phone">
-                    <input
-                      name="phone"
-                      className="input"
-                      defaultValue={address?.phone ?? ""}
-                    />
-                  </Field>
-                  <Field label="Email">
-                    <input
-                      name="email"
-                      className="input"
-                      defaultValue={address?.email ?? ""}
-                    />
-                  </Field>
-                </div>
-                <Field label="Street address">
-                  <input
-                    name="line1"
-                    className="input"
-                    defaultValue={address?.line1 ?? ""}
-                  />
-                </Field>
-                <Field label="RT / RW, patokan">
-                  <input
-                    name="line2"
-                    className="input"
-                    defaultValue={address?.line2 ?? ""}
-                  />
-                </Field>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Kelurahan / desa">
-                    <input
-                      name="village"
-                      className="input"
-                      defaultValue={address?.village ?? ""}
-                    />
-                  </Field>
-                  <Field label="Kecamatan">
-                    <input
-                      name="district"
-                      className="input"
-                      defaultValue={address?.district ?? ""}
-                    />
-                  </Field>
-                </div>
-                <input
-                  type="hidden"
-                  name="area_id"
-                  value={address?.area_id ?? ""}
-                />
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Kota / kabupaten">
-                    <input
-                      name="city"
-                      className="input"
-                      defaultValue={address?.city ?? ""}
-                    />
-                  </Field>
-                  <Field label="Provinsi">
-                    <input
-                      name="province"
-                      className="input"
-                      defaultValue={address?.province ?? ""}
-                    />
-                  </Field>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Kode pos">
-                    <input
-                      name="postal_code"
-                      className="input"
-                      defaultValue={address?.postal_code ?? ""}
-                    />
-                  </Field>
-                  <Field label="Country">
-                    <input
-                      name="country"
-                      className="input"
-                      defaultValue={address?.country ?? "ID"}
-                    />
-                  </Field>
-                </div>
-              </fieldset>
-
               <button type="submit" className="btn-secondary py-2 text-xs">
-                Save corrections
+                Save details
               </button>
             </form>
           </Panel>
-          </div>
+
+          <Panel
+            title="Money adjustments"
+            icon={<Banknote className="h-4 w-4" />}
+            accent="amber"
+            description={
+              order.paid_at
+                ? "Recomputes the total on the receipt. Does not adjust points already awarded — those were locked in when the order was paid."
+                : "Add shipping after the fact, or a discount agreed after the order was drafted. Line prices are set on the till and are not editable here."
+            }
+          >
+            <form action={updateOrderMoney} className="space-y-4">
+              <input type="hidden" name="id" value={order.id} />
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field
+                  label="Shipping"
+                  hint={`Coffee subtotal is ${formatIDR(order.subtotal_idr)}.`}
+                >
+                  <input
+                    type="number"
+                    name="shipping_idr"
+                    min={0}
+                    step={1}
+                    className="input"
+                    defaultValue={order.shipping_idr}
+                  />
+                </Field>
+                <Field label="Discount off the coffee">
+                  <input
+                    type="number"
+                    name="discount_idr"
+                    min={0}
+                    step={1}
+                    className="input"
+                    defaultValue={order.discount_idr}
+                  />
+                </Field>
+              </div>
+              <Field
+                label="What is the discount for?"
+                hint="Required when there is a discount. Shows on the order and the receipt."
+              >
+                <input
+                  name="discount_reason"
+                  className="input"
+                  defaultValue={order.discount_reason ?? ""}
+                  placeholder="Regular customer, 5kg order…"
+                />
+              </Field>
+
+              <button type="submit" className="btn-secondary py-2 text-xs">
+                Save money adjustments
+              </button>
+            </form>
+          </Panel>
         </div>
 
         <div className="space-y-6">
           {isManual && (
-            <Panel title="Where this came from">
+            <Panel title="Where this came from" icon={<CalendarClock className="h-4 w-4" />}>
               <dl className="space-y-2 text-sm">
                 <Row label="Channel" value={CHANNEL_LABELS[order.channel]} />
                 {order.channel_reference && (
@@ -526,10 +554,10 @@ export default async function AdminOrderDetailPage({
                 )}
               </dl>
               <a
-                href="#correct-details"
+                href="#edit-address"
                 className="mt-3 block text-xs underline"
               >
-                Change this, the dates or the address
+                Change the address or dates
               </a>
             </Panel>
           )}
@@ -537,6 +565,8 @@ export default async function AdminOrderDetailPage({
           {!order.paid_at && isManual && (
             <Panel
               title="Add shipping & mark paid"
+              icon={<CreditCard className="h-4 w-4" />}
+              accent="amber"
               description="When the postage was agreed after the order was written and the money has just landed. Sets the shipping, records the payment method, and emails the customer a receipt in one go."
             >
               <form action={quickShipAndPay} className="space-y-3">
@@ -570,6 +600,7 @@ export default async function AdminOrderDetailPage({
 
           <Panel
             title="Fulfilment"
+            icon={<Package className="h-4 w-4" />}
             description="Where the coffee is in the shop's own workflow. Payment and invoicing are tracked separately below."
           >
             <form action={updateOrderStatus} className="space-y-3">
@@ -608,6 +639,8 @@ export default async function AdminOrderDetailPage({
 
           <Panel
             title={order.paid_at ? "Payment" : "Payment — not yet"}
+            icon={<CreditCard className="h-4 w-4" />}
+            accent="amber"
             description={
               order.paid_at
                 ? undefined
@@ -640,6 +673,8 @@ export default async function AdminOrderDetailPage({
 
           <Panel
             title="Invoice"
+            icon={<FileText className="h-4 w-4" />}
+            accent="amber"
             description="For bulk / wholesale orders where an invoice is sent as a separate step. Retail counter sales rarely need this."
           >
             {order.invoiced_at ? (
@@ -668,7 +703,11 @@ export default async function AdminOrderDetailPage({
             )}
           </Panel>
 
-          <Panel title="Payment">
+          <Panel
+            title="Payment record"
+            icon={<Receipt className="h-4 w-4" />}
+            accent="amber"
+          >
             <dl className="space-y-2 text-sm">
               <Row label="Method" value={order.payment_method ?? "—"} />
               <Row label="Reference" value={order.payment_ref ?? "—"} />
@@ -708,13 +747,17 @@ export default async function AdminOrderDetailPage({
           </Panel>
 
           {canBookBiteship && (
-            <Panel title="Ship with Biteship">
+            <Panel
+              title="Ship with Biteship"
+              icon={<Truck className="h-4 w-4" />}
+              accent="sky"
+            >
               <BiteshipBooker orderId={order.id} />
             </Panel>
           )}
 
           {order.courier_order_id && (
-            <Panel title="Courier">
+            <Panel title="Courier" icon={<Truck className="h-4 w-4" />} accent="sky">
               <dl className="space-y-2 text-sm">
                 <Row label="Company" value={order.courier_company ?? "—"} />
                 <Row label="Service" value={order.courier_type ?? "—"} />
@@ -744,7 +787,10 @@ export default async function AdminOrderDetailPage({
           )}
 
           {isManual && (
-            <Panel title={isVoided ? "Voided" : "Entered by mistake?"}>
+            <Panel
+              title={isVoided ? "Voided" : "Entered by mistake?"}
+              accent="rose"
+            >
               {isVoided ? (
                 <div className="space-y-5">
                   <form action={restoreOrder}>
@@ -814,7 +860,7 @@ export default async function AdminOrderDetailPage({
             </Panel>
           )}
 
-          <Panel title="Customer">
+          <Panel title="Customer" icon={<User className="h-4 w-4" />} accent="emerald">
             {customer ? (
               <div className="space-y-3 text-sm">
                 <Row label="Name" value={customer.display_name ?? "—"} />
