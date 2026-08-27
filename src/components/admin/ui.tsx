@@ -21,23 +21,71 @@ export function PageHeader({
   );
 }
 
+/**
+ * A card for a distinct section of an admin page.
+ *
+ * `accent` colours the header strip so an operator can pick out categories at
+ * a glance -- shipping (sky), money (amber), customer (emerald), danger
+ * (rose). Default is unstyled, for panels that don't belong to a category.
+ * `icon` renders alongside the title when the label alone doesn't earn its
+ * width -- use it for repeating category headers, not one-offs.
+ */
+export type PanelAccent = "sky" | "amber" | "emerald" | "rose" | "sea";
+
+const ACCENT_STYLES: Record<PanelAccent, string> = {
+  sky: "bg-sky-50 text-sky-900",
+  amber: "bg-amber-50 text-amber-900",
+  emerald: "bg-emerald-50 text-emerald-900",
+  rose: "bg-rose-50 text-rose-900",
+  sea: "bg-sea-50 text-ink",
+};
+
 export function Panel({
   title,
   description,
   children,
   className,
+  accent,
+  icon,
+  actions,
+  id,
 }: {
   title?: string;
   description?: string;
   children: React.ReactNode;
   className?: string;
+  accent?: PanelAccent;
+  icon?: React.ReactNode;
+  actions?: React.ReactNode;
+  id?: string;
 }) {
+  const accentStyle = accent ? ACCENT_STYLES[accent] : "";
   return (
-    <section className={cn("rounded-xl border border-sea-200 bg-white", className)}>
+    <section id={id} className={cn("scroll-mt-6 rounded-xl border border-sea-200 bg-white", className)}>
       {(title || description) && (
-        <div className="border-b border-sea-200 px-5 py-4">
-          {title && <h2 className="font-medium">{title}</h2>}
-          {description && <p className="mt-1 text-sm text-sea-800">{description}</p>}
+        <div
+          className={cn(
+            "flex flex-wrap items-start justify-between gap-3 border-b border-sea-200 px-5 py-4",
+            accentStyle,
+          )}
+        >
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              {icon}
+              {title && <h2 className="font-medium">{title}</h2>}
+            </div>
+            {description && (
+              <p
+                className={cn(
+                  "mt-1 text-sm",
+                  accent ? "opacity-80" : "text-sea-800",
+                )}
+              >
+                {description}
+              </p>
+            )}
+          </div>
+          {actions}
         </div>
       )}
       <div className="p-5">{children}</div>

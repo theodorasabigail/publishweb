@@ -245,7 +245,20 @@ export async function updateOrderFulfilment(formData: FormData) {
  * *correction* to an already-paid order's date is only a correction, and is
  * allowed.
  */
-export async function updateOrderDetails(formData: FormData) {
+/**
+ * Correct the channel, reference and the dates on an order.
+ *
+ * Split out of a single "correct everything" form so operators aren't shown
+ * an address editor when they only want to fix which conversation the sale
+ * came from -- and so a save on the address block does not require re-
+ * entering the dates, or vice versa.
+ *
+ * paid_at is the delicate one: setting it on an order that was never paid
+ * would produce an order that looks settled while its stock is still on the
+ * shelf and its points were never awarded, so that case is refused here and
+ * the operator is pointed at the status control, which does the real work.
+ */
+export async function updateOrderChannelAndDates(formData: FormData) {
   const { supabase } = await adminClient();
   const id = text(formData, "id");
 
@@ -256,37 +269,11 @@ export async function updateOrderDetails(formData: FormData) {
 
   const { data: current } = await supabase
     .from("orders")
-    .select("paid_at, subtotal_idr, unique_code")
+    .select("paid_at")
     .eq("id", id)
     .maybeSingle();
-  const currentOrder = current as {
-    paid_at: string | null;
-    subtotal_idr: number;
-    unique_code: number;
-  } | null;
-  const wasPaid = Boolean(currentOrder?.paid_at);
+  const wasPaid = Boolean((current as { paid_at: string | null } | null)?.paid_at);
 
-  // Money edits happen next, and touch the total. Kept apart from the payment
-  // path -- nothing here moves stock or points.
-  const rawShipping = optionalText(formData, "shipping_idr");
-  const rawDiscount = optionalText(formData, "discount_idr");
-  const shippingIdr = rawShipping ? Math.max(0, Math.round(Number(rawShipping))) : null;
-  const discountIdrRaw = rawDiscount ? Math.max(0, Math.round(Number(rawDiscount))) : null;
-  // A discount larger than the coffee is read as "this one is free" rather
-  // than allowed to go negative, matching how the till handles the same case.
-  const discountIdr = discountIdrRaw !== null && currentOrder
-    ? Math.min(discountIdrRaw, currentOrder.subtotal_idr)
-    : discountIdrRaw;
-  const discountReason = optionalText(formData, "discount_reason");
-
-  if ((discountIdr ?? 0) > 0 && !discountReason) {
-    throw new Error("Say what the discount is for.");
-  }
-
-  // When the order was actually agreed, which for one written up days later
-  // is not when it was typed in. Refused if it is in the future: a sale that
-  // has not happened yet is always a slip of the keyboard, and it would sort
-  // to the top of every list until the date came round.
   const placedAt = fromShopDateTimeInput(optionalText(formData, "created_at"));
   if (placedAt && Date.parse(placedAt) > Date.now()) {
     throw new Error("An order cannot have been placed in the future.");
@@ -307,11 +294,99 @@ export async function updateOrderDetails(formData: FormData) {
     );
   }
 
-  // A part-written address is saved as it stands. It is how an order whose
-  // address is still coming gets recorded at all, and `addressIsComplete`
-  // guards the one place it would actually matter — putting a parcel in the
-  // post. An address with nothing on it at all is null, which reads as "the
-  // customer is collecting".
+  const { error } = await supabase
+    .from("orders")
+    .update({
+      channel,
+      channel_reference: optionalText(formData, "channel_reference"),
+      ...(placedAt ? { created_at: placedAt } : {}),
+      paid_at: paidAt,
+      // A plain YYYY-MM-DD date, or null to clear. A malformed one is dropped
+      // rather than saved as a bad date -- a date input from a modern browser
+      // is validated already, so this is a belt to the browser's braces.
+      ship_after: /^\d{4}-\d{2}-\d{2}$/.test(optionalText(formData, "ship_after") ?? "")
+        ? optionalText(formData, "ship_after")
+        : null,
+      shipped_at: fromShopDateTimeInput(optionalText(formData, "shipped_at")),
+    })
+    .eq("id", id);
+
+  if (error) throw new Error(describeDbError(error, "Could not save the details."));
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${id}`);
+  revalidatePath(`/order/${id}`);
+  // The channel a sale is filed under changes what the reports say.
+  revalidatePath("/admin/reports");
+}
+
+/**
+ * Adjust shipping and discount on an existing order.
+ *
+ * Never touches stock, points or the paid-at date -- the payment path owns
+ * those. Recomputes the total so the receipt matches what was charged.
+ * Discount is capped at the coffee subtotal (a discount larger than the
+ * coffee reads as "this one is free"); negative values are dropped.
+ */
+export async function updateOrderMoney(formData: FormData) {
+  const { supabase } = await adminClient();
+  const id = text(formData, "id");
+
+  const { data: current } = await supabase
+    .from("orders")
+    .select("subtotal_idr, unique_code")
+    .eq("id", id)
+    .maybeSingle();
+  const currentOrder = current as {
+    subtotal_idr: number;
+    unique_code: number;
+  } | null;
+  if (!currentOrder) throw new Error("That order no longer exists.");
+
+  const rawShipping = optionalText(formData, "shipping_idr");
+  const rawDiscount = optionalText(formData, "discount_idr");
+  const shippingIdr = rawShipping ? Math.max(0, Math.round(Number(rawShipping))) : 0;
+  const discountRaw = rawDiscount ? Math.max(0, Math.round(Number(rawDiscount))) : 0;
+  const discountIdr = Math.min(discountRaw, currentOrder.subtotal_idr);
+  const discountReason = optionalText(formData, "discount_reason");
+
+  if (discountIdr > 0 && !discountReason) {
+    throw new Error("Say what the discount is for.");
+  }
+
+  const { error } = await supabase
+    .from("orders")
+    .update({
+      shipping_idr: shippingIdr,
+      discount_idr: discountIdr,
+      discount_reason: discountIdr > 0 ? discountReason : null,
+      total_idr: Math.max(
+        0,
+        currentOrder.subtotal_idr - discountIdr + shippingIdr + currentOrder.unique_code,
+      ),
+    })
+    .eq("id", id);
+
+  if (error) throw new Error(describeDbError(error, "Could not save the money adjustments."));
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${id}`);
+  revalidatePath(`/order/${id}`);
+}
+
+/**
+ * Correct the shipping address on an existing order.
+ *
+ * A part-written address is saved as it stands. It is how an order whose
+ * address is still coming gets recorded at all, and `addressIsComplete`
+ * guards the one place it would actually matter -- putting a parcel in the
+ * post. An address with nothing on it at all is null, which reads as "the
+ * customer is collecting".
+ */
+export async function updateOrderAddress(formData: FormData) {
+  const { supabase } = await adminClient();
+  const id = text(formData, "id");
+
   const recipient = optionalText(formData, "recipient_name");
   const hasAnything = [
     recipient,
@@ -345,43 +420,14 @@ export async function updateOrderDetails(formData: FormData) {
 
   const { error } = await supabase
     .from("orders")
-    .update({
-      channel,
-      channel_reference: optionalText(formData, "channel_reference"),
-      ...(placedAt ? { created_at: placedAt } : {}),
-      paid_at: paidAt,
-      // Money edits: never negative, discount capped at the coffee subtotal
-      // (already done above), and the total is kept consistent with its parts.
-      // Any of the three left empty means "clear" -- an operator who removes
-      // a value expects that value to be gone.
-      shipping_idr: shippingIdr ?? 0,
-      discount_idr: discountIdr ?? 0,
-      discount_reason: (discountIdr ?? 0) > 0 ? discountReason : null,
-      total_idr: Math.max(
-        0,
-        (currentOrder?.subtotal_idr ?? 0)
-          - (discountIdr ?? 0)
-          + (shippingIdr ?? 0)
-          + (currentOrder?.unique_code ?? 0),
-      ),
-      // A plain YYYY-MM-DD date, or null to clear. A malformed one is dropped
-      // rather than saved as a bad date -- a date input from a modern browser
-      // is validated already, so this is a belt to the browser's braces.
-      ship_after: /^\d{4}-\d{2}-\d{2}$/.test(optionalText(formData, "ship_after") ?? "")
-        ? optionalText(formData, "ship_after")
-        : null,
-      shipped_at: fromShopDateTimeInput(optionalText(formData, "shipped_at")),
-      shipping_address: address,
-    })
+    .update({ shipping_address: address })
     .eq("id", id);
 
-  if (error) throw new Error(describeDbError(error, "Could not save the corrections."));
+  if (error) throw new Error(describeDbError(error, "Could not save the address."));
 
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${id}`);
   revalidatePath(`/order/${id}`);
-  // The channel a sale is filed under changes what the reports say.
-  revalidatePath("/admin/reports");
 }
 
 /**
