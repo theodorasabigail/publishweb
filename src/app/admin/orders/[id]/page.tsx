@@ -121,9 +121,11 @@ export default async function AdminOrderDetailPage({
             <OrderPositionBadges status={order.status} paidAt={order.paid_at} voidedAt={order.voided_at} />
             <Link
               href={`/admin/orders/${order.id}/invoice`}
+              target="_blank"
+              rel="noreferrer noopener"
               className="btn-secondary py-1.5 text-xs"
             >
-              Receipt
+              Receipt / invoice
             </Link>
           </div>
         }
@@ -677,30 +679,48 @@ export default async function AdminOrderDetailPage({
             accent="amber"
             description="For bulk / wholesale orders where an invoice is sent as a separate step. Retail counter sales rarely need this."
           >
-            {order.invoiced_at ? (
-              <form action={markOrderInvoiced} className="space-y-3">
-                <input type="hidden" name="id" value={order.id} />
-                <input type="hidden" name="undo" value="true" />
-                <p className="rounded-lg bg-emerald-50 p-3 text-xs text-emerald-900">
-                  Invoice sent on <strong>{formatDateTime(order.invoiced_at)}</strong>.
-                </p>
-                <button type="submit" className="btn-secondary w-full py-2 text-xs">
-                  Un-mark (sent by mistake)
-                </button>
-              </form>
-            ) : (
-              <form action={markOrderInvoiced} className="space-y-3">
-                <input type="hidden" name="id" value={order.id} />
-                <p className="text-sm text-sea-800">
-                  Mark this once the invoice has been sent to the customer.
-                  Independent of payment — it can go before, with, or after
-                  the money.
-                </p>
-                <button type="submit" className="btn-primary w-full">
-                  Mark invoice sent
-                </button>
-              </form>
-            )}
+            <div className="space-y-3">
+              <Link
+                href={`/admin/orders/${order.id}/invoice`}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="btn-secondary flex w-full items-center justify-center gap-2 py-2 text-sm"
+              >
+                <FileText className="h-4 w-4" />
+                Open the invoice
+              </Link>
+              <p className="text-xs text-sea-800">
+                Opens in a new tab. Print from the browser, or save as PDF
+                and send it to the customer.
+              </p>
+            </div>
+
+            <div className="mt-4 border-t border-sea-200 pt-4">
+              {order.invoiced_at ? (
+                <form action={markOrderInvoiced} className="space-y-3">
+                  <input type="hidden" name="id" value={order.id} />
+                  <input type="hidden" name="undo" value="true" />
+                  <p className="rounded-lg bg-emerald-50 p-3 text-xs text-emerald-900">
+                    Marked as sent on <strong>{formatDateTime(order.invoiced_at)}</strong>.
+                  </p>
+                  <button type="submit" className="btn-secondary w-full py-2 text-xs">
+                    Un-mark (sent by mistake)
+                  </button>
+                </form>
+              ) : (
+                <form action={markOrderInvoiced} className="space-y-3">
+                  <input type="hidden" name="id" value={order.id} />
+                  <p className="text-sm text-sea-800">
+                    Mark this once the invoice above has been sent to the
+                    customer. Independent of payment — it can go before,
+                    with, or after the money.
+                  </p>
+                  <button type="submit" className="btn-primary w-full">
+                    Mark invoice sent
+                  </button>
+                </form>
+              )}
+            </div>
           </Panel>
 
           <Panel
