@@ -238,7 +238,68 @@ export async function customerAddresses(userId: string) {
     .order("is_default", { ascending: false })
     .limit(10);
 
-  return (data ?? []) as Address[];
+  const rows = (data ?? []) as Address[];
+  if (rows.length) return rows;
+
+  // Fallback: a customer with no rows in `addresses` may still have a
+  // shipping address on a past order (guest checkout that was later attached
+  // to their account, an operator-entered manual order that skipped the
+  // save-address step). Reading the most recent non-null shipping_address
+  // is a free source of "the place we posted to last time", which is what
+  // an operator writing them a new order actually needs.
+  const { data: lastOrder } = await supabase
+    .from("orders")
+    .select("id, shipping_address")
+    .eq("user_id", userId)
+    .not("shipping_address", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const shipping = (lastOrder as {
+    id: string;
+    shipping_address: Record<string, unknown> | null;
+  } | null)?.shipping_address;
+  if (!shipping) return [];
+
+  const s = shipping as {
+    recipient_name?: string;
+    phone?: string;
+    line1?: string;
+    line2?: string | null;
+    village?: string | null;
+    district?: string | null;
+    city?: string;
+    province?: string | null;
+    postal_code?: string | null;
+    country?: string;
+    area_id?: string | null;
+  };
+
+  // Synthesise an Address row so the caller does not have to distinguish
+  // saved rows from order-snapshots. The id is namespaced so it is stable
+  // across renders but obviously not a real addresses.id.
+  const orderId = (lastOrder as { id: string }).id;
+  const now = new Date().toISOString();
+  return [
+    {
+      id: `last-order:${orderId}`,
+      user_id: userId,
+      recipient_name: s.recipient_name ?? "",
+      phone: s.phone ?? "",
+      line1: s.line1 ?? "",
+      line2: s.line2 ?? null,
+      village: s.village ?? null,
+      district: s.district ?? null,
+      city: s.city ?? "",
+      province: s.province ?? null,
+      postal_code: s.postal_code ?? null,
+      country: s.country ?? "ID",
+      area_id: s.area_id ?? null,
+      is_default: true,
+      created_at: now,
+    } as Address,
+  ];
 }
 
 /**

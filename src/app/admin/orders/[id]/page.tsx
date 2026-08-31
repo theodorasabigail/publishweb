@@ -25,6 +25,7 @@ import {
   updateOrderChannelAndDates,
   updateOrderFulfilment,
   updateOrderMoney,
+  updateOrderPaymentMethod,
   updateOrderStatus,
   voidOrder,
 } from "@/app/admin/_actions/orders";
@@ -250,19 +251,25 @@ export default async function AdminOrderDetailPage({
 
             {ships && !addressReady && (
               <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">
-                This address is not finished. The order is recorded and can wait
-                here as long as it needs to — but it cannot be given a tracking
-                number until it has a name, a phone number, a street and a city.
-                Fill them in under <a href="#edit-address" className="underline"><strong>Shipping address</strong></a>.
+                This address is half-written. The order can wait here as long as
+                it needs to — but a tracking number will be refused until it has
+                a name, a phone number, a street and a city. Finish it under{" "}
+                <a href="#edit-address" className="underline"><strong>Shipping address</strong></a>,
+                or clear it entirely if the customer arranged their own courier
+                (Gosend, Grabsend) — a null address unblocks the tracking field.
               </p>
             )}
 
-            {ships && addressReady && (
+            {(!ships || addressReady) && (
             <form action={updateOrderFulfilment} className="mt-5 space-y-4 border-t border-sea-200 pt-5">
               <input type="hidden" name="id" value={order.id} />
               <Field
-                label="Tracking number"
-                hint="The customer sees this on their order page."
+                label="Tracking / receipt number"
+                hint={
+                  ships
+                    ? "The customer sees this on their order page."
+                    : "For a customer-arranged Gosend/Grabsend or a shop pickup — record the courier receipt or a reference here."
+                }
               >
                 <input
                   name="tracking_number"
@@ -526,7 +533,7 @@ export default async function AdminOrderDetailPage({
               </div>
               <Field
                 label="What is the discount for?"
-                hint="Required when there is a discount. Shows on the order and the receipt."
+                hint="Optional but recommended — shows on the order and the receipt."
               >
                 <input
                   name="discount_reason"
@@ -645,11 +652,14 @@ export default async function AdminOrderDetailPage({
             accent="amber"
             description={
               order.paid_at
-                ? undefined
+                ? `Paid on ${formatDateTime(order.paid_at)}. Change the method to correct a mis-selection.`
                 : "Recording payment takes the stock down and awards loyalty points. Do it once the money has actually arrived."
             }
           >
-            <form action={markOrderPaid} className="space-y-3">
+            <form
+              action={order.paid_at ? updateOrderPaymentMethod : markOrderPaid}
+              className="space-y-3"
+            >
               <input type="hidden" name="id" value={order.id} />
               <Field
                 label={order.paid_at ? "How it was paid" : "How it will be paid"}
@@ -661,14 +671,8 @@ export default async function AdminOrderDetailPage({
                   defaultValue={order.payment_method}
                 />
               </Field>
-              <button
-                type="submit"
-                className="btn-primary w-full"
-                disabled={Boolean(order.paid_at)}
-              >
-                {order.paid_at
-                  ? `Paid on ${formatDateTime(order.paid_at)}`
-                  : "Mark this order paid"}
+              <button type="submit" className="btn-primary w-full">
+                {order.paid_at ? "Save payment method" : "Mark this order paid"}
               </button>
             </form>
           </Panel>
