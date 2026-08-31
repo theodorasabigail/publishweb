@@ -3,9 +3,10 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, GripVertical, Search, Star } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, GripVertical, Search, Star } from "lucide-react";
 import { reorderProducts } from "@/app/admin/_actions/products";
 import { BulkBar, SavedFlash } from "@/components/admin/bulk-bar";
+import { StockEditor } from "@/components/admin/stock-editor";
 import { FLAVOUR_SWATCH_RING, flavourFor, productColour } from "@/lib/flavour";
 import type { Category, ProductWithVariants } from "@/lib/types";
 import { cn, formatIDR } from "@/lib/utils";
@@ -33,6 +34,19 @@ export function ProductList({
   const [query, setQuery] = useState("");
   const [show, setShow] = useState<"all" | "live" | "hidden" | "out">("all");
   const [flash, setFlash] = useState<string | null>(null);
+  // Which rows have the stock editor open. Keyed by product id so opening
+  // one and paging away then back keeps state simple (a page nav re-mounts
+  // this component and clears the set, which is the correct default).
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  function toggleExpanded(id: string) {
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   // What is on screen after the search box and the status tabs. Reordering is
   // disabled while this is narrowed, because dragging row 3 above row 1 in a
@@ -183,6 +197,9 @@ export function ProductList({
             0,
           );
 
+          const isExpanded = expanded.has(product.id);
+          const variants = product.product_variants ?? [];
+
           return (
             <li
               key={product.id}
@@ -195,11 +212,11 @@ export function ProductList({
                 setDragIndex(null);
               }}
               className={cn(
-                "flex items-center gap-3 px-4 py-3",
                 dragIndex === index && "opacity-50",
                 isSelected && "bg-sea-50",
               )}
             >
+              <div className="flex items-center gap-3 px-4 py-3">
               <input
                 type="checkbox"
                 checked={isSelected}
@@ -214,6 +231,20 @@ export function ProductList({
                   narrowed ? "opacity-25" : "cursor-grab",
                 )}
               />
+
+              <button
+                type="button"
+                onClick={() => toggleExpanded(product.id)}
+                aria-label={isExpanded ? `Collapse ${product.name}` : `Expand ${product.name} to edit stock`}
+                aria-expanded={isExpanded}
+                className="shrink-0 rounded p-0.5 text-sea-800 hover:bg-sea-100"
+              >
+                {isExpanded ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </button>
 
               {/* The flavour colour itself, not a separate accent with a dot
                   on it. One colour system, and it is the one on the bag. */}
@@ -292,6 +323,9 @@ export function ProductList({
                   <ArrowDown className="h-3.5 w-3.5" />
                 </button>
               </div>
+              </div>
+
+              {isExpanded && <StockEditor variants={variants} />}
             </li>
           );
         })}
