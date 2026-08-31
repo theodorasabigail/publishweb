@@ -34,13 +34,15 @@ export function ProductList({
   const [query, setQuery] = useState("");
   const [show, setShow] = useState<"all" | "live" | "hidden" | "out">("all");
   const [flash, setFlash] = useState<string | null>(null);
-  // Which rows have the stock editor open. Keyed by product id so opening
-  // one and paging away then back keeps state simple (a page nav re-mounts
-  // this component and clears the set, which is the correct default).
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // Which rows have the stock editor open. Opens every row by default --
+  // walking down the shelf and recounting is the common case, and forcing an
+  // extra tap per product for that job wastes time. The chevron collapses
+  // rows the operator does not want to look at right now, and re-mounting
+  // (page nav) restores the all-open default.
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   function toggleExpanded(id: string) {
-    setExpanded((current) => {
+    setCollapsed((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -197,7 +199,7 @@ export function ProductList({
             0,
           );
 
-          const isExpanded = expanded.has(product.id);
+          const isExpanded = !collapsed.has(product.id);
           const variants = product.product_variants ?? [];
 
           return (
