@@ -6,9 +6,7 @@ import {
   CalendarClock,
   CreditCard,
   FileText,
-  MapPin,
   Package,
-  Receipt,
   Truck,
   User,
 } from "lucide-react";
@@ -17,6 +15,7 @@ import { OrderPositionBadges } from "@/components/status-badge";
 import {
   assignOrderCustomer,
   deleteOrder,
+  markOrderHandedOff,
   markOrderInvoiced,
   markOrderPaid,
   quickShipAndPay,
@@ -25,7 +24,9 @@ import {
   updateOrderChannelAndDates,
   updateOrderFulfilment,
   updateOrderMoney,
+  updateOrderPaidAt,
   updateOrderPaymentMethod,
+  updateOrderShippedAt,
   updateOrderStatus,
   voidOrder,
 } from "@/app/admin/_actions/orders";
@@ -37,14 +38,14 @@ import { BiteshipBooker } from "@/components/admin/biteship-booker";
 import { env } from "@/lib/env";
 import {
   CHANNEL_LABELS,
-  CHANNEL_REFERENCE_LABELS,
   ORDER_STATUSES,
+  addressHasLocation,
   addressIsComplete,
   type OrderWithItems,
   type Profile,
   type SalesChannel,
 } from "@/lib/types";
-import { formatDate, formatDateTime, formatIDR, toShopDateTimeInput } from "@/lib/utils";
+import { formatDateTime, formatIDR, toShopDateTimeInput } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -79,11 +80,13 @@ export default async function AdminOrderDetailPage({
   }
 
   const address = order.shipping_address;
-  // What separates "there is something to pack" from "the customer has it" is
-  // whether an address was recorded, not which channel the order came from.
-  // A WhatsApp order can be either.
-  const ships = Boolean(address);
+  // A shipping address (line1/city/etc) means "there is something to post";
+  // a name-only address means "collected by X" (a pickup identifier, not a
+  // half-written shipping address); no address at all means a walk-in.
+  const hasLocation = addressHasLocation(address);
+  const isShippingAddress = hasLocation;
   const addressReady = addressIsComplete(address);
+  const isPartialShippingAddress = hasLocation && !addressReady;
   const isManual = order.channel !== "online";
   const isVoided = Boolean(order.voided_at);
   // The booker only makes sense when Biteship is the active provider (it
@@ -208,19 +211,58 @@ export default async function AdminOrderDetailPage({
           )}
 
           <Panel
-            title={ships ? "Ships to" : "Collected"}
+            id="edit-address"
+            title="Fulfilment"
             icon={<Truck className="h-4 w-4" />}
             accent="sky"
+            description={
+              isShippingAddress
+                ? "The parcel, the address, and the workflow status."
+                : "Handoff details and workflow status."
+            }
           >
-            {!ships ? (
-              <p className="text-sm text-sea-800">
-                {order.channel === "pos"
-                  ? "Sold in the shop — nothing to pack or ship. The customer took it with them."
-                  : "No address on this one, so the customer is collecting it. Nothing to pack."}
-              </p>
-            ) : address ? (
+            {/* -- Status dropdown at the top -- the "what stage is this in"
+                question is the first thing an operator asks on any order,
+                and having it in a separate sidebar panel forced eye travel
+                across the page for something that belongs with the address
+                and tracking it applies to. ---------------------------------- */}
+            <form action={updateOrderStatus} className="mb-5 space-y-3">
+              <input type="hidden" name="id" value={order.id} />
+              <Field label="Status">
+                <select name="status" className="input" defaultValue={order.status}>
+                  {ORDER_STATUSES.map((status) => (
+                    <option key={status} value={status} className="capitalize">
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <button type="submit" className="btn-secondary w-full py-2 text-xs">
+                Update status
+              </button>
+              {order.status === "cancelled" && order.paid_at && (
+                <p className="rounded-lg bg-sea-50 p-3 text-xs text-sea-800">
+                  Cancelling a paid order marks it cancelled but does not put
+                  the stock or loyalty points back. That is a physical refund,
+                  not a bookkeeping one. If the order was entered in error,
+                  use <strong>Void</strong> in the sidebar instead.
+                </p>
+              )}
+              {order.stock_reserved_at && (
+                <p className="rounded-lg bg-sea-50 p-3 text-xs text-sea-800">
+                  Holding its coffee since{" "}
+                  {formatDateTime(order.stock_reserved_at)} — the website
+                  will not sell it to anyone else. Marking it paid turns the
+                  hold into a real stock reduction; cancelling puts the
+                  coffee back on the shelf.
+                </p>
+              )}
+            </form>
+
+            {/* -- Summary line: who / where in one glance ------------------- */}
+            {isShippingAddress && address ? (
               <address className="text-sm not-italic leading-relaxed text-sea-700">
-                <strong className="text-ink">{address.recipient_name}</strong>
+                <strong className="text-ink">{address.recipient_name || "—"}</strong>
                 <br />
                 {address.line1}
                 {address.line2 && (
@@ -229,15 +271,24 @@ export default async function AdminOrderDetailPage({
                     {address.line2}
                   </>
                 )}
+                {(address.village || address.district) && (
+                  <>
+                    <br />
+                    {[address.village, address.district].filter(Boolean).join(", ")}
+                  </>
+                )}
                 <br />
-                {[address.village, address.district].filter(Boolean).join(", ")}
-                {(address.village || address.district) && <br />}
                 {address.city}
-                {address.province && `, ${address.province}`} {address.postal_code}
+                {address.province && `, ${address.province}`}{" "}
+                {address.postal_code}
                 <br />
                 {address.country}
-                <br />
-                {address.phone}
+                {address.phone && (
+                  <>
+                    <br />
+                    {address.phone}
+                  </>
+                )}
                 {address.email && (
                   <>
                     <br />
@@ -246,163 +297,225 @@ export default async function AdminOrderDetailPage({
                 )}
               </address>
             ) : (
-              <p className="text-sm text-sea-800">No address recorded.</p>
-            )}
-
-            {ships && !addressReady && (
-              <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">
-                This address is half-written. The order can wait here as long as
-                it needs to — but a tracking number will be refused until it has
-                a name, a phone number, a street and a city. Finish it under{" "}
-                <a href="#edit-address" className="underline"><strong>Shipping address</strong></a>,
-                or clear it entirely if the customer arranged their own courier
-                (Gosend, Grabsend) — a null address unblocks the tracking field.
+              <p className="text-sm text-sea-800">
+                <strong className="text-ink">
+                  {address?.recipient_name?.trim() ||
+                    customer?.display_name ||
+                    (order.channel === "pos"
+                      ? "Walk-in customer"
+                      : "No collector named")}
+                </strong>
+                {" — "}
+                {order.channel === "pos"
+                  ? "sold at the counter, taken home on the day."
+                  : "no shipping address, so the customer is collecting or has arranged their own courier."}
               </p>
             )}
 
-            {(!ships || addressReady) && (
-            <form action={updateOrderFulfilment} className="mt-5 space-y-4 border-t border-sea-200 pt-5">
+            {isPartialShippingAddress && (
+              <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">
+                This shipping address is half-written. Finish it below to give
+                it a tracking number, or clear the street/city fields to treat
+                it as a pickup instead.
+              </p>
+            )}
+
+            {/* -- Tracking + handoff ---------------------------------------- */}
+            <form
+              action={updateOrderFulfilment}
+              className="mt-5 space-y-4 border-t border-sea-200 pt-5"
+            >
               <input type="hidden" name="id" value={order.id} />
               <Field
-                label="Tracking / receipt number"
+                label={isShippingAddress ? "Tracking number" : "Reference / receipt (optional)"}
                 hint={
-                  ships
-                    ? "The customer sees this on their order page."
-                    : "For a customer-arranged Gosend/Grabsend or a shop pickup — record the courier receipt or a reference here."
+                  isShippingAddress
+                    ? "The customer sees this on their order page. Saving one moves the order to shipped."
+                    : "For a Gosend/Grabsend AWB (if any), a driver reference, or leave empty for an in-person handoff."
                 }
               >
                 <input
                   name="tracking_number"
                   className="input"
                   defaultValue={order.tracking_number ?? ""}
+                  placeholder={isShippingAddress ? "JN1234567890" : "Optional"}
                 />
               </Field>
-              <Field label="Internal note">
+              <Field label="Handoff note">
                 <input
                   name="courier_note"
                   className="input"
                   defaultValue={order.courier_note ?? ""}
-                  placeholder="Courier, pickup time, anything worth remembering"
+                  placeholder="Courier, pickup time, driver — anything worth remembering"
                 />
               </Field>
-              <button type="submit" className="btn-secondary py-2 text-xs">
+              <button type="submit" className="btn-secondary w-full py-2 text-xs">
                 Save shipping details
               </button>
             </form>
+
+            {!order.shipped_at && !isPartialShippingAddress && (
+              <form
+                action={markOrderHandedOff}
+                className="mt-3 border-t border-sea-200 pt-3"
+              >
+                <input type="hidden" name="id" value={order.id} />
+                <input
+                  type="hidden"
+                  name="courier_note"
+                  value={order.courier_note ?? ""}
+                />
+                <button type="submit" className="btn-primary w-full py-2 text-sm">
+                  Mark as handed off
+                </button>
+                <p className="mt-2 text-xs text-sea-800">
+                  Stamps shipped time and moves fulfilment to <strong>shipped</strong>.
+                  No tracking number needed — for a walk-in pickup or a
+                  customer-arranged courier with no AWB.
+                </p>
+              </form>
             )}
+
+            {order.shipped_at && (
+              <form
+                action={updateOrderShippedAt}
+                className="mt-3 space-y-2 rounded-lg border border-sea-200 bg-sea-50/60 p-3"
+              >
+                <input type="hidden" name="id" value={order.id} />
+                <Field
+                  label="Shipped at"
+                  hint="Jakarta time. Correct this if the parcel actually left on a different day."
+                >
+                  <input
+                    type="datetime-local"
+                    name="shipped_at"
+                    className="input"
+                    defaultValue={toShopDateTimeInput(order.shipped_at)}
+                  />
+                </Field>
+                <button type="submit" className="btn-secondary w-full py-1.5 text-xs">
+                  Save shipped date
+                </button>
+              </form>
+            )}
+
+            {/* -- Address editor -------------------------------------------- */}
+            <details className="mt-5 border-t border-sea-200 pt-4" open={!address || isPartialShippingAddress}>
+              <summary className="cursor-pointer text-xs font-medium uppercase tracking-wider text-sea-800 hover:text-sea-900">
+                {address ? "Edit address" : "Add an address"}
+              </summary>
+              <form action={updateOrderAddress} className="mt-4 space-y-4">
+                <input type="hidden" name="id" value={order.id} />
+
+                <p className="rounded-lg bg-sea-50 p-3 text-xs text-sea-800">
+                  Type just the name for a pickup order — no street or city
+                  needed. Fill in the street and city too when the shop is
+                  posting the parcel.
+                </p>
+
+                <Field label="Name">
+                  <input
+                    name="recipient_name"
+                    className="input"
+                    defaultValue={address?.recipient_name ?? ""}
+                    placeholder={customer?.display_name ?? ""}
+                  />
+                </Field>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Phone">
+                    <input
+                      name="phone"
+                      className="input"
+                      defaultValue={address?.phone ?? ""}
+                    />
+                  </Field>
+                  <Field label="Email">
+                    <input
+                      name="email"
+                      className="input"
+                      defaultValue={address?.email ?? ""}
+                    />
+                  </Field>
+                </div>
+                <Field label="Street address">
+                  <input
+                    name="line1"
+                    className="input"
+                    defaultValue={address?.line1 ?? ""}
+                  />
+                </Field>
+                <Field label="RT / RW, patokan">
+                  <input
+                    name="line2"
+                    className="input"
+                    defaultValue={address?.line2 ?? ""}
+                  />
+                </Field>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Kelurahan / desa">
+                    <input
+                      name="village"
+                      className="input"
+                      defaultValue={address?.village ?? ""}
+                    />
+                  </Field>
+                  <Field label="Kecamatan">
+                    <input
+                      name="district"
+                      className="input"
+                      defaultValue={address?.district ?? ""}
+                    />
+                  </Field>
+                </div>
+                <input
+                  type="hidden"
+                  name="area_id"
+                  value={address?.area_id ?? ""}
+                />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Kota / kabupaten">
+                    <input
+                      name="city"
+                      className="input"
+                      defaultValue={address?.city ?? ""}
+                    />
+                  </Field>
+                  <Field label="Provinsi">
+                    <input
+                      name="province"
+                      className="input"
+                      defaultValue={address?.province ?? ""}
+                    />
+                  </Field>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Kode pos">
+                    <input
+                      name="postal_code"
+                      className="input"
+                      defaultValue={address?.postal_code ?? ""}
+                    />
+                  </Field>
+                  <Field label="Country">
+                    <input
+                      name="country"
+                      className="input"
+                      defaultValue={address?.country ?? "ID"}
+                    />
+                  </Field>
+                </div>
+
+                <button type="submit" className="btn-secondary py-2 text-xs">
+                  Save address
+                </button>
+              </form>
+            </details>
           </Panel>
 
           <Panel
-            id="edit-address"
-            title="Shipping address"
-            icon={<MapPin className="h-4 w-4" />}
-            accent="sky"
-            description="Where the parcel is going. Clear the name to mark it as a collection instead."
-          >
-            <form action={updateOrderAddress} className="space-y-4">
-              <input type="hidden" name="id" value={order.id} />
-
-              <Field label="Name">
-                <input
-                  name="recipient_name"
-                  className="input"
-                  defaultValue={address?.recipient_name ?? ""}
-                />
-              </Field>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Phone">
-                  <input
-                    name="phone"
-                    className="input"
-                    defaultValue={address?.phone ?? ""}
-                  />
-                </Field>
-                <Field label="Email">
-                  <input
-                    name="email"
-                    className="input"
-                    defaultValue={address?.email ?? ""}
-                  />
-                </Field>
-              </div>
-              <Field label="Street address">
-                <input
-                  name="line1"
-                  className="input"
-                  defaultValue={address?.line1 ?? ""}
-                />
-              </Field>
-              <Field label="RT / RW, patokan">
-                <input
-                  name="line2"
-                  className="input"
-                  defaultValue={address?.line2 ?? ""}
-                />
-              </Field>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Kelurahan / desa">
-                  <input
-                    name="village"
-                    className="input"
-                    defaultValue={address?.village ?? ""}
-                  />
-                </Field>
-                <Field label="Kecamatan">
-                  <input
-                    name="district"
-                    className="input"
-                    defaultValue={address?.district ?? ""}
-                  />
-                </Field>
-              </div>
-              <input
-                type="hidden"
-                name="area_id"
-                value={address?.area_id ?? ""}
-              />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Kota / kabupaten">
-                  <input
-                    name="city"
-                    className="input"
-                    defaultValue={address?.city ?? ""}
-                  />
-                </Field>
-                <Field label="Provinsi">
-                  <input
-                    name="province"
-                    className="input"
-                    defaultValue={address?.province ?? ""}
-                  />
-                </Field>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Kode pos">
-                  <input
-                    name="postal_code"
-                    className="input"
-                    defaultValue={address?.postal_code ?? ""}
-                  />
-                </Field>
-                <Field label="Country">
-                  <input
-                    name="country"
-                    className="input"
-                    defaultValue={address?.country ?? "ID"}
-                  />
-                </Field>
-              </div>
-
-              <button type="submit" className="btn-secondary py-2 text-xs">
-                Save address
-              </button>
-            </form>
-          </Panel>
-
-          <Panel
-            title="Order details"
+            title="Order info"
             icon={<CalendarClock className="h-4 w-4" />}
-            description="Where it came from, and the dates that matter. Nothing here moves stock, money or points."
+            description="Where the order came from and when it was placed. Payment and ship dates live inside their own panels — they are corrections to actions, not standalone edits."
           >
             <form action={updateOrderChannelAndDates} className="space-y-4">
               <input type="hidden" name="id" value={order.id} />
@@ -433,62 +546,33 @@ export default async function AdminOrderDetailPage({
                 </Field>
               </div>
 
-              <Field
-                label="Placed at"
-                hint="Jakarta time. When the order was actually agreed, which is not always when you typed it up."
-              >
-                <input
-                  type="datetime-local"
-                  name="created_at"
-                  className="input"
-                  defaultValue={toShopDateTimeInput(order.created_at)}
-                />
-              </Field>
-
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field
-                  label="Paid at"
-                  hint={
-                    order.paid_at
-                      ? "Jakarta time."
-                      : "Not paid yet — use the payment panel, which also takes the stock down."
-                  }
+                  label="Placed at"
+                  hint="Jakarta time. When the order was actually agreed."
                 >
                   <input
                     type="datetime-local"
-                    name="paid_at"
+                    name="created_at"
                     className="input"
-                    disabled={!order.paid_at}
-                    defaultValue={toShopDateTimeInput(order.paid_at)}
+                    defaultValue={toShopDateTimeInput(order.created_at)}
                   />
                 </Field>
                 <Field
-                  label="Shipped at"
-                  hint="Jakarta time. Leave empty if it has not gone out."
+                  label="Do not ship before"
+                  hint="For a PO to be shipped later."
                 >
                   <input
-                    type="datetime-local"
-                    name="shipped_at"
+                    type="date"
+                    name="ship_after"
                     className="input"
-                    defaultValue={toShopDateTimeInput(order.shipped_at)}
+                    defaultValue={order.ship_after ?? ""}
                   />
                 </Field>
               </div>
 
-              <Field
-                label="Do not ship before"
-                hint="For a PO to be shipped later. Leave empty for as soon as it is ready."
-              >
-                <input
-                  type="date"
-                  name="ship_after"
-                  className="input"
-                  defaultValue={order.ship_after ?? ""}
-                />
-              </Field>
-
               <button type="submit" className="btn-secondary py-2 text-xs">
-                Save details
+                Save info
               </button>
             </form>
           </Panel>
@@ -551,26 +635,6 @@ export default async function AdminOrderDetailPage({
         </div>
 
         <div className="space-y-6">
-          {isManual && (
-            <Panel title="Where this came from" icon={<CalendarClock className="h-4 w-4" />}>
-              <dl className="space-y-2 text-sm">
-                <Row label="Channel" value={CHANNEL_LABELS[order.channel]} />
-                {order.channel_reference && (
-                  <Row
-                    label={CHANNEL_REFERENCE_LABELS[order.channel] ?? "Reference"}
-                    value={order.channel_reference}
-                  />
-                )}
-              </dl>
-              <a
-                href="#edit-address"
-                className="mt-3 block text-xs underline"
-              >
-                Change the address or dates
-              </a>
-            </Panel>
-          )}
-
           {!order.paid_at && isManual && (
             <Panel
               title="Add shipping & mark paid"
@@ -608,45 +672,6 @@ export default async function AdminOrderDetailPage({
           )}
 
           <Panel
-            title="Fulfilment"
-            icon={<Package className="h-4 w-4" />}
-            description="Where the coffee is in the shop's own workflow. Payment and invoicing are tracked separately below."
-          >
-            <form action={updateOrderStatus} className="space-y-3">
-              <input type="hidden" name="id" value={order.id} />
-              <select name="status" className="input" defaultValue={order.status}>
-                {ORDER_STATUSES.map((status) => (
-                  <option key={status} value={status} className="capitalize">
-                    {status}
-                  </option>
-                ))}
-              </select>
-              <button type="submit" className="btn-primary w-full">
-                Update fulfilment
-              </button>
-            </form>
-
-            {order.status === "cancelled" && order.paid_at && (
-              <p className="mt-3 rounded-lg bg-sea-50 p-3 text-xs text-sea-800">
-                Cancelling a paid order marks it cancelled but does not put the
-                stock or loyalty points back. That is a physical refund, not a
-                bookkeeping one. If the order was entered in error, use{" "}
-                <strong>Void</strong> below instead.
-              </p>
-            )}
-
-            {order.stock_reserved_at && (
-              <p className="mt-3 rounded-lg bg-sea-50 p-3 text-xs text-sea-800">
-                This order is <strong>holding its coffee</strong> since{" "}
-                {formatDateTime(order.stock_reserved_at)} — the website will not
-                sell it to anyone else. Marking it paid turns that hold into a
-                real stock reduction; cancelling puts the coffee back on the
-                shelf.
-              </p>
-            )}
-          </Panel>
-
-          <Panel
             title={order.paid_at ? "Payment" : "Payment — not yet"}
             icon={<CreditCard className="h-4 w-4" />}
             accent="amber"
@@ -675,6 +700,66 @@ export default async function AdminOrderDetailPage({
                 {order.paid_at ? "Save payment method" : "Mark this order paid"}
               </button>
             </form>
+
+            {/* Payment record: what was paid, when, how much. Lives inside
+                the same panel as the action so an operator does not hop cards
+                to see the outcome of the button they just clicked. */}
+            {(order.paid_at ||
+              order.payment_ref ||
+              order.cash_received_idr !== null ||
+              order.points_awarded > 0) && (
+              <dl className="mt-4 space-y-2 border-t border-sea-200 pt-4 text-sm">
+                {order.payment_ref && (
+                  <Row label="Reference" value={order.payment_ref} />
+                )}
+                {order.points_awarded > 0 && (
+                  <Row label="Points awarded" value={String(order.points_awarded)} />
+                )}
+                {order.cash_received_idr !== null && (
+                  <>
+                    <Row label="Cash received" value={formatIDR(order.cash_received_idr)} />
+                    <Row
+                      label="Change given"
+                      value={formatIDR(order.cash_received_idr - order.total_idr)}
+                    />
+                  </>
+                )}
+              </dl>
+            )}
+
+            {order.paid_at && (
+              <form
+                action={updateOrderPaidAt}
+                className="mt-3 space-y-2 rounded-lg border border-sea-200 bg-sea-50/60 p-3"
+              >
+                <input type="hidden" name="id" value={order.id} />
+                <Field
+                  label="Paid at"
+                  hint="Jakarta time. Correct this if the money landed on a different day."
+                >
+                  <input
+                    type="datetime-local"
+                    name="paid_at"
+                    className="input"
+                    defaultValue={toShopDateTimeInput(order.paid_at)}
+                  />
+                </Field>
+                <button type="submit" className="btn-secondary w-full py-1.5 text-xs">
+                  Save paid date
+                </button>
+              </form>
+            )}
+
+            {order.payment_url && !order.paid_at && (
+              <a
+                href={order.payment_url}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="mt-4 block text-xs underline"
+              >
+                Open the customer&apos;s payment page
+              </a>
+            )}
           </Panel>
 
           <Panel
@@ -725,49 +810,6 @@ export default async function AdminOrderDetailPage({
                 </form>
               )}
             </div>
-          </Panel>
-
-          <Panel
-            title="Payment record"
-            icon={<Receipt className="h-4 w-4" />}
-            accent="amber"
-          >
-            <dl className="space-y-2 text-sm">
-              <Row label="Method" value={order.payment_method ?? "—"} />
-              <Row label="Reference" value={order.payment_ref ?? "—"} />
-              <Row
-                label="Paid at"
-                value={order.paid_at ? formatDateTime(order.paid_at) : "Not yet"}
-              />
-              <Row
-                label="Shipped at"
-                value={order.shipped_at ? formatDateTime(order.shipped_at) : "Not yet"}
-              />
-              {order.ship_after && (
-                <Row label="Ship after" value={formatDate(order.ship_after)} />
-              )}
-              <Row label="Points awarded" value={String(order.points_awarded)} />
-              {order.cash_received_idr !== null && (
-                <>
-                  <Row label="Cash received" value={formatIDR(order.cash_received_idr)} />
-                  <Row
-                    label="Change given"
-                    value={formatIDR(order.cash_received_idr - order.total_idr)}
-                  />
-                </>
-              )}
-            </dl>
-
-            {order.payment_url && !order.paid_at && (
-              <a
-                href={order.payment_url}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="mt-4 block text-xs underline"
-              >
-                Open the customer&apos;s payment page
-              </a>
-            )}
           </Panel>
 
           {canBookBiteship && (

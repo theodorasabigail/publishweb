@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import {
   CHANNEL_LABELS,
   ORDER_STATUSES,
+  addressHasLocation,
   addressIsComplete,
   type OrderStatus,
   type SalesChannel,
@@ -219,17 +220,20 @@ export async function updateOrderFulfilment(formData: FormData) {
   } | null;
 
   // An order can be saved with half an address, or none. Tracking is refused
-  // ONLY when the address is partially filled -- that says the operator meant
-  // to ship somewhere but did not finish typing where. A null address means
-  // there is no address on purpose (a customer collecting, or a customer-
-  // arranged Gosend/Grabsend where the courier already has the destination
-  // and only a receipt/AWB is being recorded).
+  // ONLY when a shipping address is genuinely half-written -- some location
+  // fields typed but not enough to actually post to. A pickup identifier
+  // (a name and maybe a phone, with no street/city) is a valid standalone
+  // state ("collected by Sandra") and never blocks tracking. A null address
+  // is the same: customer collecting or arranging their own Gosend/Grabsend
+  // where the courier already has the destination.
   const addr = before?.shipping_address ?? null;
-  const isPartialAddress = Boolean(addr) && !addressIsComplete(addr);
-  if (tracking && isPartialAddress) {
+  const isPartialShippingAddress =
+    addressHasLocation(addr) && !addressIsComplete(addr);
+  if (tracking && isPartialShippingAddress) {
     throw new Error(
-      "This address is half-written. Either finish it under “Shipping address”, " +
-        "or clear it entirely if the customer arranged their own courier.",
+      "This shipping address is half-written. Either finish it under " +
+        "“Shipping address”, or clear the street/city fields to treat it as " +
+        "a pickup or customer-arranged courier instead.",
     );
   }
 
@@ -261,6 +265,51 @@ export async function updateOrderFulfilment(formData: FormData) {
 }
 
 /**
+ * Mark an order as physically handed off, no tracking number required.
+ *
+ * For a Gosend/Grabsend a customer arranged themselves, or a shop pickup by
+ * a friend of the customer, there is no AWB to type -- the shop just needs
+ * to record that the coffee left. Stamps shipped_at (if not already set),
+ * moves fulfilment to `shipped`, and optionally attaches a short handoff
+ * note ("Gosend, 14:20", "driver Andi") for future reference.
+ *
+ * Never emails a tracking notification -- there is nothing to track. If the
+ * customer needs to know it went out, that is a WhatsApp message with the
+ * handoff note in it.
+ */
+export async function markOrderHandedOff(formData: FormData) {
+  const { supabase } = await adminClient();
+  const id = text(formData, "id");
+  const note = optionalText(formData, "courier_note");
+
+  const { data: existing } = await supabase
+    .from("orders")
+    .select("shipped_at, status")
+    .eq("id", id)
+    .maybeSingle();
+  const before = existing as {
+    shipped_at: string | null;
+    status: OrderStatus;
+  } | null;
+  if (!before) throw new Error("That order no longer exists.");
+
+  const patch: {
+    status: OrderStatus;
+    shipped_at?: string;
+    courier_note?: string | null;
+  } = { status: "shipped" };
+  if (!before.shipped_at) patch.shipped_at = new Date().toISOString();
+  if (note !== null) patch.courier_note = note;
+
+  const { error } = await supabase.from("orders").update(patch).eq("id", id);
+  if (error) throw new Error(describeDbError(error, "Could not mark the order handed off."));
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${id}`);
+  revalidatePath(`/order/${id}`);
+}
+
+/**
  * Correct the details of an order that has already been written.
  *
  * Everything here is bookkeeping: which conversation an order came from, the
@@ -276,17 +325,11 @@ export async function updateOrderFulfilment(formData: FormData) {
  * allowed.
  */
 /**
- * Correct the channel, reference and the dates on an order.
- *
- * Split out of a single "correct everything" form so operators aren't shown
- * an address editor when they only want to fix which conversation the sale
- * came from -- and so a save on the address block does not require re-
- * entering the dates, or vice versa.
- *
- * paid_at is the delicate one: setting it on an order that was never paid
- * would produce an order that looks settled while its stock is still on the
- * shelf and its points were never awarded, so that case is refused here and
- * the operator is pointed at the status control, which does the real work.
+ * Correct the bookkeeping info on an order: which channel it came through,
+ * their reference, when it was placed, and any ship-after date. Nothing here
+ * moves stock, money or points -- the paid/shipped date corrections live
+ * next to their respective action panels so an operator sees them where they
+ * work, not in a separate "corrections" mega-form.
  */
 export async function updateOrderChannelAndDates(formData: FormData) {
   const { supabase } = await adminClient();
@@ -297,31 +340,9 @@ export async function updateOrderChannelAndDates(formData: FormData) {
     throw new Error("Unknown sales channel.");
   }
 
-  const { data: current } = await supabase
-    .from("orders")
-    .select("paid_at")
-    .eq("id", id)
-    .maybeSingle();
-  const wasPaid = Boolean((current as { paid_at: string | null } | null)?.paid_at);
-
   const placedAt = fromShopDateTimeInput(optionalText(formData, "created_at"));
   if (placedAt && Date.parse(placedAt) > Date.now()) {
     throw new Error("An order cannot have been placed in the future.");
-  }
-
-  const paidAt = fromShopDateTimeInput(optionalText(formData, "paid_at"));
-  if (paidAt && !wasPaid) {
-    throw new Error(
-      "This order has not been paid yet, so it has no payment date to correct. " +
-        "Use the status control to mark it paid — that takes the stock down and " +
-        "awards points, which typing a date here would not.",
-    );
-  }
-  if (!paidAt && wasPaid) {
-    throw new Error(
-      "An order that has been paid cannot have its payment date removed. " +
-        "If it was marked paid by mistake, cancel it instead.",
-    );
   }
 
   const { error } = await supabase
@@ -330,14 +351,12 @@ export async function updateOrderChannelAndDates(formData: FormData) {
       channel,
       channel_reference: optionalText(formData, "channel_reference"),
       ...(placedAt ? { created_at: placedAt } : {}),
-      paid_at: paidAt,
       // A plain YYYY-MM-DD date, or null to clear. A malformed one is dropped
       // rather than saved as a bad date -- a date input from a modern browser
       // is validated already, so this is a belt to the browser's braces.
       ship_after: /^\d{4}-\d{2}-\d{2}$/.test(optionalText(formData, "ship_after") ?? "")
         ? optionalText(formData, "ship_after")
         : null,
-      shipped_at: fromShopDateTimeInput(optionalText(formData, "shipped_at")),
     })
     .eq("id", id);
 
@@ -348,6 +367,75 @@ export async function updateOrderChannelAndDates(formData: FormData) {
   revalidatePath(`/order/${id}`);
   // The channel a sale is filed under changes what the reports say.
   revalidatePath("/admin/reports");
+}
+
+/**
+ * Correct the paid-at timestamp on an already-paid order.
+ *
+ * Sits inside the Payment panel rather than a separate corrections form, so
+ * an operator changing when the money actually landed sees the field next
+ * to the payment they are correcting. Refuses to set a paid-at on an
+ * unpaid order (that is what the Mark-paid button is for -- it also takes
+ * stock down and awards points) and refuses to clear a real paid-at (which
+ * would leave a paid order looking unpaid without undoing the effects).
+ */
+export async function updateOrderPaidAt(formData: FormData) {
+  const { supabase } = await adminClient();
+  const id = text(formData, "id");
+  const paidAt = fromShopDateTimeInput(optionalText(formData, "paid_at"));
+
+  const { data: current } = await supabase
+    .from("orders")
+    .select("paid_at")
+    .eq("id", id)
+    .maybeSingle();
+  const wasPaid = Boolean((current as { paid_at: string | null } | null)?.paid_at);
+
+  if (!wasPaid) {
+    throw new Error(
+      "This order has not been paid yet. Use the Mark-paid button -- it also " +
+        "takes stock down and awards points, which typing a date here would not.",
+    );
+  }
+  if (!paidAt) {
+    throw new Error(
+      "An order that has been paid cannot have its payment date removed. " +
+        "If it was marked paid by mistake, cancel it instead.",
+    );
+  }
+
+  const { error } = await supabase
+    .from("orders")
+    .update({ paid_at: paidAt })
+    .eq("id", id);
+  if (error) throw new Error(describeDbError(error, "Could not save the payment date."));
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${id}`);
+  revalidatePath(`/order/${id}`);
+}
+
+/**
+ * Correct the shipped-at timestamp on an already-shipped order.
+ *
+ * Lives inside the Fulfilment / Shipping panel so an operator adjusting when
+ * a parcel actually left sees the field beside the handoff controls.
+ * Accepts null to clear the date (a rare undo case).
+ */
+export async function updateOrderShippedAt(formData: FormData) {
+  const { supabase } = await adminClient();
+  const id = text(formData, "id");
+  const shippedAt = fromShopDateTimeInput(optionalText(formData, "shipped_at"));
+
+  const { error } = await supabase
+    .from("orders")
+    .update({ shipped_at: shippedAt })
+    .eq("id", id);
+  if (error) throw new Error(describeDbError(error, "Could not save the shipped date."));
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${id}`);
+  revalidatePath(`/order/${id}`);
 }
 
 /**
