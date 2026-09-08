@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   CHANNEL_LABELS,
   ORDER_STATUSES,
+  addressHasLocation,
   addressIsComplete,
   type Order,
   type OrderStatus,
@@ -240,14 +241,18 @@ export default async function AdminOrdersPage({
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sea-800">
-                    {order.shipping_address?.city ?? "—"}
-                    {order.shipping_address?.country
-                      ? `, ${order.shipping_address.country}`
-                      : ""}
+                    {addressHasLocation(order.shipping_address)
+                      ? `${order.shipping_address?.city ?? "—"}${order.shipping_address?.country ? `, ${order.shipping_address.country}` : ""}`
+                      : order.shipping_address?.recipient_name?.trim()
+                        ? `Pickup — ${order.shipping_address.recipient_name.trim()}`
+                        : order.channel === "pos"
+                          ? "Walk-in"
+                          : "Pickup"}
                   </td>
                   <td className="px-4 py-3">
                     <OrderStatusBadge status={order.status} />
                     {order.shipping_address &&
+                      addressHasLocation(order.shipping_address) &&
                       !addressIsComplete(order.shipping_address) && (
                         <span
                           className="ml-1.5 text-xs text-amber-700"
