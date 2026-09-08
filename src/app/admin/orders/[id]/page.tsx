@@ -25,6 +25,7 @@ import {
   updateOrderChannelAndDates,
   updateOrderFulfilment,
   updateOrderMoney,
+  updateOrderPaymentMethod,
   updateOrderStatus,
   voidOrder,
 } from "@/app/admin/_actions/orders";
@@ -121,9 +122,11 @@ export default async function AdminOrderDetailPage({
             <OrderPositionBadges status={order.status} paidAt={order.paid_at} voidedAt={order.voided_at} />
             <Link
               href={`/admin/orders/${order.id}/invoice`}
+              target="_blank"
+              rel="noreferrer noopener"
               className="btn-secondary py-1.5 text-xs"
             >
-              Receipt
+              Receipt / invoice
             </Link>
           </div>
         }
@@ -248,19 +251,25 @@ export default async function AdminOrderDetailPage({
 
             {ships && !addressReady && (
               <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">
-                This address is not finished. The order is recorded and can wait
-                here as long as it needs to — but it cannot be given a tracking
-                number until it has a name, a phone number, a street and a city.
-                Fill them in under <a href="#edit-address" className="underline"><strong>Shipping address</strong></a>.
+                This address is half-written. The order can wait here as long as
+                it needs to — but a tracking number will be refused until it has
+                a name, a phone number, a street and a city. Finish it under{" "}
+                <a href="#edit-address" className="underline"><strong>Shipping address</strong></a>,
+                or clear it entirely if the customer arranged their own courier
+                (Gosend, Grabsend) — a null address unblocks the tracking field.
               </p>
             )}
 
-            {ships && addressReady && (
+            {(!ships || addressReady) && (
             <form action={updateOrderFulfilment} className="mt-5 space-y-4 border-t border-sea-200 pt-5">
               <input type="hidden" name="id" value={order.id} />
               <Field
-                label="Tracking number"
-                hint="The customer sees this on their order page."
+                label="Tracking / receipt number"
+                hint={
+                  ships
+                    ? "The customer sees this on their order page."
+                    : "For a customer-arranged Gosend/Grabsend or a shop pickup — record the courier receipt or a reference here."
+                }
               >
                 <input
                   name="tracking_number"
@@ -524,7 +533,7 @@ export default async function AdminOrderDetailPage({
               </div>
               <Field
                 label="What is the discount for?"
-                hint="Required when there is a discount. Shows on the order and the receipt."
+                hint="Optional but recommended — shows on the order and the receipt."
               >
                 <input
                   name="discount_reason"
@@ -643,11 +652,14 @@ export default async function AdminOrderDetailPage({
             accent="amber"
             description={
               order.paid_at
-                ? undefined
+                ? `Paid on ${formatDateTime(order.paid_at)}. Change the method to correct a mis-selection.`
                 : "Recording payment takes the stock down and awards loyalty points. Do it once the money has actually arrived."
             }
           >
-            <form action={markOrderPaid} className="space-y-3">
+            <form
+              action={order.paid_at ? updateOrderPaymentMethod : markOrderPaid}
+              className="space-y-3"
+            >
               <input type="hidden" name="id" value={order.id} />
               <Field
                 label={order.paid_at ? "How it was paid" : "How it will be paid"}
@@ -659,14 +671,8 @@ export default async function AdminOrderDetailPage({
                   defaultValue={order.payment_method}
                 />
               </Field>
-              <button
-                type="submit"
-                className="btn-primary w-full"
-                disabled={Boolean(order.paid_at)}
-              >
-                {order.paid_at
-                  ? `Paid on ${formatDateTime(order.paid_at)}`
-                  : "Mark this order paid"}
+              <button type="submit" className="btn-primary w-full">
+                {order.paid_at ? "Save payment method" : "Mark this order paid"}
               </button>
             </form>
           </Panel>
@@ -677,30 +683,48 @@ export default async function AdminOrderDetailPage({
             accent="amber"
             description="For bulk / wholesale orders where an invoice is sent as a separate step. Retail counter sales rarely need this."
           >
-            {order.invoiced_at ? (
-              <form action={markOrderInvoiced} className="space-y-3">
-                <input type="hidden" name="id" value={order.id} />
-                <input type="hidden" name="undo" value="true" />
-                <p className="rounded-lg bg-emerald-50 p-3 text-xs text-emerald-900">
-                  Invoice sent on <strong>{formatDateTime(order.invoiced_at)}</strong>.
-                </p>
-                <button type="submit" className="btn-secondary w-full py-2 text-xs">
-                  Un-mark (sent by mistake)
-                </button>
-              </form>
-            ) : (
-              <form action={markOrderInvoiced} className="space-y-3">
-                <input type="hidden" name="id" value={order.id} />
-                <p className="text-sm text-sea-800">
-                  Mark this once the invoice has been sent to the customer.
-                  Independent of payment — it can go before, with, or after
-                  the money.
-                </p>
-                <button type="submit" className="btn-primary w-full">
-                  Mark invoice sent
-                </button>
-              </form>
-            )}
+            <div className="space-y-3">
+              <Link
+                href={`/admin/orders/${order.id}/invoice`}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="btn-secondary flex w-full items-center justify-center gap-2 py-2 text-sm"
+              >
+                <FileText className="h-4 w-4" />
+                Open the invoice
+              </Link>
+              <p className="text-xs text-sea-800">
+                Opens in a new tab. Print from the browser, or save as PDF
+                and send it to the customer.
+              </p>
+            </div>
+
+            <div className="mt-4 border-t border-sea-200 pt-4">
+              {order.invoiced_at ? (
+                <form action={markOrderInvoiced} className="space-y-3">
+                  <input type="hidden" name="id" value={order.id} />
+                  <input type="hidden" name="undo" value="true" />
+                  <p className="rounded-lg bg-emerald-50 p-3 text-xs text-emerald-900">
+                    Marked as sent on <strong>{formatDateTime(order.invoiced_at)}</strong>.
+                  </p>
+                  <button type="submit" className="btn-secondary w-full py-2 text-xs">
+                    Un-mark (sent by mistake)
+                  </button>
+                </form>
+              ) : (
+                <form action={markOrderInvoiced} className="space-y-3">
+                  <input type="hidden" name="id" value={order.id} />
+                  <p className="text-sm text-sea-800">
+                    Mark this once the invoice above has been sent to the
+                    customer. Independent of payment — it can go before,
+                    with, or after the money.
+                  </p>
+                  <button type="submit" className="btn-primary w-full">
+                    Mark invoice sent
+                  </button>
+                </form>
+              )}
+            </div>
           </Panel>
 
           <Panel

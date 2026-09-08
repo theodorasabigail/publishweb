@@ -466,3 +466,40 @@ export async function bulkAdjustStock(
   revalidateStorefront();
   return { updated: changed.length };
 }
+
+/**
+ * Set the stock count on a single variant.
+ *
+ * Named write path for the inline stock editor on the products list -- the
+ * bulk-adjust action above is meant for many-at-once corrections, and using
+ * it for a single-row edit would obscure intent (and log a bulk operation
+ * for a one-bag recount). Refuses negative stock; other constraints (a
+ * `reserved > stock` check would matter here) are left to the database.
+ */
+export async function updateVariantStock(
+  variantId: string,
+  stock: number,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const { supabase } = await adminClient();
+
+  if (!variantId) return { ok: false, reason: "Missing variant id." };
+  if (!Number.isFinite(stock) || stock < 0) {
+    return { ok: false, reason: "Stock cannot be negative." };
+  }
+  const value = Math.round(stock);
+
+  const { error } = await supabase
+    .from("product_variants")
+    .update({ stock: value })
+    .eq("id", variantId);
+
+  if (error) {
+    return {
+      ok: false,
+      reason: describeDbError(error, error.message ?? "Could not save the stock."),
+    };
+  }
+
+  revalidateStorefront();
+  return { ok: true };
+}

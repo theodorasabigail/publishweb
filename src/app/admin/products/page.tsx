@@ -25,7 +25,7 @@ export default async function AdminProductsPage() {
     <div>
       <PageHeader
         title="Products"
-        description="Tick coffees to change prices, stock, flavour or visibility on several at once. Drag a row to change the order they appear in on the shop."
+        description="Tap the chevron on a row to edit stock per size in place. Tick coffees to change prices, stock, flavour or visibility on several at once. Drag a row to change the order on the shop."
         action={
           <Link href="/admin/products/new" className="btn-primary">
             <Plus className="h-4 w-4" /> New product

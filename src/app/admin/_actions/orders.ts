@@ -147,6 +147,31 @@ export async function markOrderPaid(formData: FormData) {
 }
 
 /**
+ * Change the payment method recorded against an already-paid order.
+ *
+ * mark_order_paid short-circuits when paid_at is set (so it never double-
+ * awards points or takes stock twice), which meant the method dropdown
+ * looked editable but never actually saved. This is the correction path:
+ * it only touches payment_method, does not move stock, does not award
+ * points, and does not re-send the receipt.
+ */
+export async function updateOrderPaymentMethod(formData: FormData) {
+  const { supabase } = await adminClient();
+  const id = text(formData, "id");
+  const method = optionalText(formData, "payment_method");
+  if (!method) throw new Error("Pick a payment method.");
+
+  const { error } = await supabase
+    .from("orders")
+    .update({ payment_method: method })
+    .eq("id", id);
+  if (error) throw new Error(describeDbError(error, "Could not update the payment method."));
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${id}`);
+}
+
+/**
  * Mark that an invoice was sent for this order.
  *
  * Independent of paid_at, deliberately: some invoices go before payment (net
@@ -193,13 +218,18 @@ export async function updateOrderFulfilment(formData: FormData) {
     shipping_address: ShippingAddressSnapshot | null;
   } | null;
 
-  // An order can be saved with half an address, or none. It cannot be *posted*
-  // to one: a tracking number says a parcel has gone somewhere, and it cannot
-  // have gone somewhere that is not written down.
-  if (tracking && !addressIsComplete(before?.shipping_address)) {
+  // An order can be saved with half an address, or none. Tracking is refused
+  // ONLY when the address is partially filled -- that says the operator meant
+  // to ship somewhere but did not finish typing where. A null address means
+  // there is no address on purpose (a customer collecting, or a customer-
+  // arranged Gosend/Grabsend where the courier already has the destination
+  // and only a receipt/AWB is being recorded).
+  const addr = before?.shipping_address ?? null;
+  const isPartialAddress = Boolean(addr) && !addressIsComplete(addr);
+  if (tracking && isPartialAddress) {
     throw new Error(
-      "This order needs a full address before it can be given a tracking number — " +
-        "a name, a phone number, a street and a city. Add them under “Correct the details”.",
+      "This address is half-written. Either finish it under “Shipping address”, " +
+        "or clear it entirely if the customer arranged their own courier.",
     );
   }
 
@@ -348,11 +378,10 @@ export async function updateOrderMoney(formData: FormData) {
   const shippingIdr = rawShipping ? Math.max(0, Math.round(Number(rawShipping))) : 0;
   const discountRaw = rawDiscount ? Math.max(0, Math.round(Number(rawDiscount))) : 0;
   const discountIdr = Math.min(discountRaw, currentOrder.subtotal_idr);
+  // Optional. Reason used to be required and threw a server error when empty;
+  // saving with no reason is better than a crashed page. The receipt shows
+  // "Discount" alone when nothing was typed.
   const discountReason = optionalText(formData, "discount_reason");
-
-  if (discountIdr > 0 && !discountReason) {
-    throw new Error("Say what the discount is for.");
-  }
 
   const { error } = await supabase
     .from("orders")

@@ -1,15 +1,24 @@
 /**
- * The invoice sits under /admin so admin auth still guards it, but it renders
- * *outside* the admin frame — no side nav, no top bar, no admin container.
+ * Nested layout for the invoice page.
  *
- * A layout that returns its children unwrapped overrides the segment above,
- * which is exactly what an operator wants to see and what a Ctrl-P dialog
- * should have to work with.
+ * Adds a fixed, full-viewport, white surface above the admin chrome, so the
+ * operator sees the receipt on its own -- no sidebar, no dashboard header --
+ * the way it will actually print. The admin layout still wraps this (route
+ * layouts nest downward and cannot be escaped without a route group), but
+ * every visible thing it adds sits behind this z-50 overlay.
+ *
+ * @media print in the invoice's own styles handles the printed page: the
+ * button row disappears, the surface fills the sheet, no fixed positioning
+ * is preserved. The overlay is purely a screen-time correction.
  */
 export default function InvoiceLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <div className="min-h-screen bg-cream">{children}</div>;
+  return (
+    <div className="fixed inset-0 z-50 overflow-auto bg-white print:static print:overflow-visible">
+      {children}
+    </div>
+  );
 }
