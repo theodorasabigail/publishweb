@@ -262,6 +262,31 @@ export function addressIsComplete(
   );
 }
 
+/**
+ * Whether an address has any location component -- street, city, postal code,
+ * kelurahan, kecamatan, province.
+ *
+ * Distinguishes a "pickup identifier" (a name, and maybe a phone or email,
+ * with no location fields) from a "shipping address in progress" (something
+ * more than that but not yet complete). A pickup identifier is a valid
+ * standalone state -- the customer is collecting, and this is who -- so it
+ * must not be treated as a partial shipping address that blocks tracking.
+ */
+export function addressHasLocation(
+  address: ShippingAddressSnapshot | null | undefined,
+): boolean {
+  if (!address) return false;
+  return Boolean(
+    address.line1?.trim() ||
+      address.line2?.trim() ||
+      address.village?.trim() ||
+      address.district?.trim() ||
+      address.city?.trim() ||
+      address.province?.trim() ||
+      address.postal_code?.trim(),
+  );
+}
+
 export interface Order {
   id: string;
   human_ref: string;
