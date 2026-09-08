@@ -284,20 +284,35 @@ export async function markOrderHandedOff(formData: FormData) {
 
   const { data: existing } = await supabase
     .from("orders")
-    .select("shipped_at, status")
+    .select("shipped_at, status, shipping_address")
     .eq("id", id)
     .maybeSingle();
   const before = existing as {
     shipped_at: string | null;
     status: OrderStatus;
+    shipping_address: ShippingAddressSnapshot | null;
   } | null;
   if (!before) throw new Error("That order no longer exists.");
+
+  // The right terminal state depends on what "handed off" actually means for
+  // this order:
+  //   - A shipping address (street, city) → the parcel enters the courier
+  //     network. It has left the shop but has not reached the customer.
+  //     That is `shipped`.
+  //   - No shipping address (a pickup, a customer-arranged driver, a walk-in
+  //     collector) → the coffee is in the customer's hands the moment it
+  //     leaves the counter. That is `delivered`.
+  //
+  // Picking one automatically stops an operator from having to move the same
+  // order through 'shipped' and then 'delivered' by hand on every pickup.
+  const isPhysicalShipment = addressHasLocation(before.shipping_address);
+  const nextStatus: OrderStatus = isPhysicalShipment ? "shipped" : "delivered";
 
   const patch: {
     status: OrderStatus;
     shipped_at?: string;
     courier_note?: string | null;
-  } = { status: "shipped" };
+  } = { status: nextStatus };
   if (!before.shipped_at) patch.shipped_at = new Date().toISOString();
   if (note !== null) patch.courier_note = note;
 
