@@ -92,6 +92,10 @@ export async function recordManualOrder(input: {
   discountReason?: string | null;
   /** YYYY-MM-DD, in shop time. Recorded as a plain date, not an instant. */
   shipAfter?: string | null;
+  /** Take the order even where the coffee is not on the shelf yet. Stock runs
+   *  below zero and the shortfall reads as bags owed. Manual orders only: a
+   *  counter sale is coffee in the customer's hand, so it cannot be short. */
+  allowShort?: boolean;
 }): Promise<PosSaleResult> {
   const { supabase, session } = await adminClient();
 
@@ -104,6 +108,7 @@ export async function recordManualOrder(input: {
   if (input.markPaid && !input.paymentMethod) {
     return { ok: false, error: "Say how the money arrived." };
   }
+  const allowShort = Boolean(input.allowShort) && input.channel !== "pos";
   // No completeness check here on purpose. An order whose address is still
   // coming is a real order, and it belongs in the books now rather than in a
   // chat thread until the customer gets round to sending it. What it cannot do
@@ -133,6 +138,9 @@ export async function recordManualOrder(input: {
     p_shipping_idr: input.address ? Math.max(0, input.shippingIdr ?? 0) : 0,
     p_discount_idr: Math.max(0, Math.round(input.discountIdr ?? 0)),
     p_discount_reason: input.discountReason?.trim() || null,
+    // Only sent when it is on, so an ordinary order still goes through on a
+    // database that has not had 0039 yet.
+    ...(allowShort ? { p_allow_short: true } : {}),
   });
 
   // The database function knows nothing about ship_after. Set it as a plain
@@ -192,7 +200,12 @@ export async function recordSale(input: {
   });
 }
 
-/** Customer lookup for attaching loyalty points and finding a saved address. */
+/**
+ * Customer lookup for attaching loyalty points and finding a saved address.
+ *
+ * Name, email or phone. Phone matters most for a chat order: the number is
+ * the one thing about a WhatsApp customer the operator is certain of.
+ */
 export async function findCustomers(query: string) {
   const { supabase } = await adminClient();
   const trimmed = query.trim();
@@ -205,10 +218,21 @@ export async function findCustomers(query: string) {
   if (safe.length < 2) return [];
   const escaped = safe.replace(/[%_\\]/g, (match) => `\\${match}`);
 
+  const filters = [`display_name.ilike.%${escaped}%`, `email.ilike.%${escaped}%`];
+
+  // A number however it was typed -- 0812 3456, +62 812-3456 -- matched on the
+  // part after the country code or leading zero, so it finds the profile
+  // whichever of those it was saved as.
+  const digits = trimmed.replace(/\D/g, "");
+  const core = digits.replace(/^(62|0)/, "");
+  if (core.length >= 4 && digits.length >= trimmed.replace(/[\s+().-]/g, "").length) {
+    filters.push(`phone.ilike.%${core}%`);
+  }
+
   const { data } = await supabase
     .from("profiles")
     .select("id, display_name, email, phone, loyalty_points, tier")
-    .or(`display_name.ilike.%${escaped}%,email.ilike.%${escaped}%`)
+    .or(filters.join(","))
     .limit(8);
 
   return (data ?? []) as {

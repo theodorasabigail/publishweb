@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   Check,
+  ChevronDown,
   Minus,
   Package,
   Plus,
@@ -21,8 +22,10 @@ import {
   type ManualAddress,
   type PosPaymentMethod,
 } from "@/app/admin/_actions/pos";
-import { AddressFields, EMPTY_ADDRESS } from "@/components/shop/address-fields";
+import { EMPTY_ADDRESS } from "@/components/shop/address-fields";
+import { AddressPaste } from "@/components/admin/address-paste";
 import {
+  addressHasLocation,
   addressIsComplete,
   type Address,
   type ShippingAddressSnapshot,
@@ -51,6 +54,12 @@ import { cn, formatIDR } from "@/lib/utils";
  * They share the product grid and the basket deliberately. The muscle memory
  * for finding a coffee is the valuable part, and it should not change because
  * the customer happened to message rather than walk in.
+ *
+ * One real difference: a manual order can be for coffee that is not roasted
+ * yet. A counter sale cannot — the bag is in the customer's hand — but a chat
+ * order is a promise, and a roaster makes promises ahead of the roast. Sold
+ * out sizes stay tappable in manual mode, and the part of a line the shelf
+ * cannot cover is shown as "to roast".
  */
 
 type Mode = "counter" | "manual";
@@ -85,6 +94,33 @@ const CASH_PRESETS = [50_000, 100_000, 150_000, 200_000, 500_000];
 
 const BLANK_ADDRESS: ManualAddress = { ...EMPTY_ADDRESS };
 
+/** A saved address, or the last one posted to, in the till's shape. */
+function addressFromRow(row: SavedAddress, email: string | null): ManualAddress {
+  return {
+    recipient_name: row.recipient_name,
+    phone: row.phone,
+    line1: row.line1,
+    line2: row.line2 ?? "",
+    village: row.village ?? "",
+    district: row.district ?? "",
+    city: row.city,
+    province: row.province ?? "",
+    postal_code: row.postal_code ?? "",
+    country: row.country,
+    email: email ?? "",
+    area_id: row.area_id ?? null,
+  };
+}
+
+/** Nothing typed yet — safe to fill in without overwriting anybody's work. */
+function addressIsBlank(address: ManualAddress): boolean {
+  return (
+    !address.recipient_name?.trim() &&
+    !address.phone?.trim() &&
+    !addressHasLocation(address as ShippingAddressSnapshot)
+  );
+}
+
 export function PosTerminal({
   products,
   rupiahPerPoint,
@@ -114,14 +150,18 @@ export function PosTerminal({
     userId: "",
     rows: [],
   });
-  // A suggestion of who the manual order might belong to, matched on the
-  // channel reference when it looks like a phone number. Null means "have
-  // not found one".
-  const [suggested, setSuggested] = useState<Customer | null>(null);
+  // A suggestion of who the manual order might belong to, matched on a phone
+  // number: the WhatsApp reference, or the one in a pasted address. Kept with
+  // the number it answers, so a stale answer is never shown for a new number.
+  const [suggested, setSuggested] = useState<{
+    phone: string;
+    customer: Customer | null;
+  }>({ phone: "", customer: null });
   const [shippingIdr, setShippingIdr] = useState<number | null>(null);
   const [shipAfter, setShipAfter] = useState("");
   const [note, setNote] = useState("");
   const [customPricing, setCustomPricing] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const [discountIdr, setDiscountIdr] = useState<number | null>(null);
   const [discountReason, setDiscountReason] = useState("");
 
@@ -133,6 +173,7 @@ export function PosTerminal({
     points: number;
     paid: boolean;
     ships: boolean;
+    toRoast: number;
   } | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -148,6 +189,17 @@ export function PosTerminal({
   const total = subtotal - discount + shipping;
   const change = cashReceived !== null ? cashReceived - total : null;
 
+  // Open by itself when any of what it hides is in use, so a value can never
+  // be set and then tucked out of sight.
+  const moreOpen =
+    showMore || Boolean(note.trim() || shipAfter || customPricing || discountIdr);
+
+  /** Bags on this order the shelf cannot cover — to be roasted. */
+  const toRoast = lines.reduce(
+    (sum, line) => sum + Math.max(0, line.quantity - Math.max(0, line.available)),
+    0,
+  );
+
   const visibleProducts = useMemo(() => {
     const term = query.trim().toLowerCase();
     if (!term) return products;
@@ -159,36 +211,39 @@ export function PosTerminal({
     );
   }, [products, query]);
 
-  // If the reference looks like a phone number and nobody is attached, try
-  // to find a customer already carrying it. That is exactly what the operator
-  // would search for a moment later, so doing it up front removes a step.
-  // Debounced. Nothing is *cleared* here; whether to show the suggestion is
-  // derived below, so a keystroke that invalidates the search shows the empty
-  // state on the next render without a second setState.
+  // The number to look the customer up by: the WhatsApp reference if there
+  // is one, otherwise the phone on the address being shipped to.
+  const lookupPhone = !isManual
+    ? ""
+    : (channel === "whatsapp" && channelReference.trim()) ||
+      (ships ? (address.phone ?? "").trim() : "");
+
+  // If there is a phone number and nobody is attached, try to find a customer
+  // already carrying it. That is exactly what the operator would search for a
+  // moment later, so doing it up front removes a step. Debounced. Nothing is
+  // *cleared* here; whether to show the suggestion is derived below, so a
+  // keystroke that invalidates the search shows the empty state on the next
+  // render without a second setState.
   useEffect(() => {
-    if (customer || !isManual || channel !== "whatsapp") return;
-    const query = channelReference.trim();
-    if (query.length < 6) return;
+    if (customer || lookupPhone.length < 6) return;
 
     let live = true;
     const timer = setTimeout(async () => {
-      const found = await findCustomerByPhone(query);
-      if (live) setSuggested(found);
+      // A suggestion is a nicety; failing to find one is not worth an error.
+      const found = await findCustomerByPhone(lookupPhone).catch(() => null);
+      if (live) setSuggested({ phone: lookupPhone, customer: found });
     }, 350);
     return () => {
       live = false;
       clearTimeout(timer);
     };
-  }, [customer, isManual, channel, channelReference]);
+  }, [customer, lookupPhone]);
 
   // Derived rather than cleared in the effect: one source of truth for
   // whether the suggestion is showable *right now*.
   const showSuggested =
-    !customer &&
-    isManual &&
-    channel === "whatsapp" &&
-    channelReference.trim().length >= 6
-      ? suggested
+    !customer && lookupPhone.length >= 6 && suggested.phone === lookupPhone
+      ? suggested.customer
       : null;
 
   // Addresses the shop already has for this customer. Only worth fetching once
@@ -196,9 +251,19 @@ export function PosTerminal({
   useEffect(() => {
     if (!customer || !isManual || !ships) return;
     const userId = customer.id;
+    const email = customer.email;
     let live = true;
     customerAddresses(userId).then((rows) => {
-      if (live) setSaved({ userId, rows: rows as SavedAddress[] });
+      if (!live) return;
+      setSaved({ userId, rows: rows as SavedAddress[] });
+      // Nothing typed yet: use the address they usually get it at. Anything
+      // already there is left alone — the other addresses are one tap away.
+      const first = (rows as SavedAddress[])[0];
+      if (first) {
+        setAddress((current) =>
+          addressIsBlank(current) ? addressFromRow(first, email) : current,
+        );
+      }
     });
     return () => {
       live = false;
@@ -218,8 +283,9 @@ export function PosTerminal({
     setLines((current) => {
       const existing = current.find((line) => line.variantId === variantId);
       if (existing) {
-        // Never let the till build a basket the stock cannot cover.
-        if (existing.quantity >= variant.available) {
+        // Never let a counter sale build a basket the shelf cannot cover. A
+        // manual order can: the rest is roasted for it.
+        if (!isManual && existing.quantity >= variant.available) {
           setError(
             `Only ${variant.available} of ${product.name} (${variant.size}) available.`,
           );
@@ -232,7 +298,7 @@ export function PosTerminal({
         );
       }
 
-      if (variant.available < 1) {
+      if (!isManual && variant.available < 1) {
         setError(`${product.name} (${variant.size}) is not available.`);
         return current;
       }
@@ -258,7 +324,7 @@ export function PosTerminal({
         ? current.filter((line) => line.variantId !== variantId)
         : current.map((line) =>
             line.variantId === variantId
-              ? { ...line, quantity: Math.min(quantity, line.available) }
+              ? { ...line, quantity: isManual ? quantity : Math.min(quantity, line.available) }
               : line,
           ),
     );
@@ -288,6 +354,7 @@ export function PosTerminal({
     setShipAfter("");
     setNote("");
     setCustomPricing(false);
+    setShowMore(false);
     setDiscountIdr(null);
     setDiscountReason("");
     setError(null);
@@ -313,25 +380,15 @@ export function PosTerminal({
   }
 
   function applySavedAddress(row: SavedAddress) {
-    setAddress({
-      recipient_name: row.recipient_name,
-      phone: row.phone,
-      line1: row.line1,
-      line2: row.line2 ?? "",
-      village: row.village ?? "",
-      district: row.district ?? "",
-      city: row.city,
-      province: row.province ?? "",
-      postal_code: row.postal_code ?? "",
-      country: row.country,
-      email: customer?.email ?? "",
-      area_id: row.area_id ?? null,
-    });
+    setAddress(addressFromRow(row, customer?.email ?? null));
   }
 
   /** What is stopping this order being saved, in the words the operator needs. */
   const blocker = useMemo(() => {
     if (!lines.length) return "Add something to the order first.";
+    if (!isManual && toRoast > 0) {
+      return "Not all of this is on the shelf. Switch to Manual order to sell it before it is roasted.";
+    }
     if (paid && method === "cash" && cashReceived !== null && cashReceived < total) {
       return "Cash received is less than the total.";
     }
@@ -342,7 +399,7 @@ export function PosTerminal({
       return "Say what the discount is for.";
     }
     return null;
-  }, [lines, paid, method, cashReceived, total, discount, discountReason]);
+  }, [lines, isManual, toRoast, paid, method, cashReceived, total, discount, discountReason]);
 
   function submit() {
     setError(null);
@@ -373,6 +430,7 @@ export function PosTerminal({
         discountIdr: discount,
         discountReason: discount > 0 ? discountReason : null,
         shipAfter: shipAfter || null,
+        allowShort: isManual && toRoast > 0,
       });
 
       if (!result.ok || !result.order) {
@@ -390,6 +448,7 @@ export function PosTerminal({
         points: result.order.points_awarded,
         paid: Boolean(result.order.paid_at),
         ships: isManual && ships,
+        toRoast: isManual ? toRoast : 0,
       });
       setLines([]);
       setCashReceived(null);
@@ -400,6 +459,7 @@ export function PosTerminal({
       setShipAfter("");
       setNote("");
       setCustomPricing(false);
+      setShowMore(false);
       setDiscountIdr(null);
       setDiscountReason("");
     });
@@ -462,6 +522,15 @@ export function PosTerminal({
           )}
         </dl>
 
+        {receipt.toRoast > 0 && (
+          <p className="mt-6 rounded-lg bg-amber-50 p-3 text-left text-xs text-amber-900">
+            <strong>
+              {receipt.toRoast} {receipt.toRoast === 1 ? "bag" : "bags"} to roast
+            </strong>{" "}
+            for this order. The stock count has gone below zero by that much;
+            add the next roast to it as usual and it balances itself.
+          </p>
+        )}
         {!receipt.paid && (
           <p className="mt-6 rounded-lg bg-amber-50 p-3 text-left text-xs text-amber-900">
             The coffee is <strong>held for this order</strong> and will not be
@@ -548,17 +617,27 @@ export function PosTerminal({
                   {product.product_variants.map((variant) => {
                     const soldOut = variant.available < 1;
                     const held = variant.reserved > 0;
+                    // Sold out stops a counter sale; a manual order can still
+                    // take it, to be roasted.
+                    const blocked = soldOut && !isManual;
                     return (
                       <button
                         key={variant.id}
                         type="button"
-                        disabled={soldOut}
+                        disabled={blocked}
                         onClick={() => addVariant(product, variant.id)}
+                        title={
+                          soldOut && isManual
+                            ? "None on the shelf — this order will be roasted for."
+                            : undefined
+                        }
                         className={cn(
                           "flex-1 rounded-lg border px-2 py-2 text-center transition-colors",
-                          soldOut
+                          blocked
                             ? "cursor-not-allowed border-sea-200 opacity-40"
-                            : "border-sea-200 hover:border-sea-700 hover:bg-sea-50 active:bg-sea-100",
+                            : soldOut
+                              ? "border-dashed border-amber-400 hover:bg-amber-50 active:bg-amber-100"
+                              : "border-sea-200 hover:border-sea-700 hover:bg-sea-50 active:bg-sea-100",
                         )}
                       >
                         <span className="block text-sm font-medium">{variant.size}</span>
@@ -571,7 +650,11 @@ export function PosTerminal({
                             variant.available <= 3 ? "text-amber-700" : "text-sea-800",
                           )}
                         >
-                          {soldOut ? "none free" : `${variant.available} left`}
+                          {soldOut
+                            ? isManual
+                              ? "roast to order"
+                              : "none free"
+                            : `${variant.available} left`}
                         </span>
                         {held && (
                           <span className="block text-[10px] text-sea-800/70">
@@ -649,6 +732,11 @@ export function PosTerminal({
                         )}
                       </p>
                     )}
+                    {line.quantity > Math.max(0, line.available) && (
+                      <p className="text-[11px] font-medium text-amber-700">
+                        {line.quantity - Math.max(0, line.available)} to roast
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex items-center rounded-full border border-sea-200">
@@ -664,7 +752,7 @@ export function PosTerminal({
                     <button
                       type="button"
                       onClick={() => setQuantity(line.variantId, line.quantity + 1)}
-                      disabled={line.quantity >= line.available}
+                      disabled={!isManual && line.quantity >= line.available}
                       className="p-1.5 disabled:opacity-30"
                       aria-label={`One more ${line.productName}`}
                     >
@@ -730,28 +818,24 @@ export function PosTerminal({
                   }
                   className="input text-sm"
                 />
-
-                {showSuggested && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCustomer(showSuggested);
-                      setSuggested(null);
-                    }}
-                    className="mt-2 flex w-full items-center justify-between gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-left text-xs text-emerald-900 hover:border-emerald-400"
-                  >
-                    <span className="min-w-0 truncate">
-                      This is <strong>{showSuggested.display_name || showSuggested.email}</strong>?
-                    </span>
-                    <span className="shrink-0 font-medium">Attach</span>
-                  </button>
-                )}
               </div>
             </div>
           )}
 
           {/* Customer */}
           <div className="border-t border-sea-200 px-4 py-3">
+            {showSuggested && (
+              <button
+                type="button"
+                onClick={() => setCustomer(showSuggested)}
+                className="mb-2 flex w-full items-center justify-between gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-left text-xs text-emerald-900 hover:border-emerald-400"
+              >
+                <span className="min-w-0 truncate">
+                  This is <strong>{showSuggested.display_name || showSuggested.email}</strong>?
+                </span>
+                <span className="shrink-0 font-medium">Attach</span>
+              </button>
+            )}
             {customer ? (
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
@@ -777,7 +861,7 @@ export function PosTerminal({
                   autoFocus
                   value={customerQuery}
                   onChange={(event) => searchCustomers(event.target.value)}
-                  placeholder="Name or email…"
+                  placeholder="Name, email or phone…"
                   className="input text-sm"
                   aria-label="Find a customer"
                 />
@@ -795,9 +879,11 @@ export function PosTerminal({
                           }}
                           className="block w-full px-3 py-2 text-left text-sm hover:bg-sea-50"
                         >
-                          {found.display_name || found.email}
+                          {found.display_name || found.email || found.phone}
                           <span className="block text-xs text-sea-800">
-                            {found.loyalty_points} points
+                            {[found.phone, `${found.loyalty_points} points`]
+                              .filter(Boolean)
+                              .join(" · ")}
                           </span>
                         </button>
                       </li>
@@ -818,7 +904,8 @@ export function PosTerminal({
                 onClick={() => setShowCustomerSearch(true)}
                 className="flex items-center gap-1.5 text-sm text-sea-800 hover:text-sea-900"
               >
-                <UserPlus className="h-4 w-4" /> Add customer for points
+                <UserPlus className="h-4 w-4" />{" "}
+                {isManual ? "Find customer (name or phone)" : "Add customer for points"}
               </button>
             )}
           </div>
@@ -854,11 +941,11 @@ export function PosTerminal({
               </div>
 
               {ships && (
-                <div className="mt-3 space-y-2">
-                  {savedAddresses.length > 0 && (
+                <div className="mt-3 space-y-3">
+                  {savedAddresses.length > 1 && (
                     <div>
                       <p className="mb-1 text-xs text-sea-800">
-                        Addresses you already have
+                        Other addresses you have for them
                       </p>
                       <div className="space-y-1">
                         {savedAddresses.map((row) => (
@@ -878,32 +965,17 @@ export function PosTerminal({
                     </div>
                   )}
 
-                  <AddressFields
+                  <AddressPaste
                     value={address}
                     onChange={setAddress}
+                    onPhone={(phone) => {
+                      // The WhatsApp thread is almost always this number.
+                      if (channel === "whatsapp" && !channelReference.trim()) {
+                        setChannelReference(phone);
+                      }
+                    }}
                     idPrefix="pos-address"
                   />
-
-                  <div>
-                    <label
-                      htmlFor="manual-ship-after"
-                      className="mb-1 block text-xs text-sea-800"
-                    >
-                      Do not ship before
-                    </label>
-                    <input
-                      id="manual-ship-after"
-                      type="date"
-                      value={shipAfter}
-                      onChange={(event) => setShipAfter(event.target.value)}
-                      className="input text-sm"
-                    />
-                    <p className="mt-1 text-xs text-sea-800">
-                      Leave empty for as soon as possible. A future date holds
-                      the coffee for this order and hides it from the ready-to-
-                      pack list until the date arrives.
-                    </p>
-                  </div>
 
                   <div>
                     <label
@@ -932,81 +1004,130 @@ export function PosTerminal({
             </div>
           )}
 
-          {/* Note */}
-          {isManual && (
+          {/* Everything an ordinary order does not need, out of the way until
+              it is wanted. Open by itself when any of it is already in use. */}
+          {(isManual || lines.length > 0) && (
             <div className="border-t border-sea-200 px-4 py-3">
-              <label htmlFor="manual-note" className="mb-1 block text-xs text-sea-800">
-                Note
-              </label>
-              <textarea
-                id="manual-note"
-                value={note}
-                onChange={(event) => setNote(event.target.value)}
-                rows={2}
-                placeholder="Anything worth remembering about this one"
-                className="input text-sm"
-              />
-            </div>
-          )}
-
-          {/* Bulk prices and discounts */}
-          {lines.length > 0 && (
-            <div className="border-t border-sea-200 px-4 py-3">
-              <button
-                type="button"
-                onClick={() => setCustomPricing((on) => !on)}
-                className="flex items-center gap-1.5 text-sm text-sea-800 hover:text-sea-900"
-              >
-                <Tag className="h-4 w-4" />
-                {customPricing ? "Use catalogue prices" : "Custom price or discount"}
-              </button>
-
-              {customPricing && (
-                <div className="mt-3 space-y-2">
-                  <p className="text-xs text-sea-800">
-                    Type over a price above for a bulk or wholesale rate. It
-                    applies to this order only — the shop price does not change.
-                  </p>
-                  <div>
-                    <label
-                      htmlFor="order-discount"
-                      className="mb-1 block text-xs text-sea-800"
-                    >
-                      Discount off the coffee
-                    </label>
-                    <input
-                      id="order-discount"
-                      type="number"
-                      min={0}
-                      step={1000}
-                      value={discountIdr ?? ""}
-                      onChange={(event) =>
-                        setDiscountIdr(
-                          event.target.value ? Number(event.target.value) : null,
-                        )
-                      }
-                      placeholder="0"
-                      className="input text-sm"
-                    />
-                  </div>
-                  {discount > 0 && (
+              {moreOpen ? (
+                <div className="space-y-3">
+                  {isManual && (
                     <div>
-                      <label
-                        htmlFor="discount-reason"
-                        className="mb-1 block text-xs text-sea-800"
-                      >
-                        What for?
+                      <label htmlFor="manual-note" className="mb-1 block text-xs text-sea-800">
+                        Note
                       </label>
-                      <input
-                        id="discount-reason"
-                        value={discountReason}
-                        onChange={(event) => setDiscountReason(event.target.value)}
-                        placeholder="Regular customer, 5kg order…"
+                      <textarea
+                        id="manual-note"
+                        value={note}
+                        onChange={(event) => setNote(event.target.value)}
+                        rows={2}
+                        placeholder="Anything worth remembering about this one"
                         className="input text-sm"
                       />
                     </div>
                   )}
+
+                  {isManual && ships && (
+                    <div>
+                      <label
+                        htmlFor="manual-ship-after"
+                        className="mb-1 block text-xs text-sea-800"
+                      >
+                        Do not ship before
+                      </label>
+                      <input
+                        id="manual-ship-after"
+                        type="date"
+                        value={shipAfter}
+                        onChange={(event) => setShipAfter(event.target.value)}
+                        className="input text-sm"
+                      />
+                      <p className="mt-1 text-xs text-sea-800">
+                        Leave empty for as soon as possible. A future date holds
+                        the coffee for this order and hides it from the ready-to-
+                        pack list until the date arrives.
+                      </p>
+                    </div>
+                  )}
+
+                  {lines.length > 0 && (
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => setCustomPricing((on) => !on)}
+                        className="flex items-center gap-1.5 text-sm text-sea-800 hover:text-sea-900"
+                      >
+                        <Tag className="h-4 w-4" />
+                        {customPricing ? "Use catalogue prices" : "Custom price or discount"}
+                      </button>
+
+                      {customPricing && (
+                        <div className="mt-3 space-y-2">
+                          <p className="text-xs text-sea-800">
+                            Type over a price above for a bulk or wholesale rate. It
+                            applies to this order only — the shop price does not change.
+                          </p>
+                          <div>
+                            <label
+                              htmlFor="order-discount"
+                              className="mb-1 block text-xs text-sea-800"
+                            >
+                              Discount off the coffee
+                            </label>
+                            <input
+                              id="order-discount"
+                              type="number"
+                              min={0}
+                              step={1000}
+                              value={discountIdr ?? ""}
+                              onChange={(event) =>
+                                setDiscountIdr(
+                                  event.target.value ? Number(event.target.value) : null,
+                                )
+                              }
+                              placeholder="0"
+                              className="input text-sm"
+                            />
+                          </div>
+                          {discount > 0 && (
+                            <div>
+                              <label
+                                htmlFor="discount-reason"
+                                className="mb-1 block text-xs text-sea-800"
+                              >
+                                What for?
+                              </label>
+                              <input
+                                id="discount-reason"
+                                value={discountReason}
+                                onChange={(event) => setDiscountReason(event.target.value)}
+                                placeholder="Regular customer, 5kg order…"
+                                className="input text-sm"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowMore(true)}
+                  className="flex items-center gap-1.5 text-sm text-sea-800 hover:text-sea-900"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                  More options
+                  <span className="text-xs text-sea-800/70">
+                    {[
+                      isManual && "note",
+                      isManual && ships && "ship date",
+                      lines.length > 0 && "custom price",
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </span>
+                </button>
               )}
             </div>
           )}
@@ -1169,6 +1290,19 @@ export function PosTerminal({
                 in on the order when they send it — it just cannot be given a
                 tracking number until then.
               </p>
+            )}
+
+            {!isManual && toRoast > 0 && (
+              <div className="mt-3 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-900">
+                Not all of this is on the shelf, so it cannot be a counter sale.
+                <button
+                  type="button"
+                  onClick={() => switchMode("manual")}
+                  className="mt-1.5 block font-medium underline"
+                >
+                  Make it a manual order and roast the rest
+                </button>
+              </div>
             )}
 
             {isManual && !markPaid && lines.length > 0 && (

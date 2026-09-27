@@ -170,7 +170,7 @@ big number at the bottom. Pick how they paid, then press the green button.
   you the change to give. You can also type an unusual amount.
 - **QRIS, card, transfer** — just pick it and take the payment on your own
   device, then press the button to record it.
-- **Add customer for points** — search their name or email. Their points go up
+- **Add customer for points** — search their name, email or phone number. Their points go up
   exactly as they would online. Skip it for a walk-in; the sale still records
   fine, it just earns nobody anything.
 
@@ -178,9 +178,10 @@ The sale is recorded the moment you press the button. Stock comes down straight
 away, so **the website cannot sell a bag you just sold over the counter**. That
 is the main reason to ring sales up here rather than in a notebook.
 
-If something is out of stock, the till says so and refuses the sale rather than
-letting you sell what you do not have. If that happens and you know the stock
-figure is wrong, fix it in **Products** and ring the sale up again.
+If something is out of stock, the till says so and refuses the counter sale
+rather than letting you sell what you do not have. If that happens and you know
+the stock figure is wrong, fix it in **Products** and ring the sale up again.
+If it is an order you will roast for, switch to **Manual order** (below).
 
 ### Manual order — WhatsApp, Instagram, a marketplace
 
@@ -190,8 +191,14 @@ questions the counter never has to ask:
 - **Came in through** — WhatsApp, Instagram, Marketplace or somewhere else, plus
   their number or handle. That is what lets you find the conversation again in a
   fortnight when they ask where it is.
-- **Collecting or Shipping** — Shipping opens an address form. **You do not
-  have to finish it.** An order agreed before the address arrives is still a
+- **Collecting or Shipping** — Shipping opens a box: **paste the address they
+  sent you** straight out of the chat. The till picks out the name, phone,
+  street, RT/RW, kelurahan, kecamatan, city and postcode, looks the area up in
+  the courier's list, and shows you one card to check. If it guessed something
+  wrong, **Edit** opens the full form; **Type it in instead** skips the paste
+  altogether. The phone number goes into the WhatsApp box for you if that was
+  empty, and if it belongs to a customer the shop already knows, the till
+  offers to attach them. **You do not have to finish the address.** An order agreed before the address arrives is still a
   real order: save it, and fill the address in later under **Correct the
   details**. It waits as long as it needs to. The one thing it cannot do is be
   given a tracking number — a parcel cannot have gone to half an address — and
@@ -200,14 +207,32 @@ questions the counter never has to ask:
   list: provinsi, kota, kecamatan, kelurahan and the postcode all fill in, and
   the order remembers the courier's own code for that place, which is what
   makes the ongkir accurate. Every field stays editable underneath, so a place
-  the lookup does not know is still deliverable. If you attached a
-  customer who has ordered before, their saved addresses appear above it as
-  one-tap buttons. There is also a box for the shipping you agreed with them,
+  the lookup does not know is still deliverable. If you attach a customer who
+  has ordered before, the address they last used fills itself in, and any
+  others appear above it as one-tap buttons. There is also a box for the shipping you agreed with them,
   since a chat order is often a negotiated price rather than a table rate.
 - **Not paid yet or Already paid** — the important one, below.
 
+The note, a **Do not ship before** date and custom prices are under **More
+options**, out of the way until you need them.
+
 Press the button and the order appears in **Orders** alongside the website
 ones, with the same statuses and the same tracking-number box.
+
+### Selling coffee you have not roasted yet
+
+In **Manual order**, sold-out sizes stay tappable and say **roast to order**.
+Take the order as normal: the basket shows how many bags are **to roast**, and
+nothing asks you to go and change the stock first.
+
+The stock count goes below zero by that much — **−3 means three bags sold that
+are not roasted yet**. Products and the dashboard show it as "3 to roast". The
+website still sees the coffee as sold out, so it never sells those bags twice.
+When you roast, add the bags to the number as usual: −3 and a 5-bag roast is 2.
+
+A counter sale cannot do this, because the bag is in the customer's hand. If
+you tap a sold-out size and then switch to Counter sale, the till tells you and
+offers to switch back.
 
 **The customer gets emailed like any other**, as long as you put an email
 address on the order: a receipt when it is paid, and the tracking number when
@@ -216,7 +241,8 @@ you holding the coffee.
 
 ### Bulk prices and discounts
 
-**Custom price or discount** under the basket opens two things.
+**Custom price or discount** (under **More options** on a manual order) opens
+two things.
 
 - **Type over a price** on any line for a wholesale or bulk rate — 5kg to a
   cafe is not sold at the 200g shelf price. It applies to that order only; the
