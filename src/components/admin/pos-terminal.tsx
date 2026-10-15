@@ -16,8 +16,8 @@ import {
 } from "lucide-react";
 import {
   customerAddresses,
-  findCustomerByPhone,
   findCustomers,
+  suggestCustomers,
   recordManualOrder,
   type ManualAddress,
   type PosPaymentMethod,
@@ -152,13 +152,15 @@ export function PosTerminal({
     userId: "",
     rows: [],
   });
-  // A suggestion of who the manual order might belong to, matched on a phone
-  // number: the WhatsApp reference, or the one in a pasted address. Kept with
-  // the number it answers, so a stale answer is never shown for a new number.
+  // Who the manual order might belong to: by phone (the WhatsApp reference,
+  // or the number in a pasted address), or by name when the number finds
+  // nobody. Kept with the question it answers, so a stale answer is never
+  // shown for a new number or name.
   const [suggested, setSuggested] = useState<{
-    phone: string;
-    customer: Customer | null;
-  }>({ phone: "", customer: null });
+    key: string;
+    byPhone: Customer[];
+    byName: Customer[];
+  }>({ key: "", byPhone: [], byName: [] });
   const [shippingIdr, setShippingIdr] = useState<number | null>(null);
   const [shipAfter, setShipAfter] = useState("");
   const [note, setNote] = useState("");
@@ -231,33 +233,40 @@ export function PosTerminal({
     : (channel === "whatsapp" && channelReference.trim()) ||
       (ships ? (address.phone ?? "").trim() : "");
 
-  // If there is a phone number and nobody is attached, try to find a customer
-  // already carrying it. That is exactly what the operator would search for a
-  // moment later, so doing it up front removes a step. Debounced. Nothing is
-  // *cleared* here; whether to show the suggestion is derived below, so a
-  // keystroke that invalidates the search shows the empty state on the next
-  // render without a second setState.
+  // The name to fall back on when the number finds nobody.
+  const lookupName = isManual ? (address.recipient_name ?? "").trim() : "";
+  const lookupKey = `${lookupPhone}|${lookupName}`;
+  const canLookUp = lookupPhone.length >= 6 || lookupName.length >= 3;
+
+  // If there is a number or a name and nobody is attached, look for who it
+  // is. That is exactly what the operator would search for a moment later, so
+  // doing it up front removes a step. Debounced. Nothing is *cleared* here;
+  // whether to show the suggestion is derived below, so a keystroke that
+  // invalidates the search shows the empty state on the next render without
+  // a second setState.
   useEffect(() => {
-    if (customer || lookupPhone.length < 6) return;
+    if (customer || !canLookUp) return;
 
     let live = true;
     const timer = setTimeout(async () => {
       // A suggestion is a nicety; failing to find one is not worth an error.
-      const found = await findCustomerByPhone(lookupPhone).catch(() => null);
-      if (live) setSuggested({ phone: lookupPhone, customer: found });
+      const found = await suggestCustomers({ phone: lookupPhone, name: lookupName }).catch(() => ({
+        byPhone: [],
+        byName: [],
+      }));
+      if (live) setSuggested({ key: lookupKey, ...found });
     }, 350);
     return () => {
       live = false;
       clearTimeout(timer);
     };
-  }, [customer, lookupPhone]);
+  }, [customer, canLookUp, lookupPhone, lookupName, lookupKey]);
 
   // Derived rather than cleared in the effect: one source of truth for
   // whether the suggestion is showable *right now*.
-  const showSuggested =
-    !customer && lookupPhone.length >= 6 && suggested.phone === lookupPhone
-      ? suggested.customer
-      : null;
+  const current = !customer && canLookUp && suggested.key === lookupKey ? suggested : null;
+  const phoneMatches = current?.byPhone ?? [];
+  const nameMatches = current?.byName ?? [];
 
   // Addresses the shop already has for this customer. Only worth fetching once
   // there is somewhere to put them.
@@ -928,17 +937,47 @@ export function PosTerminal({
 
               {/* Customer */}
               <div className="border-t border-sea-200 px-4 py-3">
-                {showSuggested && (
+                {phoneMatches.length > 1 && (
+                  <p className="mb-1 text-[11px] text-sea-800">
+                    This number belongs to {phoneMatches.length} customers — pick the right one:
+                  </p>
+                )}
+                {phoneMatches.map((match) => (
                   <button
+                    key={match.id}
                     type="button"
-                    onClick={() => setCustomer(showSuggested)}
+                    onClick={() => setCustomer(match)}
                     className="mb-2 flex w-full items-center justify-between gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-left text-xs text-emerald-900 hover:border-emerald-400"
                   >
                     <span className="min-w-0 truncate">
-                      This is <strong>{showSuggested.display_name || showSuggested.email}</strong>?
+                      This is <strong>{match.display_name || match.email || match.phone}</strong>?
                     </span>
                     <span className="shrink-0 font-medium">Attach</span>
                   </button>
+                ))}
+                {nameMatches.length > 0 && (
+                  <div className="mb-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                    <p className="mb-1">
+                      Same name as {nameMatches.length === 1 ? "a customer" : "these customers"} — only
+                      attach if it is really them:
+                    </p>
+                    {nameMatches.map((match) => (
+                      <button
+                        key={match.id}
+                        type="button"
+                        onClick={() => setCustomer(match)}
+                        className="flex w-full items-center justify-between gap-2 rounded px-1 py-0.5 text-left hover:bg-amber-100"
+                      >
+                        <span className="min-w-0 truncate">
+                          <strong>{match.display_name}</strong>
+                          {(match.phone || match.email) && (
+                            <span className="text-amber-800"> · {match.phone || match.email}</span>
+                          )}
+                        </span>
+                        <span className="shrink-0 font-medium">Attach</span>
+                      </button>
+                    ))}
+                  </div>
                 )}
                 {customer ? (
                   <div className="flex items-center justify-between gap-2">

@@ -126,9 +126,9 @@ export function normalisePhone(raw: string): string {
 }
 
 function titleCase(value: string): string {
-  // Only shout-case gets fixed. "McDonald" or "de Jong" typed carefully stay
-  // as they were typed.
-  if (value !== value.toUpperCase()) return value;
+  // Only all-capitals or all-lowercase gets fixed ("BUDI", "fauzi").
+  // "McDonald" or "de Jong" typed carefully stay as they were typed.
+  if (value !== value.toUpperCase() && value !== value.toLowerCase()) return value;
   return value.toLowerCase().replace(/\b\p{L}/gu, (letter) => letter.toUpperCase());
 }
 

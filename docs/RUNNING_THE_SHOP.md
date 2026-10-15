@@ -170,7 +170,10 @@ big number at the bottom. Pick how they paid, then press the green button.
   you the change to give. You can also type an unusual amount.
 - **QRIS, card, transfer** — just pick it and take the payment on your own
   device, then press the button to record it.
-- **Add customer for points** — search their name, email or phone number. Their points go up
+- **Add customer for points** — search their name, email or phone number.
+  A number can be typed any way — 0812-3456-7890, +62 812 3456 7890, 62812…
+  — or just part of it, and it is found wherever the shop has it: their
+  profile, a saved address, or a past order. Their points go up
   exactly as they would online. Skip it for a walk-in; the sale still records
   fine, it just earns nobody anything.
 
@@ -247,6 +250,15 @@ When you roast, add the bags to the number as usual: −3 and a 5-bag roast is 2
 A counter sale cannot do this, because the bag is in the customer's hand. If
 you tap a sold-out size and then switch to Counter sale, the till tells you and
 offers to switch back.
+
+**Finding who it is.** As soon as there is a phone number on the order (the
+WhatsApp box or the address), the till looks for the customer it belongs to —
+on their profile, their saved addresses and every past order, however the number
+was written — and offers **"This is Fauzi Rahman? Attach"**. If the number
+belongs to more than one account, it shows them all for you to pick. If the
+number finds nobody, it looks for customers with the same name and offers them
+in yellow; those are never attached by themselves, because three customers can
+share a name.
 
 **The customer gets emailed like any other**, as long as you put an email
 address on the order: a receipt when it is paid, and the tracking number when
