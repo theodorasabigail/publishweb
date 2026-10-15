@@ -372,6 +372,33 @@ everything an automatic payment would have.
 
 ---
 
+## Step 6b — Reading orders with AI (optional)
+
+The till can read a customer's WhatsApp message — what they want, where it
+goes, whether they have paid — and fill the order in for you. The products
+sheet can take changes typed in plain words ("Gayo 200g stock 12"). Both work
+without this step, but only on tidy messages; with it they handle the way
+people actually write.
+
+1. Go to **https://console.anthropic.com** and make an account. Use an email
+   that belongs to the shop — it does not have to be the one you use for
+   anything else, and it is separate from any Claude.ai subscription.
+2. **Billing** → add some prepaid credit. Set a **monthly spend limit** while
+   you are there, so it can never cost more than you decide. For under a
+   hundred orders a month, expect roughly $1–5.
+3. **API keys** → **Create key**. Copy it (it starts `sk-ant-`).
+4. In Vercel, add `ANTHROPIC_API_KEY` with that value
+   (see *How to add or change a setting* above), then redeploy.
+
+Keep the key private, like the Supabase service key: anyone holding it can
+spend the credit. If it ever leaks, delete it in the console and make a new
+one — nothing else needs changing.
+
+To use a cheaper model, also add `ANTHROPIC_MODEL` with `claude-sonnet-5-5`
+or `claude-haiku-5-5`.
+
+---
+
 ## Step 7 — Check everything works
 
 Walk through this once before you tell anyone the site is open:

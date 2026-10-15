@@ -15,7 +15,8 @@ import type { ProductVariant } from "@/lib/types";
  *   - the size and price (context for what you are counting)
  *   - a number input for the shelf count (`stock`)
  *   - the reserved count (bags an unpaid manual order is holding), read-only
- *   - the resulting free / available count, derived
+ *   - the resulting free / available count, derived -- or, when orders have
+ *     been taken for coffee not roasted yet, how many bags are owed
  *
  * The input saves on blur AND on Enter, so an operator counting bags on the
  * shelf can tab down the column without pressing extra buttons. A small
@@ -45,6 +46,12 @@ export function StockEditor({ variants }: { variants: ProductVariant[] }) {
           <StockRow key={variant.id} variant={variant} />
         ))}
       </div>
+      {variants.some((variant) => variant.stock < 0) && (
+        <p className="mt-3 text-[11px] text-sea-800">
+          Stock below zero is coffee sold before it was roasted. When you roast,
+          add the bags to that number: −3 and a 5-bag roast is 2.
+        </p>
+      )}
     </div>
   );
 }
@@ -62,13 +69,20 @@ function StockRow({ variant }: { variant: ProductVariant }) {
   // Free is stock - reserved, clamped so a saved-and-not-yet-refreshed row
   // never reads as negative.
   const parsedStock = Number(value);
-  const free = Number.isFinite(parsedStock)
-    ? Math.max(0, Math.round(parsedStock) - reserved)
-    : 0;
+  const net = Number.isFinite(parsedStock) ? Math.round(parsedStock) - reserved : 0;
+  const free = Math.max(0, net);
+  // Promised to orders beyond what is on the shelf: sold before roasting.
+  const owed = Math.max(0, -net);
 
   function commit() {
     if (status === "saving") return;
     const next = Number(value);
+    // An untouched count that is already below zero (coffee sold before it
+    // was roasted) is not an error -- only typing a negative one is.
+    if (Number.isFinite(next) && Math.round(next) === variant.stock && status !== "error") {
+      setStatus("idle");
+      return;
+    }
     if (!Number.isFinite(next) || next < 0) {
       setStatus("error");
       setErrorMsg("Stock cannot be negative.");
@@ -111,7 +125,7 @@ function StockRow({ variant }: { variant: ProductVariant }) {
 
       <input
         type="number"
-        min={0}
+        min={Math.min(0, variant.stock)}
         step={1}
         inputMode="numeric"
         value={value}
@@ -150,8 +164,9 @@ function StockRow({ variant }: { variant: ProductVariant }) {
           "text-right text-sm font-medium tabular-nums",
           free === 0 ? "text-red-700" : free <= 5 ? "text-amber-700" : "text-ink",
         )}
+        title={owed > 0 ? `${owed} sold before roasting — owed to orders.` : undefined}
       >
-        {free}
+        {owed > 0 ? `${owed} owed` : free}
       </div>
 
       <StatusGlyph status={status} errorMsg={errorMsg} />

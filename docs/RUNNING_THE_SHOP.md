@@ -170,7 +170,10 @@ big number at the bottom. Pick how they paid, then press the green button.
   you the change to give. You can also type an unusual amount.
 - **QRIS, card, transfer** — just pick it and take the payment on your own
   device, then press the button to record it.
-- **Add customer for points** — search their name or email. Their points go up
+- **Add customer for points** — search their name, email or phone number.
+  A number can be typed any way — 0812-3456-7890, +62 812 3456 7890, 62812…
+  — or just part of it, and it is found wherever the shop has it: their
+  profile, a saved address, or a past order. Their points go up
   exactly as they would online. Skip it for a walk-in; the sale still records
   fine, it just earns nobody anything.
 
@@ -178,20 +181,41 @@ The sale is recorded the moment you press the button. Stock comes down straight
 away, so **the website cannot sell a bag you just sold over the counter**. That
 is the main reason to ring sales up here rather than in a notebook.
 
-If something is out of stock, the till says so and refuses the sale rather than
-letting you sell what you do not have. If that happens and you know the stock
-figure is wrong, fix it in **Products** and ring the sale up again.
+If something is out of stock, the till says so and refuses the counter sale
+rather than letting you sell what you do not have. If that happens and you know
+the stock figure is wrong, fix it in **Products** and ring the sale up again.
+If it is an order you will roast for, switch to **Manual order** (below).
 
 ### Manual order — WhatsApp, Instagram, a marketplace
 
-Switch to **Manual order** and build the basket the same way. Then answer three
+**The quickest way: Paste an order.** At the top of the till, press **Paste an
+order** and paste the customer's message. The coffee, quantities, address,
+whether it is shipping or collecting, and whether they have paid are filled in
+for you. Check it and save. If something in the message did not match a coffee,
+the till says so above the basket.
+
+Several orders at once: paste them all with a blank line between each. You
+get a list; save each one, open it in the till to change something, or save
+all the ones that look complete in one go.
+
+With the AI key set up (see the setup guide, *Step 6b*) this reads messages
+the way people write them. Without it, it matches coffee names and sizes and
+works best on tidy messages.
+
+Or switch to **Manual order** and build the basket the same way. Then answer three
 questions the counter never has to ask:
 
 - **Came in through** — WhatsApp, Instagram, Marketplace or somewhere else, plus
   their number or handle. That is what lets you find the conversation again in a
   fortnight when they ask where it is.
-- **Collecting or Shipping** — Shipping opens an address form. **You do not
-  have to finish it.** An order agreed before the address arrives is still a
+- **Collecting or Shipping** — Shipping opens a box: **paste the address they
+  sent you** straight out of the chat. The till picks out the name, phone,
+  street, RT/RW, kelurahan, kecamatan, city and postcode, looks the area up in
+  the courier's list, and shows you one card to check. If it guessed something
+  wrong, **Edit** opens the full form; **Type it in instead** skips the paste
+  altogether. The phone number goes into the WhatsApp box for you if that was
+  empty, and if it belongs to a customer the shop already knows, the till
+  offers to attach them. **You do not have to finish the address.** An order agreed before the address arrives is still a
   real order: save it, and fill the address in later under **Correct the
   details**. It waits as long as it needs to. The one thing it cannot do is be
   given a tracking number — a parcel cannot have gone to half an address — and
@@ -200,14 +224,41 @@ questions the counter never has to ask:
   list: provinsi, kota, kecamatan, kelurahan and the postcode all fill in, and
   the order remembers the courier's own code for that place, which is what
   makes the ongkir accurate. Every field stays editable underneath, so a place
-  the lookup does not know is still deliverable. If you attached a
-  customer who has ordered before, their saved addresses appear above it as
-  one-tap buttons. There is also a box for the shipping you agreed with them,
+  the lookup does not know is still deliverable. If you attach a customer who
+  has ordered before, the address they last used fills itself in, and any
+  others appear above it as one-tap buttons. There is also a box for the shipping you agreed with them,
   since a chat order is often a negotiated price rather than a table rate.
 - **Not paid yet or Already paid** — the important one, below.
 
+The note, a **Do not ship before** date and custom prices are under **More
+options**, out of the way until you need them.
+
 Press the button and the order appears in **Orders** alongside the website
 ones, with the same statuses and the same tracking-number box.
+
+### Selling coffee you have not roasted yet
+
+In **Manual order**, sold-out sizes stay tappable and say **roast to order**.
+Take the order as normal: the basket shows how many bags are **to roast**, and
+nothing asks you to go and change the stock first.
+
+The stock count goes below zero by that much — **−3 means three bags sold that
+are not roasted yet**. Products and the dashboard show it as "3 to roast". The
+website still sees the coffee as sold out, so it never sells those bags twice.
+When you roast, add the bags to the number as usual: −3 and a 5-bag roast is 2.
+
+A counter sale cannot do this, because the bag is in the customer's hand. If
+you tap a sold-out size and then switch to Counter sale, the till tells you and
+offers to switch back.
+
+**Finding who it is.** As soon as there is a phone number on the order (the
+WhatsApp box or the address), the till looks for the customer it belongs to —
+on their profile, their saved addresses and every past order, however the number
+was written — and offers **"This is Fauzi Rahman? Attach"**. If the number
+belongs to more than one account, it shows them all for you to pick. If the
+number finds nobody, it looks for customers with the same name and offers them
+in yellow; those are never attached by themselves, because three customers can
+share a name.
 
 **The customer gets emailed like any other**, as long as you put an email
 address on the order: a receipt when it is paid, and the tracking number when
@@ -216,7 +267,8 @@ you holding the coffee.
 
 ### Bulk prices and discounts
 
-**Custom price or discount** under the basket opens two things.
+**Custom price or discount** (under **More options** on a manual order) opens
+two things.
 
 - **Type over a price** on any line for a wholesale or bulk rate — 5kg to a
   cafe is not sold at the 200g shelf price. It applies to that order only; the
@@ -266,9 +318,45 @@ that clearly fell through.
   are grouped by their shipping zone; postage you agreed in a chat is grouped
   as "agreed by hand", since there was no zone involved.
 
+## The products sheet
+
+**Admin → Products** opens on the sheet: every coffee and every size on one
+screen, like a spreadsheet. Click a cell, type, and press Enter or click
+away — it saves by itself, and a small tick shows it did. Enter moves down
+the column, so a recount after a roast is: type, Enter, type, Enter. Escape
+undoes what you were typing.
+
+- **On shop** shows or hides the whole coffee. **On sale** does the same for
+  one size.
+- **Stock** below zero means bags sold before they were roasted; it says
+  "N to roast" underneath.
+- **Add a size** under any coffee, and **Add a coffee** at the bottom (it
+  starts hidden until you switch it on).
+- **Photo, details & SEO** under each name opens the full page for the
+  things the sheet does not show.
+
+**Tell it what changed.** The box above the sheet takes changes in words:
+*"Gayo 200g stock 12, Kintamani sold out, 1kg Gayo now 500rb, new coffee
+Toraja Sapan 250g 140rb"*. Press **Check changes** and it lists exactly what it
+will do ("Gayo Arunika 200g: stock 4 → 12"). Untick anything you did not
+mean, then **Apply**. Nothing changes before that.
+
+**List** at the top switches to the older view, where you drag coffees into
+order and change several at once.
+
+## Editing from the shop itself
+
+Signed in as an admin, every page of the shop has a button in the bottom
+corner. On a coffee's page it says **Edit this coffee** and opens a panel
+beside the page: name, tasting notes, description, and every size's price,
+stock and whether it is on sale. Each change saves as you leave the field,
+and the page behind updates so you see it exactly as a customer will.
+Customers never see the button.
+
 ## Adding a coffee
 
-**Admin → Products → New product.**
+The quickest way is **Add a coffee** at the bottom of the products sheet. For
+everything at once, **Admin → Products → List → New product**.
 
 - **Name** and **tasting notes** are what people read first.
 - Set a **price** for each size you want to sell. Leave a size at 0 and it

@@ -198,6 +198,12 @@ export function ProductList({
             (sum, v) => sum + v.reserved,
             0,
           );
+          // Bags sold before roasting, across sizes. Per size, not netted, so
+          // a surplus of 1kg bags does not hide 250g ones that are owed.
+          const owed = (product.product_variants ?? []).reduce(
+            (sum, v) => sum + Math.max(0, v.reserved - v.stock),
+            0,
+          );
 
           const isExpanded = !collapsed.has(product.id);
           const variants = product.product_variants ?? [];
@@ -274,12 +280,20 @@ export function ProductList({
                 <p
                   className={cn(
                     "text-sm font-medium",
-                    stock === 0 ? "text-red-700" : stock <= 5 ? "text-amber-700" : "",
+                    stock <= 0 ? "text-red-700" : stock <= 5 ? "text-amber-700" : "",
                   )}
                 >
-                  {stock} in stock
+                  {Math.max(0, stock)} in stock
                 </p>
-                {held > 0 && (
+                {owed > 0 && (
+                  <p
+                    className="text-xs font-medium text-amber-700"
+                    title="Sold before it was roasted. Add the next roast to the stock count."
+                  >
+                    {owed} to roast
+                  </p>
+                )}
+                {held > 0 && owed === 0 && (
                   <p
                     className="text-xs text-amber-700"
                     title="Held by orders that are agreed but not yet paid."

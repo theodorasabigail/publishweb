@@ -187,6 +187,16 @@ const PROBES: Probe[] = [
       return !enumCheck.error;
     },
   },
+  {
+    label: "Selling coffee before it is roasted",
+    migration: "0039",
+    run: async (supabase) => {
+      // The column 0039 adds alongside letting stock go below zero and the
+      // till's p_allow_short.
+      const { error } = await supabase.from("product_variants").select("owed").limit(1);
+      return !error;
+    },
+  },
 ];
 
 export async function SchemaCheck() {

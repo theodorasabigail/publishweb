@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   Check,
+  ChevronDown,
   Minus,
   Package,
   Plus,
@@ -15,14 +16,18 @@ import {
 } from "lucide-react";
 import {
   customerAddresses,
-  findCustomerByPhone,
   findCustomers,
+  suggestCustomers,
   recordManualOrder,
   type ManualAddress,
   type PosPaymentMethod,
 } from "@/app/admin/_actions/pos";
-import { AddressFields, EMPTY_ADDRESS } from "@/components/shop/address-fields";
+import { EMPTY_ADDRESS } from "@/components/shop/address-fields";
+import { AddressPaste } from "@/components/admin/address-paste";
+import { OrderReader } from "@/components/admin/order-reader";
+import type { ReadOrder } from "@/lib/order-reading";
 import {
+  addressHasLocation,
   addressIsComplete,
   type Address,
   type ShippingAddressSnapshot,
@@ -51,6 +56,12 @@ import { cn, formatIDR } from "@/lib/utils";
  * They share the product grid and the basket deliberately. The muscle memory
  * for finding a coffee is the valuable part, and it should not change because
  * the customer happened to message rather than walk in.
+ *
+ * One real difference: a manual order can be for coffee that is not roasted
+ * yet. A counter sale cannot — the bag is in the customer's hand — but a chat
+ * order is a promise, and a roaster makes promises ahead of the roast. Sold
+ * out sizes stay tappable in manual mode, and the part of a line the shelf
+ * cannot cover is shown as "to roast".
  */
 
 type Mode = "counter" | "manual";
@@ -85,6 +96,33 @@ const CASH_PRESETS = [50_000, 100_000, 150_000, 200_000, 500_000];
 
 const BLANK_ADDRESS: ManualAddress = { ...EMPTY_ADDRESS };
 
+/** A saved address, or the last one posted to, in the till's shape. */
+function addressFromRow(row: SavedAddress, email: string | null): ManualAddress {
+  return {
+    recipient_name: row.recipient_name,
+    phone: row.phone,
+    line1: row.line1,
+    line2: row.line2 ?? "",
+    village: row.village ?? "",
+    district: row.district ?? "",
+    city: row.city,
+    province: row.province ?? "",
+    postal_code: row.postal_code ?? "",
+    country: row.country,
+    email: email ?? "",
+    area_id: row.area_id ?? null,
+  };
+}
+
+/** Nothing typed yet — safe to fill in without overwriting anybody's work. */
+function addressIsBlank(address: ManualAddress): boolean {
+  return (
+    !address.recipient_name?.trim() &&
+    !address.phone?.trim() &&
+    !addressHasLocation(address as ShippingAddressSnapshot)
+  );
+}
+
 export function PosTerminal({
   products,
   rupiahPerPoint,
@@ -114,14 +152,31 @@ export function PosTerminal({
     userId: "",
     rows: [],
   });
-  // A suggestion of who the manual order might belong to, matched on the
-  // channel reference when it looks like a phone number. Null means "have
-  // not found one".
-  const [suggested, setSuggested] = useState<Customer | null>(null);
+  // Who the manual order might belong to: by phone (the WhatsApp reference,
+  // or the number in a pasted address), or by name when the number finds
+  // nobody. Kept with the question it answers, so a stale answer is never
+  // shown for a new number or name.
+  const [suggested, setSuggested] = useState<{
+    key: string;
+    byPhone: Customer[];
+    byName: Customer[];
+  }>({ key: "", byPhone: [], byName: [] });
   const [shippingIdr, setShippingIdr] = useState<number | null>(null);
   const [shipAfter, setShipAfter] = useState("");
   const [note, setNote] = useState("");
   const [customPricing, setCustomPricing] = useState(false);
+  const [showMore, setShowMore] = useState(false);
+  // What the last pasted order could not settle, shown above the basket until
+  // the order is saved or cleared.
+  const [readNote, setReadNote] = useState<{
+    source: "ai" | "basic";
+    unmatched: string[];
+    notice?: string;
+    unsaid: string[];
+  } | null>(null);
+  // Bumped when an address arrives from a read order, so the address card
+  // looks up the courier's area for it the way a paste does.
+  const [areaToken, setAreaToken] = useState(0);
   const [discountIdr, setDiscountIdr] = useState<number | null>(null);
   const [discountReason, setDiscountReason] = useState("");
 
@@ -133,6 +188,7 @@ export function PosTerminal({
     points: number;
     paid: boolean;
     ships: boolean;
+    toRoast: number;
   } | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -148,6 +204,17 @@ export function PosTerminal({
   const total = subtotal - discount + shipping;
   const change = cashReceived !== null ? cashReceived - total : null;
 
+  // Open by itself when any of what it hides is in use, so a value can never
+  // be set and then tucked out of sight.
+  const moreOpen =
+    showMore || Boolean(note.trim() || shipAfter || customPricing || discountIdr);
+
+  /** Bags on this order the shelf cannot cover — to be roasted. */
+  const toRoast = lines.reduce(
+    (sum, line) => sum + Math.max(0, line.quantity - Math.max(0, line.available)),
+    0,
+  );
+
   const visibleProducts = useMemo(() => {
     const term = query.trim().toLowerCase();
     if (!term) return products;
@@ -159,46 +226,66 @@ export function PosTerminal({
     );
   }, [products, query]);
 
-  // If the reference looks like a phone number and nobody is attached, try
-  // to find a customer already carrying it. That is exactly what the operator
-  // would search for a moment later, so doing it up front removes a step.
-  // Debounced. Nothing is *cleared* here; whether to show the suggestion is
-  // derived below, so a keystroke that invalidates the search shows the empty
-  // state on the next render without a second setState.
+  // The number to look the customer up by: the WhatsApp reference if there
+  // is one, otherwise the phone on the address being shipped to.
+  const lookupPhone = !isManual
+    ? ""
+    : (channel === "whatsapp" && channelReference.trim()) ||
+      (ships ? (address.phone ?? "").trim() : "");
+
+  // The name to fall back on when the number finds nobody.
+  const lookupName = isManual ? (address.recipient_name ?? "").trim() : "";
+  const lookupKey = `${lookupPhone}|${lookupName}`;
+  const canLookUp = lookupPhone.length >= 6 || lookupName.length >= 3;
+
+  // If there is a number or a name and nobody is attached, look for who it
+  // is. That is exactly what the operator would search for a moment later, so
+  // doing it up front removes a step. Debounced. Nothing is *cleared* here;
+  // whether to show the suggestion is derived below, so a keystroke that
+  // invalidates the search shows the empty state on the next render without
+  // a second setState.
   useEffect(() => {
-    if (customer || !isManual || channel !== "whatsapp") return;
-    const query = channelReference.trim();
-    if (query.length < 6) return;
+    if (customer || !canLookUp) return;
 
     let live = true;
     const timer = setTimeout(async () => {
-      const found = await findCustomerByPhone(query);
-      if (live) setSuggested(found);
+      // A suggestion is a nicety; failing to find one is not worth an error.
+      const found = await suggestCustomers({ phone: lookupPhone, name: lookupName }).catch(() => ({
+        byPhone: [],
+        byName: [],
+      }));
+      if (live) setSuggested({ key: lookupKey, ...found });
     }, 350);
     return () => {
       live = false;
       clearTimeout(timer);
     };
-  }, [customer, isManual, channel, channelReference]);
+  }, [customer, canLookUp, lookupPhone, lookupName, lookupKey]);
 
   // Derived rather than cleared in the effect: one source of truth for
   // whether the suggestion is showable *right now*.
-  const showSuggested =
-    !customer &&
-    isManual &&
-    channel === "whatsapp" &&
-    channelReference.trim().length >= 6
-      ? suggested
-      : null;
+  const current = !customer && canLookUp && suggested.key === lookupKey ? suggested : null;
+  const phoneMatches = current?.byPhone ?? [];
+  const nameMatches = current?.byName ?? [];
 
   // Addresses the shop already has for this customer. Only worth fetching once
   // there is somewhere to put them.
   useEffect(() => {
     if (!customer || !isManual || !ships) return;
     const userId = customer.id;
+    const email = customer.email;
     let live = true;
     customerAddresses(userId).then((rows) => {
-      if (live) setSaved({ userId, rows: rows as SavedAddress[] });
+      if (!live) return;
+      setSaved({ userId, rows: rows as SavedAddress[] });
+      // Nothing typed yet: use the address they usually get it at. Anything
+      // already there is left alone — the other addresses are one tap away.
+      const first = (rows as SavedAddress[])[0];
+      if (first) {
+        setAddress((current) =>
+          addressIsBlank(current) ? addressFromRow(first, email) : current,
+        );
+      }
     });
     return () => {
       live = false;
@@ -218,8 +305,9 @@ export function PosTerminal({
     setLines((current) => {
       const existing = current.find((line) => line.variantId === variantId);
       if (existing) {
-        // Never let the till build a basket the stock cannot cover.
-        if (existing.quantity >= variant.available) {
+        // Never let a counter sale build a basket the shelf cannot cover. A
+        // manual order can: the rest is roasted for it.
+        if (!isManual && existing.quantity >= variant.available) {
           setError(
             `Only ${variant.available} of ${product.name} (${variant.size}) available.`,
           );
@@ -232,7 +320,7 @@ export function PosTerminal({
         );
       }
 
-      if (variant.available < 1) {
+      if (!isManual && variant.available < 1) {
         setError(`${product.name} (${variant.size}) is not available.`);
         return current;
       }
@@ -258,7 +346,7 @@ export function PosTerminal({
         ? current.filter((line) => line.variantId !== variantId)
         : current.map((line) =>
             line.variantId === variantId
-              ? { ...line, quantity: Math.min(quantity, line.available) }
+              ? { ...line, quantity: isManual ? quantity : Math.min(quantity, line.available) }
               : line,
           ),
     );
@@ -288,10 +376,74 @@ export function PosTerminal({
     setShipAfter("");
     setNote("");
     setCustomPricing(false);
+    setShowMore(false);
     setDiscountIdr(null);
     setDiscountReason("");
     setError(null);
     setReceipt(null);
+    setReadNote(null);
+  }
+
+  /** Fill the till from a message that was read for us. */
+  function applyReadOrder(order: ReadOrder, source: "ai" | "basic", notice?: string) {
+    const variants = new Map(
+      products.flatMap((product) =>
+        product.product_variants.map((variant) => [variant.id, { product, variant }] as const),
+      ),
+    );
+    const missing: string[] = [];
+    const nextLines: Line[] = order.items.flatMap((item) => {
+      const found = variants.get(item.variantId);
+      if (!found) {
+        missing.push(item.asWritten);
+        return [];
+      }
+      return [
+        {
+          variantId: item.variantId,
+          productName: found.product.name,
+          size: found.variant.size,
+          priceIdr: found.variant.price_idr,
+          cataloguePriceIdr: found.variant.price_idr,
+          available: found.variant.available,
+          quantity: item.quantity,
+        },
+      ];
+    });
+
+    setMode("manual");
+    setReceipt(null);
+    setError(null);
+    setLines(nextLines);
+    setCustomer(null);
+    setChannel(order.channel ?? "whatsapp");
+    setChannelReference(order.reference);
+    setMarkPaid(order.paid === true);
+    setMethod(order.paymentMethod ?? "transfer");
+    setCashReceived(null);
+
+    const hasAddress = Boolean(order.address.line1 || order.address.city);
+    const ships = order.ships ?? hasAddress;
+    setShips(ships);
+    setAddress({ ...EMPTY_ADDRESS, ...order.address, country: "ID", area_id: null });
+    if (ships && hasAddress) setAreaToken((n) => n + 1);
+    setShippingIdr(order.shippingIdr);
+    setNote(order.note);
+    setShipAfter(order.shipAfter);
+    setCustomPricing(false);
+    setDiscountIdr(null);
+    setDiscountReason("");
+
+    setReadNote({
+      source,
+      notice,
+      unmatched: [...order.unmatched, ...missing],
+      unsaid: [
+        !order.items.length && "which coffee",
+        order.ships === null && "shipping or collecting",
+        order.paid === null && "whether they have paid",
+      ].filter(Boolean) as string[],
+    });
   }
 
   function switchMode(next: Mode) {
@@ -313,25 +465,15 @@ export function PosTerminal({
   }
 
   function applySavedAddress(row: SavedAddress) {
-    setAddress({
-      recipient_name: row.recipient_name,
-      phone: row.phone,
-      line1: row.line1,
-      line2: row.line2 ?? "",
-      village: row.village ?? "",
-      district: row.district ?? "",
-      city: row.city,
-      province: row.province ?? "",
-      postal_code: row.postal_code ?? "",
-      country: row.country,
-      email: customer?.email ?? "",
-      area_id: row.area_id ?? null,
-    });
+    setAddress(addressFromRow(row, customer?.email ?? null));
   }
 
   /** What is stopping this order being saved, in the words the operator needs. */
   const blocker = useMemo(() => {
     if (!lines.length) return "Add something to the order first.";
+    if (!isManual && toRoast > 0) {
+      return "Not all of this is on the shelf. Switch to Manual order to sell it before it is roasted.";
+    }
     if (paid && method === "cash" && cashReceived !== null && cashReceived < total) {
       return "Cash received is less than the total.";
     }
@@ -342,7 +484,7 @@ export function PosTerminal({
       return "Say what the discount is for.";
     }
     return null;
-  }, [lines, paid, method, cashReceived, total, discount, discountReason]);
+  }, [lines, isManual, toRoast, paid, method, cashReceived, total, discount, discountReason]);
 
   function submit() {
     setError(null);
@@ -373,6 +515,7 @@ export function PosTerminal({
         discountIdr: discount,
         discountReason: discount > 0 ? discountReason : null,
         shipAfter: shipAfter || null,
+        allowShort: isManual && toRoast > 0,
       });
 
       if (!result.ok || !result.order) {
@@ -390,6 +533,7 @@ export function PosTerminal({
         points: result.order.points_awarded,
         paid: Boolean(result.order.paid_at),
         ships: isManual && ships,
+        toRoast: isManual ? toRoast : 0,
       });
       setLines([]);
       setCashReceived(null);
@@ -400,8 +544,10 @@ export function PosTerminal({
       setShipAfter("");
       setNote("");
       setCustomPricing(false);
+      setShowMore(false);
       setDiscountIdr(null);
       setDiscountReason("");
+      setReadNote(null);
     });
   }
 
@@ -431,8 +577,7 @@ export function PosTerminal({
 
 
   // ---- Order saved -------------------------------------------------------
-  if (receipt) {
-    return (
+  const receiptView = receipt ? (
       <div className="mx-auto max-w-md py-10 text-center">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
           <Check className="h-8 w-8 text-emerald-700" />
@@ -462,6 +607,15 @@ export function PosTerminal({
           )}
         </dl>
 
+        {receipt.toRoast > 0 && (
+          <p className="mt-6 rounded-lg bg-amber-50 p-3 text-left text-xs text-amber-900">
+            <strong>
+              {receipt.toRoast} {receipt.toRoast === 1 ? "bag" : "bags"} to roast
+            </strong>{" "}
+            for this order. The stock count has gone below zero by that much;
+            add the next roast to it as usual and it balances itself.
+          </p>
+        )}
         {!receipt.paid && (
           <p className="mt-6 rounded-lg bg-amber-50 p-3 text-left text-xs text-amber-900">
             The coffee is <strong>held for this order</strong> and will not be
@@ -485,723 +639,849 @@ export function PosTerminal({
           Next order
         </button>
       </div>
-    );
-  }
+  ) : null;
 
   // ---- Till --------------------------------------------------------------
+  // The reader sits above both screens, so a list of pasted orders survives
+  // saving one of them.
   return (
     <div>
-      <nav className="mb-4 inline-flex rounded-full border border-sea-200 bg-white p-1">
-        {(
-          [
-            ["counter", "Counter sale"],
-            ["manual", "Manual order"],
-          ] as [Mode, string][]
-        ).map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => switchMode(value)}
-            className={cn(
-              "rounded-full px-4 py-1.5 text-sm transition-colors",
-              mode === value
-                ? "bg-sea-800 text-cream"
-                : "text-sea-800 hover:bg-sea-50",
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
-
-      <div className="grid gap-5 lg:grid-cols-[1fr_380px] lg:items-start">
-        {/* Product picker */}
+      <OrderReader onFill={applyReadOrder} />
+      {receiptView ?? (
         <div>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-sea-800" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search coffee…"
-              className="input pl-9"
-              aria-label="Search coffee"
-            />
-          </div>
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {visibleProducts.map((product) => (
-              <div
-                key={product.id}
-                className="overflow-hidden rounded-xl border border-sea-200 bg-white"
-              >
-                <div
-                  className="px-3 py-2"
-                  style={{ backgroundColor: `${productColour(product)}1a` }}
-                >
-                  <p className="text-sm font-medium leading-tight">{product.name}</p>
-                  {product.origin && (
-                    <p className="truncate text-xs text-sea-800">{product.origin}</p>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap gap-1.5 p-2">
-                  {product.product_variants.map((variant) => {
-                    const soldOut = variant.available < 1;
-                    const held = variant.reserved > 0;
-                    return (
-                      <button
-                        key={variant.id}
-                        type="button"
-                        disabled={soldOut}
-                        onClick={() => addVariant(product, variant.id)}
-                        className={cn(
-                          "flex-1 rounded-lg border px-2 py-2 text-center transition-colors",
-                          soldOut
-                            ? "cursor-not-allowed border-sea-200 opacity-40"
-                            : "border-sea-200 hover:border-sea-700 hover:bg-sea-50 active:bg-sea-100",
-                        )}
-                      >
-                        <span className="block text-sm font-medium">{variant.size}</span>
-                        <span className="block text-xs text-sea-800">
-                          {formatIDR(variant.price_idr)}
-                        </span>
-                        <span
-                          className={cn(
-                            "mt-0.5 block text-[10px]",
-                            variant.available <= 3 ? "text-amber-700" : "text-sea-800",
-                          )}
-                        >
-                          {soldOut ? "none free" : `${variant.available} left`}
-                        </span>
-                        {held && (
-                          <span className="block text-[10px] text-sea-800/70">
-                            {variant.reserved} held
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {!visibleProducts.length && (
-            <p className="mt-8 text-center text-sm text-sea-800">
-              Nothing matches “{query}”.
-            </p>
-          )}
-        </div>
-
-        {/* Basket */}
-        <aside className="rounded-xl border border-sea-200 bg-white lg:sticky lg:top-6">
-          <div className="flex items-center justify-between border-b border-sea-200 px-4 py-3">
-            <h2 className="font-medium">{isManual ? "This order" : "This sale"}</h2>
-            {lines.length > 0 && (
+          <nav className="mb-4 inline-flex rounded-full border border-sea-200 bg-white p-1">
+            {(
+              [
+                ["counter", "Counter sale"],
+                ["manual", "Manual order"],
+              ] as [Mode, string][]
+            ).map(([value, label]) => (
               <button
+                key={value}
                 type="button"
-                onClick={resetSale}
-                className="flex items-center gap-1 text-xs text-sea-800 hover:text-red-700"
+                onClick={() => switchMode(value)}
+                className={cn(
+                  "rounded-full px-4 py-1.5 text-sm transition-colors",
+                  mode === value
+                    ? "bg-sea-800 text-cream"
+                    : "text-sea-800 hover:bg-sea-50",
+                )}
               >
-                <Trash2 className="h-3.5 w-3.5" /> Clear
+                {label}
               </button>
-            )}
-          </div>
+            ))}
+          </nav>
 
-          {lines.length ? (
-            <ul className="divide-y divide-sea-200">
-              {lines.map((line) => (
-                <li key={line.variantId} className="flex items-center gap-2 px-4 py-2.5">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium leading-tight">{line.productName}</p>
-                    {customPricing ? (
-                      <div className="mt-1 flex items-center gap-1.5">
-                        <span className="text-xs text-sea-800">{line.size}</span>
-                        <input
-                          type="number"
-                          min={0}
-                          step={1000}
-                          value={line.priceIdr}
-                          onChange={(event) =>
-                            setPrice(line.variantId, Number(event.target.value))
-                          }
-                          className="input h-7 w-24 px-1.5 py-0 text-xs"
-                          aria-label={`Price each for ${line.productName}`}
-                        />
-                        {line.priceIdr !== line.cataloguePriceIdr && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setPrice(line.variantId, line.cataloguePriceIdr)
-                            }
-                            className="text-[10px] text-sea-800 underline"
-                            title={`Catalogue price is ${formatIDR(line.cataloguePriceIdr)}`}
-                          >
-                            reset
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-sea-800">
-                        {line.size} · {formatIDR(line.priceIdr)}
-                        {line.priceIdr !== line.cataloguePriceIdr && (
-                          <span className="ml-1 text-amber-700">(agreed)</span>
-                        )}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center rounded-full border border-sea-200">
-                    <button
-                      type="button"
-                      onClick={() => setQuantity(line.variantId, line.quantity - 1)}
-                      className="p-1.5"
-                      aria-label={`One fewer ${line.productName}`}
-                    >
-                      <Minus className="h-3 w-3" />
-                    </button>
-                    <span className="w-6 text-center text-sm">{line.quantity}</span>
-                    <button
-                      type="button"
-                      onClick={() => setQuantity(line.variantId, line.quantity + 1)}
-                      disabled={line.quantity >= line.available}
-                      className="p-1.5 disabled:opacity-30"
-                      aria-label={`One more ${line.productName}`}
-                    >
-                      <Plus className="h-3 w-3" />
-                    </button>
-                  </div>
-
-                  <span className="w-20 shrink-0 text-right text-sm font-medium">
-                    {formatIDR(line.priceIdr * line.quantity)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="px-4 py-10 text-center text-sm text-sea-800">
-              Tap a size to start.
-            </p>
+          {readNote && (
+            <div className="mb-4 rounded-xl border border-sea-200 bg-sea-50 px-4 py-3 text-sm">
+              <p className="font-medium">
+                Filled in from their message
+                <span className="font-normal text-sea-800">
+                  {readNote.source === "ai" ? " (read by AI)" : " (matched by name and size)"}
+                </span>{" "}
+                — check it, then save.
+              </p>
+              {readNote.notice && <p className="mt-1 text-xs text-amber-900">{readNote.notice}</p>}
+              {readNote.unmatched.length > 0 && (
+                <p className="mt-1 text-xs text-amber-900">
+                  Could not match: {readNote.unmatched.map((line) => `“${line}”`).join(", ")} — add{" "}
+                  {readNote.unmatched.length === 1 ? "it" : "them"} from the grid.
+                </p>
+              )}
+              {readNote.unsaid.length > 0 && (
+                <p className="mt-1 text-xs text-sea-800">
+                  The message did not say {readNote.unsaid.join(", or ")}.
+                </p>
+              )}
+            </div>
           )}
 
-          {/* Where it came from */}
-          {isManual && (
-            <div className="space-y-3 border-t border-sea-200 px-4 py-3">
-              <div>
-                <label className="mb-1.5 block text-xs uppercase tracking-wider text-sea-800">
-                  Came in through
-                </label>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {MANUAL_CHANNELS.filter((option) => option !== "pos").map((option) => (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => setChannel(option)}
-                      className={cn(
-                        "rounded-lg border py-1.5 text-xs transition-colors",
-                        channel === option
-                          ? "border-sea-800 bg-sea-800 text-cream"
-                          : "border-sea-200 hover:border-sea-400",
-                      )}
-                    >
-                      {CHANNEL_LABELS[option]}
-                    </button>
-                  ))}
-                </div>
+          <div className="grid gap-5 lg:grid-cols-[1fr_380px] lg:items-start">
+            {/* Product picker */}
+            <div>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-sea-800" />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search coffee…"
+                  className="input pl-9"
+                  aria-label="Search coffee"
+                />
               </div>
 
-              <div>
-                <label
-                  htmlFor="channel-reference"
-                  className="mb-1 block text-xs text-sea-800"
-                >
-                  {CHANNEL_REFERENCE_LABELS[channel] ?? "Reference"}
-                </label>
-                <input
-                  id="channel-reference"
-                  value={channelReference}
-                  onChange={(event) => setChannelReference(event.target.value)}
-                  placeholder={
-                    channel === "whatsapp"
-                      ? "0812…"
-                      : channel === "instagram"
-                        ? "@handle"
-                        : "So you can find the conversation again"
-                  }
-                  className="input text-sm"
-                />
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {visibleProducts.map((product) => (
+                  <div
+                    key={product.id}
+                    className="overflow-hidden rounded-xl border border-sea-200 bg-white"
+                  >
+                    <div
+                      className="px-3 py-2"
+                      style={{ backgroundColor: `${productColour(product)}1a` }}
+                    >
+                      <p className="text-sm font-medium leading-tight">{product.name}</p>
+                      {product.origin && (
+                        <p className="truncate text-xs text-sea-800">{product.origin}</p>
+                      )}
+                    </div>
 
-                {showSuggested && (
+                    <div className="flex flex-wrap gap-1.5 p-2">
+                      {product.product_variants.map((variant) => {
+                        const soldOut = variant.available < 1;
+                        const held = variant.reserved > 0;
+                        // Sold out stops a counter sale; a manual order can still
+                        // take it, to be roasted.
+                        const blocked = soldOut && !isManual;
+                        return (
+                          <button
+                            key={variant.id}
+                            type="button"
+                            disabled={blocked}
+                            onClick={() => addVariant(product, variant.id)}
+                            title={
+                              soldOut && isManual
+                                ? "None on the shelf — this order will be roasted for."
+                                : undefined
+                            }
+                            className={cn(
+                              "flex-1 rounded-lg border px-2 py-2 text-center transition-colors",
+                              blocked
+                                ? "cursor-not-allowed border-sea-200 opacity-40"
+                                : soldOut
+                                  ? "border-dashed border-amber-400 hover:bg-amber-50 active:bg-amber-100"
+                                  : "border-sea-200 hover:border-sea-700 hover:bg-sea-50 active:bg-sea-100",
+                            )}
+                          >
+                            <span className="block text-sm font-medium">{variant.size}</span>
+                            <span className="block text-xs text-sea-800">
+                              {formatIDR(variant.price_idr)}
+                            </span>
+                            <span
+                              className={cn(
+                                "mt-0.5 block text-[10px]",
+                                variant.available <= 3 ? "text-amber-700" : "text-sea-800",
+                              )}
+                            >
+                              {soldOut
+                                ? isManual
+                                  ? "roast to order"
+                                  : "none free"
+                                : `${variant.available} left`}
+                            </span>
+                            {held && (
+                              <span className="block text-[10px] text-sea-800/70">
+                                {variant.reserved} held
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {!visibleProducts.length && (
+                <p className="mt-8 text-center text-sm text-sea-800">
+                  Nothing matches “{query}”.
+                </p>
+              )}
+            </div>
+
+            {/* Basket */}
+            <aside className="rounded-xl border border-sea-200 bg-white lg:sticky lg:top-6">
+              <div className="flex items-center justify-between border-b border-sea-200 px-4 py-3">
+                <h2 className="font-medium">{isManual ? "This order" : "This sale"}</h2>
+                {lines.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setCustomer(showSuggested);
-                      setSuggested(null);
-                    }}
-                    className="mt-2 flex w-full items-center justify-between gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-left text-xs text-emerald-900 hover:border-emerald-400"
+                    onClick={resetSale}
+                    className="flex items-center gap-1 text-xs text-sea-800 hover:text-red-700"
                   >
-                    <span className="min-w-0 truncate">
-                      This is <strong>{showSuggested.display_name || showSuggested.email}</strong>?
-                    </span>
-                    <span className="shrink-0 font-medium">Attach</span>
+                    <Trash2 className="h-3.5 w-3.5" /> Clear
                   </button>
                 )}
               </div>
-            </div>
-          )}
 
-          {/* Customer */}
-          <div className="border-t border-sea-200 px-4 py-3">
-            {customer ? (
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">
-                    {customer.display_name || customer.email}
-                  </p>
-                  <p className="text-xs text-sea-800">
-                    {customer.loyalty_points} points · {customer.tier}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCustomer(null)}
-                  className="rounded p-1 text-sea-800 hover:bg-sea-100"
-                  aria-label="Remove customer"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ) : showCustomerSearch ? (
-              <div>
-                <input
-                  autoFocus
-                  value={customerQuery}
-                  onChange={(event) => searchCustomers(event.target.value)}
-                  placeholder="Name or email…"
-                  className="input text-sm"
-                  aria-label="Find a customer"
-                />
-                {customerResults.length > 0 && (
-                  <ul className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-sea-200">
-                    {customerResults.map((found) => (
-                      <li key={found.id}>
+              {lines.length ? (
+                <ul className="divide-y divide-sea-200">
+                  {lines.map((line) => (
+                    <li key={line.variantId} className="flex items-center gap-2 px-4 py-2.5">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium leading-tight">{line.productName}</p>
+                        {customPricing ? (
+                          <div className="mt-1 flex items-center gap-1.5">
+                            <span className="text-xs text-sea-800">{line.size}</span>
+                            <input
+                              type="number"
+                              min={0}
+                              step={1000}
+                              value={line.priceIdr}
+                              onChange={(event) =>
+                                setPrice(line.variantId, Number(event.target.value))
+                              }
+                              className="input h-7 w-24 px-1.5 py-0 text-xs"
+                              aria-label={`Price each for ${line.productName}`}
+                            />
+                            {line.priceIdr !== line.cataloguePriceIdr && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPrice(line.variantId, line.cataloguePriceIdr)
+                                }
+                                className="text-[10px] text-sea-800 underline"
+                                title={`Catalogue price is ${formatIDR(line.cataloguePriceIdr)}`}
+                              >
+                                reset
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-sea-800">
+                            {line.size} · {formatIDR(line.priceIdr)}
+                            {line.priceIdr !== line.cataloguePriceIdr && (
+                              <span className="ml-1 text-amber-700">(agreed)</span>
+                            )}
+                          </p>
+                        )}
+                        {line.quantity > Math.max(0, line.available) && (
+                          <p className="text-[11px] font-medium text-amber-700">
+                            {line.quantity - Math.max(0, line.available)} to roast
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center rounded-full border border-sea-200">
                         <button
                           type="button"
-                          onClick={() => {
-                            setCustomer(found);
-                            setShowCustomerSearch(false);
-                            setCustomerQuery("");
-                            setCustomerResults([]);
-                          }}
-                          className="block w-full px-3 py-2 text-left text-sm hover:bg-sea-50"
+                          onClick={() => setQuantity(line.variantId, line.quantity - 1)}
+                          className="p-1.5"
+                          aria-label={`One fewer ${line.productName}`}
                         >
-                          {found.display_name || found.email}
-                          <span className="block text-xs text-sea-800">
-                            {found.loyalty_points} points
-                          </span>
+                          <Minus className="h-3 w-3" />
                         </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setShowCustomerSearch(false)}
-                  className="mt-2 text-xs text-sea-800 hover:underline"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowCustomerSearch(true)}
-                className="flex items-center gap-1.5 text-sm text-sea-800 hover:text-sea-900"
-              >
-                <UserPlus className="h-4 w-4" /> Add customer for points
-              </button>
-            )}
-          </div>
-
-          {/* Where it is going */}
-          {isManual && (
-            <div className="border-t border-sea-200 px-4 py-3">
-              <div className="grid grid-cols-2 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setShips(false)}
-                  className={cn(
-                    "flex items-center justify-center gap-1.5 rounded-lg border py-2 text-xs transition-colors",
-                    !ships
-                      ? "border-sea-800 bg-sea-800 text-cream"
-                      : "border-sea-200 hover:border-sea-400",
-                  )}
-                >
-                  <Store className="h-3.5 w-3.5" /> Collecting
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShips(true)}
-                  className={cn(
-                    "flex items-center justify-center gap-1.5 rounded-lg border py-2 text-xs transition-colors",
-                    ships
-                      ? "border-sea-800 bg-sea-800 text-cream"
-                      : "border-sea-200 hover:border-sea-400",
-                  )}
-                >
-                  <Package className="h-3.5 w-3.5" /> Shipping
-                </button>
-              </div>
-
-              {ships && (
-                <div className="mt-3 space-y-2">
-                  {savedAddresses.length > 0 && (
-                    <div>
-                      <p className="mb-1 text-xs text-sea-800">
-                        Addresses you already have
-                      </p>
-                      <div className="space-y-1">
-                        {savedAddresses.map((row) => (
-                          <button
-                            key={row.id}
-                            type="button"
-                            onClick={() => applySavedAddress(row)}
-                            className="block w-full rounded-lg border border-sea-200 px-2 py-1.5 text-left text-xs hover:border-sea-400 hover:bg-sea-50"
-                          >
-                            <span className="font-medium">{row.recipient_name}</span>
-                            <span className="block text-sea-800">
-                              {row.line1}, {row.city}
-                            </span>
-                          </button>
-                        ))}
+                        <span className="w-6 text-center text-sm">{line.quantity}</span>
+                        <button
+                          type="button"
+                          onClick={() => setQuantity(line.variantId, line.quantity + 1)}
+                          disabled={!isManual && line.quantity >= line.available}
+                          className="p-1.5 disabled:opacity-30"
+                          aria-label={`One more ${line.productName}`}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
                       </div>
-                    </div>
-                  )}
 
-                  <AddressFields
-                    value={address}
-                    onChange={setAddress}
-                    idPrefix="pos-address"
-                  />
+                      <span className="w-20 shrink-0 text-right text-sm font-medium">
+                        {formatIDR(line.priceIdr * line.quantity)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="px-4 py-10 text-center text-sm text-sea-800">
+                  Tap a size to start.
+                </p>
+              )}
 
+              {/* Where it came from */}
+              {isManual && (
+                <div className="space-y-3 border-t border-sea-200 px-4 py-3">
                   <div>
-                    <label
-                      htmlFor="manual-ship-after"
-                      className="mb-1 block text-xs text-sea-800"
-                    >
-                      Do not ship before
+                    <label className="mb-1.5 block text-xs uppercase tracking-wider text-sea-800">
+                      Came in through
                     </label>
-                    <input
-                      id="manual-ship-after"
-                      type="date"
-                      value={shipAfter}
-                      onChange={(event) => setShipAfter(event.target.value)}
-                      className="input text-sm"
-                    />
-                    <p className="mt-1 text-xs text-sea-800">
-                      Leave empty for as soon as possible. A future date holds
-                      the coffee for this order and hides it from the ready-to-
-                      pack list until the date arrives.
-                    </p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {MANUAL_CHANNELS.filter((option) => option !== "pos").map((option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => setChannel(option)}
+                          className={cn(
+                            "rounded-lg border py-1.5 text-xs transition-colors",
+                            channel === option
+                              ? "border-sea-800 bg-sea-800 text-cream"
+                              : "border-sea-200 hover:border-sea-400",
+                          )}
+                        >
+                          {CHANNEL_LABELS[option]}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div>
                     <label
-                      htmlFor="manual-shipping"
+                      htmlFor="channel-reference"
                       className="mb-1 block text-xs text-sea-800"
                     >
-                      Shipping to charge
+                      {CHANNEL_REFERENCE_LABELS[channel] ?? "Reference"}
                     </label>
                     <input
-                      id="manual-shipping"
-                      type="number"
-                      min={0}
-                      step={1000}
-                      value={shippingIdr ?? ""}
-                      onChange={(event) =>
-                        setShippingIdr(
-                          event.target.value ? Number(event.target.value) : null,
-                        )
+                      id="channel-reference"
+                      value={channelReference}
+                      onChange={(event) => setChannelReference(event.target.value)}
+                      placeholder={
+                        channel === "whatsapp"
+                          ? "0812…"
+                          : channel === "instagram"
+                            ? "@handle"
+                            : "So you can find the conversation again"
                       }
-                      placeholder="0"
                       className="input text-sm"
                     />
                   </div>
                 </div>
               )}
-            </div>
-          )}
 
-          {/* Note */}
-          {isManual && (
-            <div className="border-t border-sea-200 px-4 py-3">
-              <label htmlFor="manual-note" className="mb-1 block text-xs text-sea-800">
-                Note
-              </label>
-              <textarea
-                id="manual-note"
-                value={note}
-                onChange={(event) => setNote(event.target.value)}
-                rows={2}
-                placeholder="Anything worth remembering about this one"
-                className="input text-sm"
-              />
-            </div>
-          )}
-
-          {/* Bulk prices and discounts */}
-          {lines.length > 0 && (
-            <div className="border-t border-sea-200 px-4 py-3">
-              <button
-                type="button"
-                onClick={() => setCustomPricing((on) => !on)}
-                className="flex items-center gap-1.5 text-sm text-sea-800 hover:text-sea-900"
-              >
-                <Tag className="h-4 w-4" />
-                {customPricing ? "Use catalogue prices" : "Custom price or discount"}
-              </button>
-
-              {customPricing && (
-                <div className="mt-3 space-y-2">
-                  <p className="text-xs text-sea-800">
-                    Type over a price above for a bulk or wholesale rate. It
-                    applies to this order only — the shop price does not change.
+              {/* Customer */}
+              <div className="border-t border-sea-200 px-4 py-3">
+                {phoneMatches.length > 1 && (
+                  <p className="mb-1 text-[11px] text-sea-800">
+                    This number belongs to {phoneMatches.length} customers — pick the right one:
                   </p>
-                  <div>
-                    <label
-                      htmlFor="order-discount"
-                      className="mb-1 block text-xs text-sea-800"
-                    >
-                      Discount off the coffee
-                    </label>
-                    <input
-                      id="order-discount"
-                      type="number"
-                      min={0}
-                      step={1000}
-                      value={discountIdr ?? ""}
-                      onChange={(event) =>
-                        setDiscountIdr(
-                          event.target.value ? Number(event.target.value) : null,
-                        )
-                      }
-                      placeholder="0"
-                      className="input text-sm"
-                    />
-                  </div>
-                  {discount > 0 && (
-                    <div>
-                      <label
-                        htmlFor="discount-reason"
-                        className="mb-1 block text-xs text-sea-800"
+                )}
+                {phoneMatches.map((match) => (
+                  <button
+                    key={match.id}
+                    type="button"
+                    onClick={() => setCustomer(match)}
+                    className="mb-2 flex w-full items-center justify-between gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-left text-xs text-emerald-900 hover:border-emerald-400"
+                  >
+                    <span className="min-w-0 truncate">
+                      This is <strong>{match.display_name || match.email || match.phone}</strong>?
+                    </span>
+                    <span className="shrink-0 font-medium">Attach</span>
+                  </button>
+                ))}
+                {nameMatches.length > 0 && (
+                  <div className="mb-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                    <p className="mb-1">
+                      Same name as {nameMatches.length === 1 ? "a customer" : "these customers"} — only
+                      attach if it is really them:
+                    </p>
+                    {nameMatches.map((match) => (
+                      <button
+                        key={match.id}
+                        type="button"
+                        onClick={() => setCustomer(match)}
+                        className="flex w-full items-center justify-between gap-2 rounded px-1 py-0.5 text-left hover:bg-amber-100"
                       >
-                        What for?
-                      </label>
-                      <input
-                        id="discount-reason"
-                        value={discountReason}
-                        onChange={(event) => setDiscountReason(event.target.value)}
-                        placeholder="Regular customer, 5kg order…"
-                        className="input text-sm"
-                      />
+                        <span className="min-w-0 truncate">
+                          <strong>{match.display_name}</strong>
+                          {(match.phone || match.email) && (
+                            <span className="text-amber-800"> · {match.phone || match.email}</span>
+                          )}
+                        </span>
+                        <span className="shrink-0 font-medium">Attach</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {customer ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">
+                        {customer.display_name || customer.email}
+                      </p>
+                      <p className="text-xs text-sea-800">
+                        {customer.loyalty_points} points · {customer.tier}
+                      </p>
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Total + payment */}
-          <div className="border-t border-sea-200 px-4 py-4">
-            {(shipping > 0 || discount > 0) && (
-              <dl className="mb-2 space-y-1 text-xs text-sea-800">
-                <div className="flex justify-between">
-                  <dt>Coffee</dt>
-                  <dd>{formatIDR(subtotal)}</dd>
-                </div>
-                {discount > 0 && (
-                  <div className="flex justify-between text-emerald-700">
-                    <dt>Discount</dt>
-                    <dd>−{formatIDR(discount)}</dd>
-                  </div>
-                )}
-                {shipping > 0 && (
-                  <div className="flex justify-between">
-                    <dt>Shipping</dt>
-                    <dd>{formatIDR(shipping)}</dd>
-                  </div>
-                )}
-              </dl>
-            )}
-
-            <div className="flex items-baseline justify-between">
-              <span className="text-sm text-sea-800">Total</span>
-              <span className="font-serif text-3xl">{formatIDR(total)}</span>
-            </div>
-
-            {customer && total > 0 && paid && (
-              <p className="mt-1 text-right text-xs text-emerald-700">
-                earns {Math.floor(total / Math.max(1, rupiahPerPoint))} points
-              </p>
-            )}
-
-            {isManual && (
-              <div className="mt-4 grid grid-cols-2 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setMarkPaid(false)}
-                  className={cn(
-                    "rounded-lg border py-2 text-xs transition-colors",
-                    !markPaid
-                      ? "border-amber-500 bg-amber-50 text-amber-900"
-                      : "border-sea-200 hover:border-sea-400",
-                  )}
-                >
-                  Not paid yet
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMarkPaid(true)}
-                  className={cn(
-                    "rounded-lg border py-2 text-xs transition-colors",
-                    markPaid
-                      ? "border-emerald-600 bg-emerald-600 text-white"
-                      : "border-sea-200 hover:border-sea-400",
-                  )}
-                >
-                  Already paid
-                </button>
-              </div>
-            )}
-
-            {paid && (
-              <div className="mt-3 grid grid-cols-4 gap-1.5">
-                {(["cash", "qris", "card", "transfer"] as PosPaymentMethod[]).map(
-                  (option) => (
                     <button
-                      key={option}
                       type="button"
-                      onClick={() => {
-                        setMethod(option);
-                        if (option !== "cash") setCashReceived(null);
-                      }}
+                      onClick={() => setCustomer(null)}
+                      className="rounded p-1 text-sea-800 hover:bg-sea-100"
+                      aria-label="Remove customer"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : showCustomerSearch ? (
+                  <div>
+                    <input
+                      autoFocus
+                      value={customerQuery}
+                      onChange={(event) => searchCustomers(event.target.value)}
+                      placeholder="Name, email or phone…"
+                      className="input text-sm"
+                      aria-label="Find a customer"
+                    />
+                    {customerResults.length > 0 && (
+                      <ul className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-sea-200">
+                        {customerResults.map((found) => (
+                          <li key={found.id}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCustomer(found);
+                                setShowCustomerSearch(false);
+                                setCustomerQuery("");
+                                setCustomerResults([]);
+                              }}
+                              className="block w-full px-3 py-2 text-left text-sm hover:bg-sea-50"
+                            >
+                              {found.display_name || found.email || found.phone}
+                              <span className="block text-xs text-sea-800">
+                                {[found.phone, `${found.loyalty_points} points`]
+                                  .filter(Boolean)
+                                  .join(" · ")}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowCustomerSearch(false)}
+                      className="mt-2 text-xs text-sea-800 hover:underline"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomerSearch(true)}
+                    className="flex items-center gap-1.5 text-sm text-sea-800 hover:text-sea-900"
+                  >
+                    <UserPlus className="h-4 w-4" />{" "}
+                    {isManual ? "Find customer (name or phone)" : "Add customer for points"}
+                  </button>
+                )}
+              </div>
+
+              {/* Where it is going */}
+              {isManual && (
+                <div className="border-t border-sea-200 px-4 py-3">
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setShips(false)}
                       className={cn(
-                        "rounded-lg border py-2 text-xs capitalize transition-colors",
-                        method === option
+                        "flex items-center justify-center gap-1.5 rounded-lg border py-2 text-xs transition-colors",
+                        !ships
                           ? "border-sea-800 bg-sea-800 text-cream"
                           : "border-sea-200 hover:border-sea-400",
                       )}
                     >
-                      {option}
+                      <Store className="h-3.5 w-3.5" /> Collecting
                     </button>
-                  ),
-                )}
-              </div>
-            )}
-
-            {paid && method === "cash" && (
-              <div className="mt-3">
-                <div className="flex flex-wrap gap-1.5">
-                  {CASH_PRESETS.filter((note) => note >= total)
-                    .slice(0, 3)
-                    .map((note) => (
-                      <button
-                        key={note}
-                        type="button"
-                        onClick={() => setCashReceived(note)}
-                        className={cn(
-                          "flex-1 rounded-lg border py-1.5 text-xs",
-                          cashReceived === note
-                            ? "border-sea-800 bg-sea-100"
-                            : "border-sea-200 hover:border-sea-400",
-                        )}
-                      >
-                        {formatIDR(note)}
-                      </button>
-                    ))}
-                  {total > 0 && (
                     <button
                       type="button"
-                      onClick={() => setCashReceived(total)}
+                      onClick={() => setShips(true)}
                       className={cn(
-                        "flex-1 rounded-lg border py-1.5 text-xs",
-                        cashReceived === total
-                          ? "border-sea-800 bg-sea-100"
+                        "flex items-center justify-center gap-1.5 rounded-lg border py-2 text-xs transition-colors",
+                        ships
+                          ? "border-sea-800 bg-sea-800 text-cream"
                           : "border-sea-200 hover:border-sea-400",
                       )}
                     >
-                      Exact
+                      <Package className="h-3.5 w-3.5" /> Shipping
+                    </button>
+                  </div>
+
+                  {ships && (
+                    <div className="mt-3 space-y-3">
+                      {savedAddresses.length > 1 && (
+                        <div>
+                          <p className="mb-1 text-xs text-sea-800">
+                            Other addresses you have for them
+                          </p>
+                          <div className="space-y-1">
+                            {savedAddresses.map((row) => (
+                              <button
+                                key={row.id}
+                                type="button"
+                                onClick={() => applySavedAddress(row)}
+                                className="block w-full rounded-lg border border-sea-200 px-2 py-1.5 text-left text-xs hover:border-sea-400 hover:bg-sea-50"
+                              >
+                                <span className="font-medium">{row.recipient_name}</span>
+                                <span className="block text-sea-800">
+                                  {row.line1}, {row.city}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <AddressPaste
+                        value={address}
+                        onChange={setAddress}
+                        onPhone={(phone) => {
+                          // The WhatsApp thread is almost always this number.
+                          if (channel === "whatsapp" && !channelReference.trim()) {
+                            setChannelReference(phone);
+                          }
+                        }}
+                        idPrefix="pos-address"
+                        findAreaToken={areaToken}
+                      />
+
+                      <div>
+                        <label
+                          htmlFor="manual-shipping"
+                          className="mb-1 block text-xs text-sea-800"
+                        >
+                          Shipping to charge
+                        </label>
+                        <input
+                          id="manual-shipping"
+                          type="number"
+                          min={0}
+                          step={1000}
+                          value={shippingIdr ?? ""}
+                          onChange={(event) =>
+                            setShippingIdr(
+                              event.target.value ? Number(event.target.value) : null,
+                            )
+                          }
+                          placeholder="0"
+                          className="input text-sm"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Everything an ordinary order does not need, out of the way until
+                  it is wanted. Open by itself when any of it is already in use. */}
+              {(isManual || lines.length > 0) && (
+                <div className="border-t border-sea-200 px-4 py-3">
+                  {moreOpen ? (
+                    <div className="space-y-3">
+                      {isManual && (
+                        <div>
+                          <label htmlFor="manual-note" className="mb-1 block text-xs text-sea-800">
+                            Note
+                          </label>
+                          <textarea
+                            id="manual-note"
+                            value={note}
+                            onChange={(event) => setNote(event.target.value)}
+                            rows={2}
+                            placeholder="Anything worth remembering about this one"
+                            className="input text-sm"
+                          />
+                        </div>
+                      )}
+
+                      {isManual && ships && (
+                        <div>
+                          <label
+                            htmlFor="manual-ship-after"
+                            className="mb-1 block text-xs text-sea-800"
+                          >
+                            Do not ship before
+                          </label>
+                          <input
+                            id="manual-ship-after"
+                            type="date"
+                            value={shipAfter}
+                            onChange={(event) => setShipAfter(event.target.value)}
+                            className="input text-sm"
+                          />
+                          <p className="mt-1 text-xs text-sea-800">
+                            Leave empty for as soon as possible. A future date holds
+                            the coffee for this order and hides it from the ready-to-
+                            pack list until the date arrives.
+                          </p>
+                        </div>
+                      )}
+
+                      {lines.length > 0 && (
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => setCustomPricing((on) => !on)}
+                            className="flex items-center gap-1.5 text-sm text-sea-800 hover:text-sea-900"
+                          >
+                            <Tag className="h-4 w-4" />
+                            {customPricing ? "Use catalogue prices" : "Custom price or discount"}
+                          </button>
+
+                          {customPricing && (
+                            <div className="mt-3 space-y-2">
+                              <p className="text-xs text-sea-800">
+                                Type over a price above for a bulk or wholesale rate. It
+                                applies to this order only — the shop price does not change.
+                              </p>
+                              <div>
+                                <label
+                                  htmlFor="order-discount"
+                                  className="mb-1 block text-xs text-sea-800"
+                                >
+                                  Discount off the coffee
+                                </label>
+                                <input
+                                  id="order-discount"
+                                  type="number"
+                                  min={0}
+                                  step={1000}
+                                  value={discountIdr ?? ""}
+                                  onChange={(event) =>
+                                    setDiscountIdr(
+                                      event.target.value ? Number(event.target.value) : null,
+                                    )
+                                  }
+                                  placeholder="0"
+                                  className="input text-sm"
+                                />
+                              </div>
+                              {discount > 0 && (
+                                <div>
+                                  <label
+                                    htmlFor="discount-reason"
+                                    className="mb-1 block text-xs text-sea-800"
+                                  >
+                                    What for?
+                                  </label>
+                                  <input
+                                    id="discount-reason"
+                                    value={discountReason}
+                                    onChange={(event) => setDiscountReason(event.target.value)}
+                                    placeholder="Regular customer, 5kg order…"
+                                    className="input text-sm"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowMore(true)}
+                      className="flex items-center gap-1.5 text-sm text-sea-800 hover:text-sea-900"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                      More options
+                      <span className="text-xs text-sea-800/70">
+                        {[
+                          isManual && "note",
+                          isManual && ships && "ship date",
+                          lines.length > 0 && "custom price",
+                        ]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </span>
                     </button>
                   )}
                 </div>
+              )}
 
-                <input
-                  type="number"
-                  min={0}
-                  step={1000}
-                  value={cashReceived ?? ""}
-                  onChange={(event) =>
-                    setCashReceived(event.target.value ? Number(event.target.value) : null)
-                  }
-                  placeholder="Cash received"
-                  className="input mt-2 text-sm"
-                  aria-label="Cash received"
-                />
-
-                {change !== null && (
-                  <p
-                    className={cn(
-                      "mt-2 text-right text-sm",
-                      change < 0 ? "text-red-700" : "text-sea-700",
+              {/* Total + payment */}
+              <div className="border-t border-sea-200 px-4 py-4">
+                {(shipping > 0 || discount > 0) && (
+                  <dl className="mb-2 space-y-1 text-xs text-sea-800">
+                    <div className="flex justify-between">
+                      <dt>Coffee</dt>
+                      <dd>{formatIDR(subtotal)}</dd>
+                    </div>
+                    {discount > 0 && (
+                      <div className="flex justify-between text-emerald-700">
+                        <dt>Discount</dt>
+                        <dd>−{formatIDR(discount)}</dd>
+                      </div>
                     )}
-                  >
-                    {change < 0
-                      ? `${formatIDR(Math.abs(change))} short`
-                      : `Change ${formatIDR(change)}`}
+                    {shipping > 0 && (
+                      <div className="flex justify-between">
+                        <dt>Shipping</dt>
+                        <dd>{formatIDR(shipping)}</dd>
+                      </div>
+                    )}
+                  </dl>
+                )}
+
+                <div className="flex items-baseline justify-between">
+                  <span className="text-sm text-sea-800">Total</span>
+                  <span className="font-serif text-3xl">{formatIDR(total)}</span>
+                </div>
+
+                {customer && total > 0 && paid && (
+                  <p className="mt-1 text-right text-xs text-emerald-700">
+                    earns {Math.floor(total / Math.max(1, rupiahPerPoint))} points
                   </p>
                 )}
+
+                {isManual && (
+                  <div className="mt-4 grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setMarkPaid(false)}
+                      className={cn(
+                        "rounded-lg border py-2 text-xs transition-colors",
+                        !markPaid
+                          ? "border-amber-500 bg-amber-50 text-amber-900"
+                          : "border-sea-200 hover:border-sea-400",
+                      )}
+                    >
+                      Not paid yet
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMarkPaid(true)}
+                      className={cn(
+                        "rounded-lg border py-2 text-xs transition-colors",
+                        markPaid
+                          ? "border-emerald-600 bg-emerald-600 text-white"
+                          : "border-sea-200 hover:border-sea-400",
+                      )}
+                    >
+                      Already paid
+                    </button>
+                  </div>
+                )}
+
+                {paid && (
+                  <div className="mt-3 grid grid-cols-4 gap-1.5">
+                    {(["cash", "qris", "card", "transfer"] as PosPaymentMethod[]).map(
+                      (option) => (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => {
+                            setMethod(option);
+                            if (option !== "cash") setCashReceived(null);
+                          }}
+                          className={cn(
+                            "rounded-lg border py-2 text-xs capitalize transition-colors",
+                            method === option
+                              ? "border-sea-800 bg-sea-800 text-cream"
+                              : "border-sea-200 hover:border-sea-400",
+                          )}
+                        >
+                          {option}
+                        </button>
+                      ),
+                    )}
+                  </div>
+                )}
+
+                {paid && method === "cash" && (
+                  <div className="mt-3">
+                    <div className="flex flex-wrap gap-1.5">
+                      {CASH_PRESETS.filter((note) => note >= total)
+                        .slice(0, 3)
+                        .map((note) => (
+                          <button
+                            key={note}
+                            type="button"
+                            onClick={() => setCashReceived(note)}
+                            className={cn(
+                              "flex-1 rounded-lg border py-1.5 text-xs",
+                              cashReceived === note
+                                ? "border-sea-800 bg-sea-100"
+                                : "border-sea-200 hover:border-sea-400",
+                            )}
+                          >
+                            {formatIDR(note)}
+                          </button>
+                        ))}
+                      {total > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setCashReceived(total)}
+                          className={cn(
+                            "flex-1 rounded-lg border py-1.5 text-xs",
+                            cashReceived === total
+                              ? "border-sea-800 bg-sea-100"
+                              : "border-sea-200 hover:border-sea-400",
+                          )}
+                        >
+                          Exact
+                        </button>
+                      )}
+                    </div>
+
+                    <input
+                      type="number"
+                      min={0}
+                      step={1000}
+                      value={cashReceived ?? ""}
+                      onChange={(event) =>
+                        setCashReceived(event.target.value ? Number(event.target.value) : null)
+                      }
+                      placeholder="Cash received"
+                      className="input mt-2 text-sm"
+                      aria-label="Cash received"
+                    />
+
+                    {change !== null && (
+                      <p
+                        className={cn(
+                          "mt-2 text-right text-sm",
+                          change < 0 ? "text-red-700" : "text-sea-700",
+                        )}
+                      >
+                        {change < 0
+                          ? `${formatIDR(Math.abs(change))} short`
+                          : `Change ${formatIDR(change)}`}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {isManual && ships && !addressComplete && lines.length > 0 && (
+                  <p className="mt-3 rounded-lg bg-sea-50 p-2.5 text-xs text-sea-800">
+                    The address is not finished. You can save this now and fill it
+                    in on the order when they send it — it just cannot be given a
+                    tracking number until then.
+                  </p>
+                )}
+
+                {!isManual && toRoast > 0 && (
+                  <div className="mt-3 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-900">
+                    Not all of this is on the shelf, so it cannot be a counter sale.
+                    <button
+                      type="button"
+                      onClick={() => switchMode("manual")}
+                      className="mt-1.5 block font-medium underline"
+                    >
+                      Make it a manual order and roast the rest
+                    </button>
+                  </div>
+                )}
+
+                {isManual && !markPaid && lines.length > 0 && (
+                  <p className="mt-3 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-900">
+                    This holds the coffee off the website until it is paid or
+                    cancelled.
+                  </p>
+                )}
+
+                {error && (
+                  <p className="mt-3 rounded-lg bg-red-50 p-2.5 text-xs text-red-800" role="alert">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="button"
+                  onClick={submit}
+                  disabled={pending || Boolean(blocker)}
+                  className="btn-primary mt-4 w-full py-3 text-base"
+                >
+                  {pending
+                    ? "Saving…"
+                    : paid
+                      ? `Take ${formatIDR(total)}`
+                      : `Save order · ${formatIDR(total)}`}
+                </button>
+                <p className="mt-2 text-center text-[10px] text-sea-800">
+                  Enter to save · Esc to clear
+                </p>
               </div>
-            )}
-
-            {isManual && ships && !addressComplete && lines.length > 0 && (
-              <p className="mt-3 rounded-lg bg-sea-50 p-2.5 text-xs text-sea-800">
-                The address is not finished. You can save this now and fill it
-                in on the order when they send it — it just cannot be given a
-                tracking number until then.
-              </p>
-            )}
-
-            {isManual && !markPaid && lines.length > 0 && (
-              <p className="mt-3 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-900">
-                This holds the coffee off the website until it is paid or
-                cancelled.
-              </p>
-            )}
-
-            {error && (
-              <p className="mt-3 rounded-lg bg-red-50 p-2.5 text-xs text-red-800" role="alert">
-                {error}
-              </p>
-            )}
-
-            <button
-              type="button"
-              onClick={submit}
-              disabled={pending || Boolean(blocker)}
-              className="btn-primary mt-4 w-full py-3 text-base"
-            >
-              {pending
-                ? "Saving…"
-                : paid
-                  ? `Take ${formatIDR(total)}`
-                  : `Save order · ${formatIDR(total)}`}
-            </button>
-            <p className="mt-2 text-center text-[10px] text-sea-800">
-              Enter to save · Esc to clear
-            </p>
+            </aside>
           </div>
-        </aside>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

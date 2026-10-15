@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { EmptyRow, PageHeader } from "@/components/admin/ui";
 import { ProductList } from "@/components/admin/product-list";
+import { ProductsViewSwitch } from "@/components/admin/products-view-switch";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Category, ProductWithVariants } from "@/lib/types";
 
@@ -32,6 +33,7 @@ export default async function AdminProductsPage() {
           </Link>
         }
       />
+      <ProductsViewSwitch current="list" />
 
       {products.length ? (
         <ProductList products={products} categories={categories} />

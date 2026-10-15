@@ -151,7 +151,7 @@ export default async function AdminOverviewPage() {
         </Panel>
 
         <div className="space-y-6">
-          <Panel title="Low stock" description="Five bags or fewer left.">
+          <Panel title="Low stock" description="Five bags or fewer left, and anything sold before it was roasted.">
             {variants.length ? (
               <ul className="divide-y divide-sea-200">
                 {variants.map((variant) => (
@@ -162,10 +162,12 @@ export default async function AdminOverviewPage() {
                     </span>
                     <span
                       className={`shrink-0 text-sm font-medium ${
-                        variant.stock === 0 ? "text-red-700" : "text-amber-700"
+                        variant.stock <= 0 ? "text-red-700" : "text-amber-700"
                       }`}
                     >
-                      {variant.stock} left
+                      {variant.stock < 0
+                        ? `${-variant.stock} to roast`
+                        : `${variant.stock} left`}
                     </span>
                   </li>
                 ))}

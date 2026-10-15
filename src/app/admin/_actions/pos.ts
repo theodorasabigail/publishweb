@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { MANUAL_CHANNELS, type Address, type SalesChannel } from "@/lib/types";
 import { sendOrderConfirmation } from "@/lib/email/notify";
+import { isWholeNumber, phoneCore, phoneLikePattern, phoneMatches } from "@/lib/phone";
 import { adminClient } from "./guard";
 
 export interface PosSaleLine {
@@ -92,6 +93,10 @@ export async function recordManualOrder(input: {
   discountReason?: string | null;
   /** YYYY-MM-DD, in shop time. Recorded as a plain date, not an instant. */
   shipAfter?: string | null;
+  /** Take the order even where the coffee is not on the shelf yet. Stock runs
+   *  below zero and the shortfall reads as bags owed. Manual orders only: a
+   *  counter sale is coffee in the customer's hand, so it cannot be short. */
+  allowShort?: boolean;
 }): Promise<PosSaleResult> {
   const { supabase, session } = await adminClient();
 
@@ -104,6 +109,7 @@ export async function recordManualOrder(input: {
   if (input.markPaid && !input.paymentMethod) {
     return { ok: false, error: "Say how the money arrived." };
   }
+  const allowShort = Boolean(input.allowShort) && input.channel !== "pos";
   // No completeness check here on purpose. An order whose address is still
   // coming is a real order, and it belongs in the books now rather than in a
   // chat thread until the customer gets round to sending it. What it cannot do
@@ -133,6 +139,9 @@ export async function recordManualOrder(input: {
     p_shipping_idr: input.address ? Math.max(0, input.shippingIdr ?? 0) : 0,
     p_discount_idr: Math.max(0, Math.round(input.discountIdr ?? 0)),
     p_discount_reason: input.discountReason?.trim() || null,
+    // Only sent when it is on, so an ordinary order still goes through on a
+    // database that has not had 0039 yet.
+    ...(allowShort ? { p_allow_short: true } : {}),
   });
 
   // The database function knows nothing about ship_after. Set it as a plain
@@ -192,33 +201,118 @@ export async function recordSale(input: {
   });
 }
 
-/** Customer lookup for attaching loyalty points and finding a saved address. */
-export async function findCustomers(query: string) {
+export interface CustomerMatch {
+  id: string;
+  display_name: string | null;
+  email: string | null;
+  phone: string | null;
+  loyalty_points: number;
+  tier: string;
+}
+
+const CUSTOMER_COLUMNS = "id, display_name, email, phone, loyalty_points, tier";
+
+/**
+ * Every account a phone number belongs to, wherever the shop has it written.
+ *
+ * A customer's number is rarely on their profile: someone who signed up on
+ * the website typed it into a shipping address, and a WhatsApp regular's is
+ * on the orders written down for them. So this looks in all four places --
+ * profiles, saved addresses, order addresses, and the WhatsApp reference on
+ * manual orders -- and ignores how the number was written (0812-3456-7890,
+ * +62 812 3456 7890, 6281234567890 are one number).
+ *
+ * Ids come back best evidence first: the profile's own number, then a saved
+ * address, then past orders, most recent first.
+ */
+async function customerIdsByPhone(
+  supabase: Awaited<ReturnType<typeof adminClient>>["supabase"],
+  typed: string,
+): Promise<string[]> {
+  if (phoneCore(typed).length < 4) return [];
+  const pattern = phoneLikePattern(typed);
+
+  const [profiles, addresses, orders] = await Promise.all([
+    supabase.from("profiles").select("id, phone").ilike("phone", pattern).limit(50),
+    supabase.from("addresses").select("user_id, phone").ilike("phone", pattern).limit(50),
+    supabase
+      .from("orders")
+      .select("user_id, channel_reference, ship_phone:shipping_address->>phone")
+      .not("user_id", "is", null)
+      .or(`channel_reference.ilike.${pattern},shipping_address->>phone.ilike.${pattern}`)
+      .order("created_at", { ascending: false })
+      .limit(100),
+  ]);
+
+  const ids: string[] = [];
+  const add = (id: string | null | undefined) => {
+    if (id && !ids.includes(id)) ids.push(id);
+  };
+
+  for (const row of (profiles.data ?? []) as { id: string; phone: string | null }[]) {
+    if (phoneMatches(row.phone, typed)) add(row.id);
+  }
+  for (const row of (addresses.data ?? []) as { user_id: string; phone: string | null }[]) {
+    if (phoneMatches(row.phone, typed)) add(row.user_id);
+  }
+  for (const row of (orders.data ?? []) as {
+    user_id: string | null;
+    channel_reference: string | null;
+    ship_phone: string | null;
+  }[]) {
+    if (phoneMatches(row.ship_phone, typed) || phoneMatches(row.channel_reference, typed)) {
+      add(row.user_id);
+    }
+  }
+  return ids;
+}
+
+/** Profiles for these ids, in the order given. */
+async function profilesInOrder(
+  supabase: Awaited<ReturnType<typeof adminClient>>["supabase"],
+  ids: string[],
+): Promise<CustomerMatch[]> {
+  if (!ids.length) return [];
+  const { data } = await supabase.from("profiles").select(CUSTOMER_COLUMNS).in("id", ids);
+  const rows = (data ?? []) as CustomerMatch[];
+  return ids.flatMap((id) => rows.filter((row) => row.id === id));
+}
+
+/**
+ * Customer lookup for attaching loyalty points and finding a saved address.
+ *
+ * Name, email or phone. Phone matters most for a chat order: the number is
+ * the one thing about a WhatsApp customer the operator is certain of, so any
+ * part of it, written any way, finds them.
+ */
+export async function findCustomers(query: string): Promise<CustomerMatch[]> {
   const { supabase } = await adminClient();
   const trimmed = query.trim();
   if (trimmed.length < 2) return [];
+
+  // Mostly digits (with the usual +, spaces, dashes, dots, brackets): a number.
+  const looksLikePhone = /^[\d\s+().-]+$/.test(trimmed) && phoneCore(trimmed).length >= 4;
+
+  const byPhone = looksLikePhone
+    ? await profilesInOrder(supabase, (await customerIdsByPhone(supabase, trimmed)).slice(0, 8))
+    : [];
 
   // PostgREST's or() takes a comma-separated filter string, so a comma,
   // parenthesis or dot typed at the till would be parsed as syntax rather
   // than as text. Strip those, then escape LIKE wildcards.
   const safe = trimmed.replace(/[(),.*]/g, " ").trim();
-  if (safe.length < 2) return [];
-  const escaped = safe.replace(/[%_\\]/g, (match) => `\\${match}`);
+  let byText: CustomerMatch[] = [];
+  if (!looksLikePhone && safe.length >= 2) {
+    const escaped = safe.replace(/[%_\\]/g, (match) => `\\${match}`);
+    const { data } = await supabase
+      .from("profiles")
+      .select(CUSTOMER_COLUMNS)
+      .or(`display_name.ilike.%${escaped}%,email.ilike.%${escaped}%`)
+      .limit(8);
+    byText = (data ?? []) as CustomerMatch[];
+  }
 
-  const { data } = await supabase
-    .from("profiles")
-    .select("id, display_name, email, phone, loyalty_points, tier")
-    .or(`display_name.ilike.%${escaped}%,email.ilike.%${escaped}%`)
-    .limit(8);
-
-  return (data ?? []) as {
-    id: string;
-    display_name: string | null;
-    email: string | null;
-    phone: string | null;
-    loyalty_points: number;
-    tier: string;
-  }[];
+  return [...byPhone, ...byText.filter((row) => !byPhone.some((hit) => hit.id === row.id))].slice(0, 8);
 }
 
 /**
@@ -303,48 +397,53 @@ export async function customerAddresses(userId: string) {
 }
 
 /**
- * Find a profile by phone number, matching however it was typed.
- *
- * Uses the same normaliser the loyalty bucket uses -- 0812, +62 812 and
- * 62812 all reach one match -- so a WA order for a number that already
- * belongs to a signed-up customer can be attached automatically at the till.
- * Empty string when nothing matches, or when the input is too short to be a
- * real number.
+ * Every customer a whole phone number belongs to, best evidence first.
+ * Searches profiles, saved addresses and past orders; see customerIdsByPhone.
  */
-export async function findCustomerByPhone(phone: string) {
+export async function findCustomersByPhone(phone: string): Promise<CustomerMatch[]> {
   const { supabase } = await adminClient();
-  const trimmed = phone.trim();
-  if (trimmed.length < 4) return null;
+  if (!isWholeNumber(phone)) return [];
+  return profilesInOrder(supabase, (await customerIdsByPhone(supabase, phone)).slice(0, 5));
+}
 
-  const { data: normalised } = await supabase.rpc("normalise_loyalty_phone", {
-    p_value: trimmed,
-  });
-  const canonical = (normalised as string | null) ?? null;
-  if (!canonical) return null;
+/**
+ * The one customer a phone number belongs to, or null.
+ *
+ * Null as well when the number belongs to more than one account (a shared
+ * family phone): picking one of them silently would put points and history on
+ * the wrong person, so that choice is left to the operator.
+ */
+export async function findCustomerByPhone(phone: string): Promise<CustomerMatch | null> {
+  const matches = await findCustomersByPhone(phone);
+  return matches.length === 1 ? matches[0] : null;
+}
 
-  // profiles.phone is free text, so an exact match after normalisation is the
-  // safe thing to do. Any tighter and we would surprise the operator; any
-  // looser and we would attach the wrong Anwar.
-  const digits = canonical.replace(/[^0-9]/g, "");
-  const alt = digits.startsWith("62") ? `0${digits.slice(2)}` : digits;
+/**
+ * Who a manual order might belong to: by phone if the number is known, and
+ * by name only when it is not.
+ *
+ * Name matches are never attached by themselves -- three customers can be
+ * called Fauzi -- they are offered for the operator to pick.
+ */
+export async function suggestCustomers(input: {
+  phone?: string | null;
+  name?: string | null;
+}): Promise<{ byPhone: CustomerMatch[]; byName: CustomerMatch[] }> {
+  const { supabase } = await adminClient();
+  const phone = input.phone?.trim() ?? "";
+  const byPhone = isWholeNumber(phone)
+    ? await profilesInOrder(supabase, (await customerIdsByPhone(supabase, phone)).slice(0, 3))
+    : [];
+  if (byPhone.length) return { byPhone, byName: [] };
 
+  const name = (input.name ?? "").replace(/[(),.*%_\\]/g, " ").replace(/\s+/g, " ").trim();
+  if (name.length < 3) return { byPhone, byName: [] };
   const { data } = await supabase
     .from("profiles")
-    .select("id, display_name, email, phone, loyalty_points, tier")
-    .or(`phone.eq.${digits},phone.eq.${alt},phone.eq.+${digits},phone.eq.${trimmed}`)
-    .limit(1);
-
-  const row = (data ?? [])[0];
-  if (!row) return null;
-
-  return row as {
-    id: string;
-    display_name: string | null;
-    email: string | null;
-    phone: string | null;
-    loyalty_points: number;
-    tier: string;
-  };
+    .select(CUSTOMER_COLUMNS)
+    .ilike("display_name", `%${name}%`)
+    .limit(4);
+  return { byPhone, byName: (data ?? []) as CustomerMatch[] };
 }
 
 /**
@@ -378,41 +477,30 @@ export async function createCustomer(input: {
     throw new Error("That email address does not look right.");
   }
 
-  // Match either kind of identifier to an existing profile. Phone is
-  // normalised through the same function the loyalty bucket uses so
-  // "0812…" and "+62 812…" both find the same customer.
+  // The number already belongs to someone -- on their profile, a saved
+  // address or a past order, however it was written -- or the email does.
+  // Whole numbers only: a fragment would "match" someone else's number.
+  const byPhone = isWholeNumber(rawPhone)
+    ? await profilesInOrder(supabase, await customerIdsByPhone(supabase, rawPhone))
+    : [];
+  let found: { id: string; display_name: string | null; email: string | null; phone: string | null } | undefined =
+    byPhone[0];
+  if (!found && email) {
+    const { data: existing } = await supabase
+      .from("profiles")
+      .select("id, display_name, email, phone")
+      .eq("email", email)
+      .limit(1);
+    found = (existing ?? [])[0];
+  }
+  if (found) return found;
+
   const { data: normalised } = await supabase.rpc("normalise_loyalty_phone", {
     p_value: rawPhone,
   });
   const canonicalPhone = (normalised as string | null) ?? null;
   const digitsIntl = canonicalPhone?.replace(/[^0-9]/g, "") ?? "";
   const digitsLocal = digitsIntl.startsWith("62") ? `0${digitsIntl.slice(2)}` : digitsIntl;
-
-  const orTerms: string[] = [];
-  if (digitsIntl) {
-    orTerms.push(`phone.eq.${digitsIntl}`, `phone.eq.+${digitsIntl}`);
-  }
-  if (digitsLocal && digitsLocal !== digitsIntl) {
-    orTerms.push(`phone.eq.${digitsLocal}`);
-  }
-  orTerms.push(`phone.eq.${rawPhone}`);
-  if (email) orTerms.push(`email.eq.${email}`);
-
-  const { data: existing } = await supabase
-    .from("profiles")
-    .select("id, display_name, email, phone")
-    .or(orTerms.join(","))
-    .limit(1);
-
-  const found = (existing ?? [])[0];
-  if (found) {
-    return found as {
-      id: string;
-      display_name: string | null;
-      email: string | null;
-      phone: string | null;
-    };
-  }
 
   // Supabase's admin API takes email or phone (or both). Phone must be in
   // E.164 format, which is what the normaliser gives us as digits -- prefix
