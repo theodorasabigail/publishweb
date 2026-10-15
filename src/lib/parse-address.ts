@@ -95,7 +95,13 @@ const PROVINCES: [RegExp, string][] = [
 const PHONE = /(?:\+?62|\b0)[\s.-]?8[\d\s.-]{7,15}\d/;
 const EMAIL = /[^\s@,;:<>()]+@[^\s@,;:<>()]+\.[a-z]{2,}/i;
 const POSTAL = /\b\d{5}\b/;
-const RT_RW = /\bRT\.?\s*:?\s*0*\d{1,3}\s*(?:[\/,]?\s*RW\.?\s*:?\s*0*\d{1,3})?\b|\bRW\.?\s*:?\s*0*\d{1,3}\b/i;
+// "RT 03/RW 07", "rt 3 rw 7", and the short "RT 3/7" where the RW is implied.
+const RT_RW =
+  /\bRT\.?\s*:?\s*0*\d{1,3}\s*(?:[\/,]?\s*RW\.?\s*:?\s*0*\d{1,3}|\/\s*0*\d{1,3})?\b|\bRW\.?\s*:?\s*0*\d{1,3}\b/i;
+
+/** "kirim ke Sari", "a.n. Budi", "untuk Rina": the words in front are not the name. */
+const NAME_LEAD =
+  /^(?:kirim(?:kan)?\s+(?:ke|kpd|kepada)|tolong\s+kirim\s+ke|untuk|utk|buat|atas\s+nama|a\.?\s*n\.?|penerima|kepada|kpd|to)\s*:?\s+/i;
 
 /** Inline markers inside a one-line address: "Kel. Sukajadi", "Kec Sukasari". */
 const INLINE: [RegExp, "village" | "district" | "city"][] = [
@@ -303,7 +309,7 @@ export function parsePastedAddress(text: string): ParsedAddress {
       .join(", "),
   );
   out.line2 = tidy(notes.join(", "));
-  out.recipient_name = titleCase(tidy(out.recipient_name));
+  out.recipient_name = titleCase(tidy(tidy(out.recipient_name).replace(NAME_LEAD, "")));
   out.phone = out.phone ? normalisePhone(out.phone) : "";
   out.email = out.email.toLowerCase();
   out.village = titleCase(tidy(out.village));

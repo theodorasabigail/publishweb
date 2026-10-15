@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ClipboardPaste, MapPin, Pencil } from "lucide-react";
 import {
   AddressFields,
@@ -27,6 +27,7 @@ export function AddressPaste({
   onChange,
   onPhone,
   idPrefix = "paste-address",
+  findAreaToken = 0,
 }: {
   value: AddressValue;
   onChange: (next: AddressValue) => void;
@@ -34,6 +35,9 @@ export function AddressPaste({
    *  customer it belongs to. */
   onPhone?: (phone: string) => void;
   idPrefix?: string;
+  /** Bump to look up the courier's area for an address filled in from
+   *  outside -- a read order -- the way a paste does. */
+  findAreaToken?: number;
 }) {
   const [text, setText] = useState("");
   const [editing, setEditing] = useState(false);
@@ -87,6 +91,35 @@ export function AddressPaste({
       setLooking(false);
     }
   }
+
+  // An address that arrived from elsewhere gets the same area lookup a paste
+  // does. Keyed on the token, so it runs once per arrival and never on edits.
+  const lastToken = useRef(findAreaToken);
+  useEffect(() => {
+    if (findAreaToken === lastToken.current || value.area_id) return;
+    const parsed: ParsedAddress = {
+      recipient_name: value.recipient_name,
+      phone: value.phone,
+      email: value.email ?? "",
+      line1: value.line1,
+      line2: value.line2 ?? "",
+      village: value.village ?? "",
+      district: value.district ?? "",
+      city: value.city,
+      province: value.province ?? "",
+      postal_code: value.postal_code ?? "",
+    };
+    // Started from a timer rather than the effect body, and the token marked
+    // as handled only once it actually starts, so a cancelled first run
+    // (React's development double-mount) still gets its lookup.
+    const timer = setTimeout(() => {
+      lastToken.current = findAreaToken;
+      void findArea(parsed, value);
+    }, 0);
+    return () => clearTimeout(timer);
+    // Only the token decides when this runs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [findAreaToken]);
 
   function fill(source: string) {
     if (!source.trim()) return;

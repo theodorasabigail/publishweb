@@ -185,7 +185,21 @@ If it is an order you will roast for, switch to **Manual order** (below).
 
 ### Manual order — WhatsApp, Instagram, a marketplace
 
-Switch to **Manual order** and build the basket the same way. Then answer three
+**The quickest way: Paste an order.** At the top of the till, press **Paste an
+order** and paste the customer's message. The coffee, quantities, address,
+whether it is shipping or collecting, and whether they have paid are filled in
+for you. Check it and save. If something in the message did not match a coffee,
+the till says so above the basket.
+
+Several orders at once: paste them all with a blank line between each. You
+get a list; save each one, open it in the till to change something, or save
+all the ones that look complete in one go.
+
+With the AI key set up (see the setup guide, *Step 6b*) this reads messages
+the way people write them. Without it, it matches coffee names and sizes and
+works best on tidy messages.
+
+Or switch to **Manual order** and build the basket the same way. Then answer three
 questions the counter never has to ask:
 
 - **Came in through** — WhatsApp, Instagram, Marketplace or somewhere else, plus
@@ -292,9 +306,45 @@ that clearly fell through.
   are grouped by their shipping zone; postage you agreed in a chat is grouped
   as "agreed by hand", since there was no zone involved.
 
+## The products sheet
+
+**Admin → Products** opens on the sheet: every coffee and every size on one
+screen, like a spreadsheet. Click a cell, type, and press Enter or click
+away — it saves by itself, and a small tick shows it did. Enter moves down
+the column, so a recount after a roast is: type, Enter, type, Enter. Escape
+undoes what you were typing.
+
+- **On shop** shows or hides the whole coffee. **On sale** does the same for
+  one size.
+- **Stock** below zero means bags sold before they were roasted; it says
+  "N to roast" underneath.
+- **Add a size** under any coffee, and **Add a coffee** at the bottom (it
+  starts hidden until you switch it on).
+- **Photo, details & SEO** under each name opens the full page for the
+  things the sheet does not show.
+
+**Tell it what changed.** The box above the sheet takes changes in words:
+*"Gayo 200g stock 12, Kintamani sold out, 1kg Gayo now 500rb, new coffee
+Toraja Sapan 250g 140rb"*. Press **Check changes** and it lists exactly what it
+will do ("Gayo Arunika 200g: stock 4 → 12"). Untick anything you did not
+mean, then **Apply**. Nothing changes before that.
+
+**List** at the top switches to the older view, where you drag coffees into
+order and change several at once.
+
+## Editing from the shop itself
+
+Signed in as an admin, every page of the shop has a button in the bottom
+corner. On a coffee's page it says **Edit this coffee** and opens a panel
+beside the page: name, tasting notes, description, and every size's price,
+stock and whether it is on sale. Each change saves as you leave the field,
+and the page behind updates so you see it exactly as a customer will.
+Customers never see the button.
+
 ## Adding a coffee
 
-**Admin → Products → New product.**
+The quickest way is **Add a coffee** at the bottom of the products sheet. For
+everything at once, **Admin → Products → List → New product**.
 
 - **Name** and **tasting notes** are what people read first.
 - Set a **price** for each size you want to sell. Leave a size at 0 and it

@@ -1,6 +1,7 @@
 import { AnnouncementBanner } from "@/components/layout/announcement-banner";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
+import { ShopEditBar } from "@/components/layout/shop-edit-bar";
 import { getNavigation, getSiteSettings } from "@/lib/queries";
 
 export default async function SiteLayout({
@@ -23,6 +24,9 @@ export default async function SiteLayout({
       <SiteHeader nav={navigation} />
       <main className="flex-1">{children}</main>
       <SiteFooter settings={settings} />
+      {/* Admins only; renders nothing for everyone else, and decides that on
+          the client so the shop stays cacheable. */}
+      <ShopEditBar />
     </div>
   );
 }

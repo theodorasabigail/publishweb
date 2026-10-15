@@ -128,7 +128,8 @@ export function VariantEditor({ variants }: { variants?: ProductVariant[] }) {
                 <td className="py-3 pr-4">
                   <input
                     type="number"
-                    min="0"
+                    // No floor: below zero is coffee sold before it was roasted,
+                    // and the form has to be able to save it back unchanged.
                     name={`variant_stock_${index}`}
                     className="input w-24"
                     value={row.stock}

@@ -33,12 +33,13 @@ import { cn } from "@/lib/utils";
  * failed on every request, because /admin is rendered on demand and never
  * prerendered — so nothing evaluated the boundary until a real visitor did.
  */
-const NAV = [
+const NAV: { href: string; label: string; icon: typeof Store; match?: string }[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/pos", label: "Counter sales", icon: Store },
   { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
   { href: "/admin/reports", label: "Sales", icon: BarChart3 },
-  { href: "/admin/products", label: "Products", icon: Coffee },
+  // Opens on the sheet, but every products page (list, one coffee) lights it.
+  { href: "/admin/products/sheet", label: "Products", icon: Coffee, match: "/admin/products" },
   { href: "/admin/categories", label: "Categories", icon: Tags },
   { href: "/admin/roasting", label: "Roasting requests", icon: Flame },
   { href: "/admin/pages", label: "Pages", icon: FileText },
@@ -59,7 +60,7 @@ export function AdminNav() {
         const active =
           item.href === "/admin"
             ? pathname === "/admin"
-            : pathname.startsWith(item.href);
+            : pathname.startsWith(item.match ?? item.href);
 
         return (
           <Link

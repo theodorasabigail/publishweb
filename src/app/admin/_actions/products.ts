@@ -91,7 +91,9 @@ async function upsertVariants(
       product_id: productId,
       size,
       price_idr: price,
-      stock: Math.max(0, integer(formData, `variant_stock_${index}`, 0)),
+      // Not clamped at zero: below zero is bags owed to orders taken before the
+      // roast (0039), and clamping here would quietly forget them on save.
+      stock: integer(formData, `variant_stock_${index}`, 0),
       // Never zero: shipping is priced from this, and a zero silently becomes
       // a 250 g guess at quote time. Falling back to the same guess here at
       // least makes it visible in the admin afterwards.
@@ -449,7 +451,15 @@ export async function bulkAdjustStock(
   const changed = rows
     .map((row) => ({
       id: row.id,
-      stock: Math.max(0, options.mode === "set" ? value : row.stock + value),
+      stock:
+        options.mode === "set"
+          ? Math.max(0, value)
+          : // Adding a roast to a count already below zero (bags owed) has to
+            // pay the debt down, not snap it to zero. Taking bags away still
+            // stops at zero, or at the debt that was already there.
+            value >= 0
+            ? row.stock + value
+            : Math.max(Math.min(0, row.stock), row.stock + value),
     }))
     .filter((row, index) => row.stock !== rows[index].stock);
 
