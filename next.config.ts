@@ -21,6 +21,16 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_BUILD_TIME: new Date().toISOString(),
   },
 
+  experimental: {
+    serverActions: {
+      // Admin-only uploads that go through a server action: a photo of the
+      // price list for the AI to read. The browser shrinks pictures first, so
+      // this only matters for ones it cannot (an iPhone HEIC). Vercel caps a
+      // request at 4.5 MB, so 4 MB is the most that can usefully be allowed.
+      bodySizeLimit: "4mb",
+    },
+  },
+
   images: {
     remotePatterns: supabaseHost
       ? [{ protocol: "https", hostname: supabaseHost, pathname: "/storage/v1/object/public/**" }]

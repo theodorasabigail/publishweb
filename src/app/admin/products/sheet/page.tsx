@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/admin/ui";
 import { ProductSheet } from "@/components/admin/product-sheet";
 import { ChangeBox } from "@/components/admin/change-box";
+import { PriceImport } from "@/components/admin/price-import";
 import { ProductsViewSwitch } from "@/components/admin/products-view-switch";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/env";
@@ -28,6 +29,19 @@ export default async function ProductSheetPage() {
         description="Every coffee on one sheet. Click a cell, type, and press Enter or click away — it saves by itself. Enter moves down the column, so a recount after a roast is type, Enter, type, Enter."
       />
       <ProductsViewSwitch current="sheet" />
+      <PriceImport
+        catalogue={products.map((product) => ({
+          id: product.id,
+          name: product.name,
+          is_active: product.is_active,
+          product_variants: product.product_variants.map((variant) => ({
+            id: variant.id,
+            size: variant.size,
+            price_idr: variant.price_idr,
+            is_active: variant.is_active,
+          })),
+        }))}
+      />
       <ChangeBox />
       <ProductSheet products={products} />
     </div>

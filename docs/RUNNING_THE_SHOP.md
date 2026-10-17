@@ -346,6 +346,23 @@ Toraja Sapan 250g 140rb"*. Press **Check changes** and it lists exactly what it
 will do ("Gayo Arunika 200g: stock 4 → 12"). Untick anything you did not
 mean, then **Apply**. Nothing changes before that.
 
+**Import price list.** When the roastery's price list changes, bring the shop
+in line in one go: in the spreadsheet, select from the header row (Coffee, 15gr,
+45gr … 1KG) down to the last coffee, copy, and paste into **Import price list**.
+Region rows like "Jawa Barat" are understood. You can also upload or paste a
+**screenshot or photo** of the list instead (this needs the AI key; check the
+prices it read before applying).
+
+Before anything changes you see the whole plan: coffees that are new, prices
+that moved (old → new), sizes added, sizes no longer on the list (ticked to
+come off sale), and coffees on the shop that are not on the list (tick to hide
+them). If a coffee's name on the list differs from the shop's — "Aceh G1 Washed
+Arabica" vs "Aceh G1 Washed" — the row asks whether it is the same coffee, or
+pick it from the dropdown, so it is updated instead of added twice. New coffees
+are added hidden (unless you tick otherwise) with 0 stock, their region as the
+origin, and the matching category if you have one with that name. Nothing is
+deleted, and importing the same list again changes nothing.
+
 **List** at the top switches to the older view, where you drag coffees into
 order and change several at once.
 
