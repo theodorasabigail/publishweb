@@ -179,6 +179,13 @@ export function PosTerminal({
     notice?: string;
     unsaid: string[];
   } | null>(null);
+  // A read order waiting because the till already has an order in progress:
+  // replacing someone's half-built basket is asked, never done silently.
+  const [pendingFill, setPendingFill] = useState<{
+    order: ReadOrder;
+    source: "ai" | "basic";
+    notice?: string;
+  } | null>(null);
   // Bumped when an address arrives from a read order, so the address card
   // looks up the courier's area for it the way a paste does.
   const [areaToken, setAreaToken] = useState(0);
@@ -665,7 +672,46 @@ export function PosTerminal({
   // saving one of them.
   return (
     <div>
-      <OrderReader onFill={applyReadOrder} />
+      <OrderReader
+        onFill={(order, source, notice) => {
+          if (lines.length > 0 && !receipt) setPendingFill({ order, source, notice });
+          else applyReadOrder(order, source, notice);
+        }}
+      />
+      {pendingFill && (
+        <div
+          role="alertdialog"
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+        >
+          <span>
+            The till already has an order in progress ({lines.length}{" "}
+            {lines.length === 1 ? "item" : "items"}). Replace it with the pasted order from{" "}
+            <strong>
+              {pendingFill.order.customerName || pendingFill.order.phone || "the message"}
+            </strong>
+            ?
+          </span>
+          <span className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                applyReadOrder(pendingFill.order, pendingFill.source, pendingFill.notice);
+                setPendingFill(null);
+              }}
+              className="btn-primary py-1.5 text-xs"
+            >
+              Replace it
+            </button>
+            <button
+              type="button"
+              onClick={() => setPendingFill(null)}
+              className="text-xs underline"
+            >
+              Keep the current order
+            </button>
+          </span>
+        </div>
+      )}
       {receiptView ?? (
         <div>
           <nav className="mb-4 inline-flex rounded-full border border-sea-200 bg-white p-1">

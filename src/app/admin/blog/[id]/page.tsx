@@ -6,6 +6,7 @@ import { PostForm } from "@/components/admin/post-form";
 import { deletePost } from "@/app/admin/_actions/blog";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { BlogCategory, BlogPost } from "@/lib/types";
+import { ConfirmSubmit } from "@/components/admin/confirm-submit";
 
 export const dynamic = "force-dynamic";
 
@@ -62,12 +63,13 @@ export default async function EditPostPage({
 
       <form action={deletePost} className="mt-10 border-t border-sea-200 pt-6">
         <input type="hidden" name="id" value={typed.id} />
-        <button
-          type="submit"
+        <ConfirmSubmit
+          question="Delete this post for good? Unpublishing keeps it as a draft instead."
+          confirmLabel="Yes, delete the post"
           className="flex items-center gap-1.5 text-sm text-sea-800 hover:text-red-700"
         >
           <Trash2 className="h-4 w-4" /> Delete this post
-        </button>
+        </ConfirmSubmit>
       </form>
     </div>
   );

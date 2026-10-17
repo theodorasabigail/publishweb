@@ -21,6 +21,7 @@ import {
 } from "@/lib/blocks";
 import { copySlotsFor } from "@/lib/page-text";
 import type { Category } from "@/lib/types";
+import { ConfirmSubmit } from "@/components/admin/confirm-submit";
 
 export const dynamic = "force-dynamic";
 
@@ -328,9 +329,13 @@ export default async function AdminPageBlocksPage({
         <form action={deletePage} className="mt-8">
           <input type="hidden" name="id" value={record.id} />
           <input type="hidden" name="slug" value={record.slug} />
-          <button type="submit" className="text-xs text-red-700 hover:underline">
+          <ConfirmSubmit
+            question="Delete this page and every block on it, for good?"
+            confirmLabel="Yes, delete the page"
+            className="text-xs text-red-700 hover:underline"
+          >
             Delete this page and everything on it
-          </button>
+          </ConfirmSubmit>
         </form>
       )}
     </div>

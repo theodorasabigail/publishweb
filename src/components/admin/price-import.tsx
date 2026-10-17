@@ -37,8 +37,10 @@ export function PriceImport({ catalogue }: { catalogue: PlanCatalogueProduct[] }
   const [error, setError] = useState<string | null>(null);
   // Row index -> the coffee it is linked to by hand ("" = add as new).
   const [links, setLinks] = useState<Record<number, string>>({});
-  // Sizes NOT to switch off (all listed-elsewhere sizes start ticked to go off).
-  const [keepSizes, setKeepSizes] = useState<Set<string>>(new Set());
+  // Nothing new is made and nothing is switched off unless it is ticked:
+  // row indices of new coffees to add, and sizes to take off sale.
+  const [addNew, setAddNew] = useState<Set<number>>(new Set());
+  const [offSizes, setOffSizes] = useState<Set<string>>(new Set());
   const [hide, setHide] = useState<Set<string>>(new Set());
   const [showNew, setShowNew] = useState(false);
   const [result, setResult] = useState<PriceImportResult | null>(null);
@@ -84,20 +86,36 @@ export function PriceImport({ catalogue }: { catalogue: PlanCatalogueProduct[] }
   }
   const missing = catalogue.filter((product) => product.is_active && !usedIds.has(product.id));
 
+  // Rows waiting on "is this the same coffee?": these must be answered before
+  // anything is applied, so a near-duplicate is never created by default.
+  const openQuestion = (index: number) => {
+    const candidate = suggestions[index];
+    return candidate && suggestedTimes.get(candidate.id) === 1 ? candidate : null;
+  };
+  const pendingQuestions = items.filter((_, index) => openQuestion(index)).length;
+  const newRows = items
+    .map((item, index) => ({ item, index }))
+    .filter(({ item, index }) => !item.productId && !openQuestion(index));
+
   const counts = {
-    added: items.filter((item) => !item.productId).length,
+    added: items.filter((item, index) => !item.productId && addNew.has(index)).length,
+    unticked: newRows.filter(({ index }) => !addNew.has(index)).length,
     prices: items.flatMap((item) => item.changes).filter((change) => change.kind === "price").length,
     sizes: items
       .filter((item) => item.productId)
       .flatMap((item) => item.changes)
       .filter((change) => change.kind === "new").length,
-    off: items.flatMap((item) => item.notListed).filter((size) => !keepSizes.has(size.variantId)).length,
+    off: items.flatMap((item) => item.notListed).filter((size) => offSizes.has(size.variantId)).length,
   };
+  const nothingToDo =
+    counts.added + counts.prices + counts.sizes + counts.off + hide.size === 0 &&
+    !items.some((item) => item.changes.some((change) => change.kind === "back_on_sale"));
 
   function showRows(next: PriceListRow[]) {
     setRows(next);
     setLinks({});
-    setKeepSizes(new Set());
+    setAddNew(new Set());
+    setOffSizes(new Set());
     setHide(new Set());
   }
 
@@ -145,15 +163,18 @@ export function PriceImport({ catalogue }: { catalogue: PlanCatalogueProduct[] }
   function apply() {
     startApplying(async () => {
       const outcome = await applyPriceImport({
-        items: items.map((item) => ({
-          productId: item.productId,
-          name: item.row.name,
-          region: item.row.region,
-          sizes: item.row.sizes,
-          offSaleVariantIds: item.notListed
-            .map((size) => size.variantId)
-            .filter((id) => !keepSizes.has(id)),
-        })),
+        // New coffees only when ticked; everything else is an update.
+        items: items
+          .filter((item, index) => item.productId || addNew.has(index))
+          .map((item) => ({
+            productId: item.productId,
+            name: item.row.name,
+            region: item.row.region,
+            sizes: item.row.sizes,
+            offSaleVariantIds: item.notListed
+              .map((size) => size.variantId)
+              .filter((id) => offSizes.has(id)),
+          })),
         hideProductIds: Array.from(hide),
         showNewCoffees: showNew,
       }).catch(() => null);
@@ -293,28 +314,38 @@ export function PriceImport({ catalogue }: { catalogue: PlanCatalogueProduct[] }
               )}
             </div>
           )}
-          <p className="mb-3 rounded-lg bg-sea-50 px-3 py-2 text-sm">
-            {rows.length} coffees on the list:{" "}
-            <strong>{counts.added} new</strong>, <strong>{counts.prices}</strong> price
-            {counts.prices === 1 ? "" : "s"} changed, <strong>{counts.sizes}</strong> new size
-            {counts.sizes === 1 ? "" : "s"} on existing coffees
-            {counts.off > 0 && (
-              <>
-                , <strong>{counts.off}</strong> size{counts.off === 1 ? "" : "s"} off sale
-              </>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-sea-50 px-3 py-2 text-sm">
+            <p>
+              {rows.length} coffees on the list. Nothing is added, switched off or hidden
+              unless you tick it, and nothing changes until you press Apply.
+            </p>
+            {newRows.length > 0 && (
+              <button
+                type="button"
+                onClick={() =>
+                  setAddNew(
+                    counts.unticked === 0
+                      ? new Set()
+                      : new Set(newRows.map(({ index }) => index)),
+                  )
+                }
+                className="text-xs text-sea-800 underline"
+              >
+                {counts.unticked === 0
+                  ? "Untick all new coffees"
+                  : `Tick all ${newRows.length} new coffees`}
+              </button>
             )}
-            . Nothing changes until you press Apply.
-          </p>
+          </div>
 
           <ul className="divide-y divide-sea-200 rounded-lg border border-sea-200">
             {items.map((item, index) => {
               const changed = item.changes.filter((change) => change.kind !== "same");
               const same = item.changes.length - changed.length;
-              const candidate = suggestions[index];
-              const suggestion =
-                candidate && suggestedTimes.get(candidate.id) === 1 ? candidate : null;
+              const suggestion = openQuestion(index);
+              const skipped = !item.productId && !suggestion && !addNew.has(index);
               return (
-                <li key={index} className="px-3 py-2 text-sm">
+                <li key={index} className={cn("px-3 py-2 text-sm", skipped && "bg-sea-50/60")}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="min-w-0">
                       <span className="font-medium">{item.row.name}</span>
@@ -330,7 +361,7 @@ export function PriceImport({ catalogue }: { catalogue: PlanCatalogueProduct[] }
                       className="input h-8 w-auto max-w-[16rem] py-0 text-xs"
                       aria-label={`Which coffee is ${item.row.name}`}
                     >
-                      <option value="">Add as a new coffee</option>
+                      <option value="">Not in the shop yet</option>
                       {catalogue.map((product) => (
                         <option key={product.id} value={product.id}>
                           Update “{product.name}”
@@ -351,17 +382,43 @@ export function PriceImport({ catalogue }: { catalogue: PlanCatalogueProduct[] }
                       </button>
                       <button
                         type="button"
-                        onClick={() => setLinks((current) => ({ ...current, [index]: "" }))}
+                        onClick={() => {
+                          setLinks((current) => ({ ...current, [index]: "" }));
+                          // Answering "new" is the decision to add it.
+                          setAddNew((current) => new Set(current).add(index));
+                        }}
                         className="underline"
                       >
-                        No, it is a new coffee
+                        No, add it as a new coffee
                       </button>
                     </p>
                   )}
 
                   <div className="mt-1 flex flex-wrap gap-1.5 text-xs">
-                    {!item.productId && (
-                      <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-emerald-900">New</span>
+                    {!item.productId && !suggestion && (
+                      <label
+                        className={cn(
+                          "flex items-center gap-1 rounded px-1.5 py-0.5",
+                          addNew.has(index)
+                            ? "bg-emerald-100 text-emerald-900"
+                            : "bg-white text-sea-800 ring-1 ring-sea-200",
+                        )}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={addNew.has(index)}
+                          onChange={() =>
+                            setAddNew((current) => {
+                              const next = new Set(current);
+                              if (next.has(index)) next.delete(index);
+                              else next.add(index);
+                              return next;
+                            })
+                          }
+                          className="h-3.5 w-3.5 rounded border-sea-400"
+                        />
+                        {addNew.has(index) ? "Will be added" : "Add this coffee"}
+                      </label>
                     )}
                     {changed.map((change) => (
                       <span
@@ -389,9 +446,9 @@ export function PriceImport({ catalogue }: { catalogue: PlanCatalogueProduct[] }
                         <label key={size.variantId} className="flex items-center gap-1">
                           <input
                             type="checkbox"
-                            checked={!keepSizes.has(size.variantId)}
+                            checked={offSizes.has(size.variantId)}
                             onChange={() =>
-                              setKeepSizes((current) => {
+                              setOffSizes((current) => {
                                 const next = new Set(current);
                                 if (next.has(size.variantId)) next.delete(size.variantId);
                                 else next.add(size.variantId);
@@ -468,11 +525,48 @@ export function PriceImport({ catalogue }: { catalogue: PlanCatalogueProduct[] }
             </span>
           </label>
 
+          <div className="mt-3 rounded-lg border border-sea-200 px-3 py-2 text-sm">
+            {pendingQuestions > 0 ? (
+              <p className="text-amber-900">
+                Answer the {pendingQuestions} “is this the same coffee?”{" "}
+                {pendingQuestions === 1 ? "question" : "questions"} above first.
+              </p>
+            ) : nothingToDo ? (
+              <p className="text-sea-800">Nothing to change — the shop already matches what is ticked.</p>
+            ) : (
+              <p>
+                Apply will:{" "}
+                {[
+                  counts.added > 0 && `add ${counts.added} new coffee${counts.added === 1 ? "" : "s"}${showNew ? "" : " (hidden)"}`,
+                  counts.prices > 0 && `change ${counts.prices} price${counts.prices === 1 ? "" : "s"}`,
+                  counts.sizes > 0 && `add ${counts.sizes} size${counts.sizes === 1 ? "" : "s"} to existing coffees`,
+                  counts.off > 0 && `take ${counts.off} size${counts.off === 1 ? "" : "s"} off sale`,
+                  hide.size > 0 && `hide ${hide.size} coffee${hide.size === 1 ? "" : "s"}`,
+                ]
+                  .filter(Boolean)
+                  .join(", ") || "put sizes back on sale"}
+                . Nothing is deleted.
+                {counts.unticked > 0 && (
+                  <span className="text-sea-800">
+                    {" "}
+                    {counts.unticked} new coffee{counts.unticked === 1 ? " is" : "s are"} not ticked and
+                    will be skipped.
+                  </span>
+                )}
+              </p>
+            )}
+          </div>
+
           <div className="mt-3 flex justify-end gap-3">
             <button type="button" onClick={() => setRows(null)} className="text-sm text-sea-800 hover:underline">
               Back
             </button>
-            <button type="button" onClick={apply} disabled={applying} className="btn-primary py-2 text-sm">
+            <button
+              type="button"
+              onClick={apply}
+              disabled={applying || pendingQuestions > 0 || nothingToDo}
+              className="btn-primary py-2 text-sm"
+            >
               {applying ? "Applying…" : "Apply"}
             </button>
           </div>

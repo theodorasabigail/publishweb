@@ -344,7 +344,9 @@ undoes what you were typing.
 *"Gayo 200g stock 12, Kintamani sold out, 1kg Gayo now 500rb, new coffee
 Toraja Sapan 250g 140rb"*. Press **Check changes** and it lists exactly what it
 will do ("Gayo Arunika 200g: stock 4 → 12"). Untick anything you did not
-mean, then **Apply**. Nothing changes before that.
+mean, then **Apply**. Nothing changes before that. Anything that would *create*
+a coffee or a size is marked "new — tick to add" and starts unticked, so a
+misread name never quietly adds one.
 
 **Import price list.** When the roastery's price list changes, bring the shop
 in line in one go: in the spreadsheet, select from the header row (Coffee, 15gr,
@@ -353,18 +355,37 @@ Region rows like "Jawa Barat" are understood. You can also upload or paste a
 **screenshot or photo** of the list instead (this needs the AI key; check the
 prices it read before applying).
 
-Before anything changes you see the whole plan: coffees that are new, prices
-that moved (old → new), sizes added, sizes no longer on the list (ticked to
-come off sale), and coffees on the shop that are not on the list (tick to hide
-them). If a coffee's name on the list differs from the shop's — "Aceh G1 Washed
-Arabica" vs "Aceh G1 Washed" — the row asks whether it is the same coffee, or
-pick it from the dropdown, so it is updated instead of added twice. New coffees
-are added hidden (unless you tick otherwise) with 0 stock, their region as the
-origin, and the matching category if you have one with that name. Nothing is
-deleted, and importing the same list again changes nothing.
+Before anything changes you see the whole plan, and **nothing is created,
+switched off or hidden unless you tick it**:
+
+- Coffees already in the shop get their new prices and any new sizes.
+- A coffee not in the shop yet has an **Add this coffee** tick, unticked to
+  start (**Tick all** if you mean all of them).
+- If a name on the list is close to one in the shop — "Aceh G1 Washed Arabica"
+  vs "Aceh G1 Washed" — the row asks whether it is the same coffee, and Apply
+  waits until you answer, so a coffee is never added twice by accident. Any row
+  can also be pointed at a coffee from its dropdown.
+- Sizes a coffee sells that are not on the list, and coffees on the shop that
+  are not on the list, stay as they are unless you tick them to go off sale or
+  be hidden.
+- Above **Apply**, one line says exactly what will happen ("add 2 new coffees
+  (hidden), change 1 price…").
+
+New coffees are added hidden (unless you tick otherwise) with 0 stock, their
+region as the origin, and the matching category if you have one with that name.
+Nothing is ever deleted, and importing the same list again changes nothing.
 
 **List** at the top switches to the older view, where you drag coffees into
 order and change several at once.
+
+## Nothing goes without asking
+
+Every delete button in the admin asks first: the first click only asks ("Delete
+Gayo Arunika for good?"), and nothing happens until you press the red **Yes**.
+Where there is a gentler option — hiding a coffee instead of deleting it,
+taking a size off sale instead of removing it — the question says so. Removing
+a size that is already saved asks too. Pasting an order into the till while
+another is half-built asks before replacing it.
 
 ## Editing from the shop itself
 

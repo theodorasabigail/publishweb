@@ -13,6 +13,7 @@ import {
 } from "@/app/admin/_actions/blocks";
 import { blockDefinition, type PageBlock } from "@/lib/blocks";
 import type { Category } from "@/lib/types";
+import { ConfirmSubmit } from "@/components/admin/confirm-submit";
 
 /**
  * One block, open or shut.
@@ -194,12 +195,13 @@ export function BlockEditor({
           <form action={deleteBlock} className="mt-3">
             <input type="hidden" name="id" value={block.id} />
             <input type="hidden" name="page" value={page} />
-            <button
-              type="submit"
+            <ConfirmSubmit
+              question="Delete this block from the page?"
+              confirmLabel="Yes, delete it"
               className="flex items-center gap-1.5 text-xs text-red-700 hover:underline"
             >
               <Trash2 className="h-3.5 w-3.5" /> Delete this block
-            </button>
+            </ConfirmSubmit>
           </form>
         </div>
       )}

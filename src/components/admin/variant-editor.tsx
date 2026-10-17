@@ -74,6 +74,11 @@ export function VariantEditor({ variants }: { variants?: ProductVariant[] }) {
     ];
   });
 
+  // Sizes already saved: removing one deletes it on save, so it asks first.
+  // A row typed in just now and not saved goes straight away.
+  const saved = new Set((variants ?? []).map((variant) => variant.id));
+  const [confirmKey, setConfirmKey] = useState<string | null>(null);
+
   const update = (key: string, patch: Partial<Row>) =>
     setRows((current) =>
       current.map((row) => (row.key === key ? { ...row, ...patch } : row)),
@@ -157,10 +162,39 @@ export function VariantEditor({ variants }: { variants?: ProductVariant[] }) {
                   />
                 </td>
                 <td className="py-3">
+                  {confirmKey === row.key ? (
+                    <div className="flex w-56 flex-col gap-1 rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-900">
+                      <span>
+                        Delete {row.size || "this size"} when you save? Unticking
+                        “On sale” keeps it instead.
+                      </span>
+                      <span className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRows((current) => current.filter((r) => r.key !== row.key));
+                            setConfirmKey(null);
+                          }}
+                          className="btn-danger py-1 text-xs"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmKey(null)}
+                          className="underline"
+                        >
+                          Keep it
+                        </button>
+                      </span>
+                    </div>
+                  ) : (
                   <button
                     type="button"
                     onClick={() =>
-                      setRows((current) => current.filter((r) => r.key !== row.key))
+                      saved.has(row.key)
+                        ? setConfirmKey(row.key)
+                        : setRows((current) => current.filter((r) => r.key !== row.key))
                     }
                     // Removing the last row would leave a product with nothing
                     // to buy and no way to add a size back.
@@ -170,6 +204,7 @@ export function VariantEditor({ variants }: { variants?: ProductVariant[] }) {
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
+                  )}
                 </td>
               </tr>
             ))}

@@ -6,6 +6,7 @@ import { EmptyRow, Field, PageHeader, Panel } from "@/components/admin/ui";
 import { deleteBlogCategory, saveBlogCategory } from "@/app/admin/_actions/categories";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { BlogCategory } from "@/lib/types";
+import { ConfirmSubmit } from "@/components/admin/confirm-submit";
 
 export const dynamic = "force-dynamic";
 
@@ -72,12 +73,13 @@ export default async function AdminBlogCategoriesPage() {
 
                 <form action={deleteBlogCategory} className="mt-3 border-t border-sea-200 pt-3">
                   <input type="hidden" name="id" value={category.id} />
-                  <button
-                    type="submit"
+                  <ConfirmSubmit
+                    question={`Delete “${category.name}”? Its posts stay, just without this category.`}
+                    confirmLabel="Yes, delete it"
                     className="flex items-center gap-1.5 text-xs text-sea-800 hover:text-red-700"
                   >
                     <Trash2 className="h-3.5 w-3.5" /> Delete
-                  </button>
+                  </ConfirmSubmit>
                 </form>
               </Panel>
             ))

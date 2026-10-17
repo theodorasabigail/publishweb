@@ -6,6 +6,7 @@ import { ProductForm } from "@/components/admin/product-form";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Category, ProductWithVariants } from "@/lib/types";
 import { deleteProduct, duplicateProduct } from "@/app/admin/_actions/products";
+import { ConfirmSubmit } from "@/components/admin/confirm-submit";
 
 export const dynamic = "force-dynamic";
 
@@ -82,9 +83,15 @@ export default async function EditProductPage({
           Deleting removes this product from the shop for good. Past orders keep
           their own copy of the name and price, so order history is unaffected.
         </p>
-        <button type="submit" className="btn-danger mt-3 py-2 text-xs">
-          <Trash2 className="h-3.5 w-3.5" /> Delete this product
-        </button>
+        <div className="mt-3">
+          <ConfirmSubmit
+            question={`Delete ${typed.name} for good? To take it off the shop but keep it, switch “Show on the shop” off instead.`}
+            confirmLabel="Yes, delete it"
+            className="btn-danger py-2 text-xs"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Delete this product
+          </ConfirmSubmit>
+        </div>
       </form>
     </div>
   );
