@@ -181,10 +181,16 @@ The sale is recorded the moment you press the button. Stock comes down straight
 away, so **the website cannot sell a bag you just sold over the counter**. That
 is the main reason to ring sales up here rather than in a notebook.
 
-If something is out of stock, the till says so and refuses the counter sale
-rather than letting you sell what you do not have. If that happens and you know
-the stock figure is wrong, fix it in **Products** and ring the sale up again.
-If it is an order you will roast for, switch to **Manual order** (below).
+**Coffee the stock count says is sold out** can still be tapped: it shows
+"0 in count" with a dashed border. The till then asks one question before you
+can take the money:
+
+- **Taking it now** — the bag is in front of you, so the count was wrong. The
+  sale finishes as normal and the stock reads below zero, which is your cue to
+  recount that coffee in **Products**.
+- **Collecting later** — they pay now and you roast it first. Type who it is
+  for. The sale stays open in **Orders**, with the other orders still to be
+  handed over, until you mark it collected.
 
 ### Manual order — WhatsApp, Instagram, a marketplace
 
@@ -247,9 +253,8 @@ are not roasted yet**. Products and the dashboard show it as "3 to roast". The
 website still sees the coffee as sold out, so it never sells those bags twice.
 When you roast, add the bags to the number as usual: −3 and a 5-bag roast is 2.
 
-A counter sale cannot do this, because the bag is in the customer's hand. If
-you tap a sold-out size and then switch to Counter sale, the till tells you and
-offers to switch back.
+The counter can do the same; see *Counter sale* above for the one question it
+asks first.
 
 **Finding who it is.** As soon as there is a phone number on the order (the
 WhatsApp box or the address), the till looks for the customer it belongs to —
