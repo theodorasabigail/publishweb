@@ -507,27 +507,53 @@ that is empty), your contact details, the order lines and the totals, exactly
 as they were charged. Discounts and their reason appear on the receipt; kode
 unik and voided orders do too where they apply.
 
-## Rewording a page
+## Editing the website's pages
 
-**Admin → Pages → Jasa Roasting.** The heading and the paragraph under it have
-always been editable. Now so is everything else on that page: the four steps,
-the WhatsApp nudge, and every label inside the quote form — "Your name", the
-button, the message people see after sending.
+**The easiest way: on the site itself.** Signed in as an admin, open any page —
+the homepage, Shop, Jasa Roasting, Journal, About, or one of your own — and press
+**Edit this page** in the bottom corner. A panel opens beside the page.
 
-Each box shows the wording it came with as grey placeholder text. Type over it
-to change it; **clear a box to go back to the original**. You can never end up
-with a blank label, because an empty box means "use the built-in wording"
-rather than "show nothing".
+A page is a **list of sections**, shown top to bottom in the order they appear:
 
-Two useful details:
+- **Tap a section to open it** and change its words or picture. Every box saves
+  by itself when you click away — there are no Save buttons — and the page
+  behind updates so you see the change straight away.
+- **↑ ↓** move a section. **The eye** hides or shows it (hidden sections are
+  kept for later). **Remove this section…** asks before it removes anything.
+- **More options** inside a section holds the things you rarely change: which
+  side the picture sits, a second button, icons, a video instead of a picture.
+- **Add a section** puts a new one at the bottom: big picture at the top,
+  picture and text, words (or one big statement), a row of coffees, short
+  points, a picture grid, ways to browse, or journal posts. It shows on the
+  page as soon as you type something into it.
+- **The gear** holds the page's settings: its name in the menu, whether it is
+  in the menu, and the title and description Google shows.
+
+**Admin → Pages** is the same editor inside the admin, plus the list of every
+page: the ones in the top menu first, with arrows to change the menu order, and
+**Add page** for a new one (it lives at /p/its-name).
+
+**The homepage.** The first time you edit it, it offers to **set the homepage
+up**: one click copies everything on it — the big picture and its words, your
+chosen categories, every heading — into sections. The words stay the same; the
+headings take on the sections' style. From then on everything on the homepage
+is edited on the homepage. Nothing is deleted, and **Undo the homepage
+setup…** under the gear puts the old homepage back.
+
+**Shop, Jasa Roasting, Journal and About** each have their own part — the
+coffee list, the quote form, the posts — shown in the list as a locked section
+that cannot be moved. Its heading and paragraph are editable; Jasa Roasting's
+also has **Edit all the other wording** for the four steps, the WhatsApp nudge
+and every label in the quote form. Each box shows the original wording faintly;
+**clear a box to go back to the original**. On the roasting page:
 
 - **Roast levels offered** is one option per line. Rewrite the list to change
   what customers can pick from.
 - **Emptying both boxes for a step removes that step** from the page, if you
   only want three.
 
-This is set up for the roasting page for now. The other pages still only offer
-their heading and paragraph.
+The About page's own text is still written into the site; sections you add go
+below it.
 
 ## Addresses
 
@@ -623,19 +649,18 @@ to clear it off the list.
 
 ## Changing how the site looks
 
-**Admin → Site settings** covers the parts that are safe to change while the
-shop is open:
+What is on each page — including the homepage's big picture and categories — is
+edited on the page (see *Editing the website's pages*). **Admin → Site settings**
+covers what applies to the whole site:
 
-- **Hero** — the big headline block at the top of the homepage.
 - **Announcement banner** — the thin strip above the menu. Good for a sale, a
   holiday closure, or a new lot. Turn it off when it stops being true.
-- **Homepage categories** — which groups of coffee show on the front page, and
-  in what order.
+- **Coming-soon page** — its words and background picture.
 - **Contact** — WhatsApp, Instagram and email, used in the footer and on the
   roasting page.
 - **Search engines** — the title and description that show on Google.
 
-Anything beyond this — page layout, spacing, new kinds of pages — is a code
+Anything beyond this — spacing, fonts, new kinds of sections — is a code
 change. That is deliberate: it keeps the dashboard something you can use
 confidently without being able to break the site.
 

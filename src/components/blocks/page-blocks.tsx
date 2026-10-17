@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
+  ArrowRight,
   Clock,
   Coffee,
   Flame,
@@ -43,6 +44,8 @@ async function Block({ block }: { block: PageBlock }) {
   const c = block.content ?? {};
 
   switch (block.block_type) {
+    case "hero":
+      return <HeroBlock content={c} />;
     case "split":
       return <SplitBlock content={c} />;
     case "full_image":
@@ -52,7 +55,8 @@ async function Block({ block }: { block: PageBlock }) {
     case "gallery":
       return <GalleryBlock content={c} />;
     case "text":
-      return <TextBlock content={c} />;
+      // "Big statement" is the old Statement block, folded into Words.
+      return c.style === "big" ? <StatementBlock content={c} /> : <TextBlock content={c} />;
     case "products":
       return <ProductsBlock content={c} />;
     case "categories":
@@ -172,11 +176,15 @@ function Eyebrow({ children, tone }: { children: string; tone?: "dark" }) {
 function SplitBlock({ content }: { content: Content }) {
   const dark = content.tone === "dark";
   const imageLeft = content.side !== "right";
+  // No picture: the words take the whole width instead of leaving half the
+  // section empty.
+  const hasMedia = Boolean(content.image || content.video);
 
   return (
     <section
       className={cn(
-        "grid items-stretch lg:grid-cols-2",
+        "grid items-stretch",
+        hasMedia && "lg:grid-cols-2",
         dark ? "bg-sea-950 text-cream" : content.tone === "white" ? "bg-white" : "bg-cream",
       )}
     >
@@ -193,11 +201,12 @@ function SplitBlock({ content }: { content: Content }) {
 
       <div
         className={cn(
-          "flex items-center px-6 py-16 sm:px-12 lg:py-24",
+          "flex items-center py-16 lg:py-24",
+          hasMedia ? "px-6 sm:px-12" : "container-page",
           imageLeft ? "lg:order-2" : "lg:order-1",
         )}
       >
-        <div className="max-w-md">
+        <div className={hasMedia ? "max-w-md" : "max-w-2xl"}>
           {content.eyebrow && (
             <Eyebrow tone={dark ? "dark" : undefined}>{content.eyebrow}</Eyebrow>
           )}
@@ -218,6 +227,55 @@ function SplitBlock({ content }: { content: Content }) {
           )}
           <Cta content={content} tone={dark ? "dark" : undefined} />
         </div>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The opening of a page: one picture, darkened, a large heading over it and up
+ * to two buttons. The same composition the homepage has always opened with, so
+ * moving it into a section changes who can edit it, not how it looks.
+ */
+function HeroBlock({ content }: { content: Content }) {
+  return (
+    <section className="relative overflow-hidden border-b border-sea-200/70 bg-sea-950 text-cream">
+      <Media content={content} priority sizes="100vw" className="object-cover opacity-40" />
+      <div className="container-page relative py-24 sm:py-32">
+        {content.eyebrow && (
+          <p className="text-xs uppercase tracking-[0.2em] text-sea-300">{content.eyebrow}</p>
+        )}
+        {content.heading && (
+          <h1 className="mt-4 max-w-3xl whitespace-pre-line text-5xl leading-[1.05] sm:text-7xl">
+            {content.heading}
+          </h1>
+        )}
+        {content.body && (
+          <p className="mt-6 max-w-xl whitespace-pre-line text-lg leading-relaxed text-sea-200">
+            {content.body}
+          </p>
+        )}
+        {(content.ctaLabel || content.cta2Label) && (
+          <div className="mt-9 flex flex-wrap gap-3">
+            {content.ctaLabel && (
+              <Link
+                href={content.ctaHref || "/shop"}
+                className="btn bg-cream text-sea-950 hover:bg-white"
+              >
+                {content.ctaLabel}
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            )}
+            {content.cta2Label && (
+              <Link
+                href={content.cta2Href || "/roasting"}
+                className="btn border border-sea-600 text-cream hover:bg-sea-900"
+              >
+                {content.cta2Label}
+              </Link>
+            )}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -366,11 +424,13 @@ function TextBlock({ content }: { content: Content }) {
 
 async function ProductsBlock({ content }: { content: Content }) {
   const limit = Math.min(Math.max(Number(content.limit) || 4, 1), 12);
-  const products = await getProducts(
-    content.categoryId && content.categoryId !== "featured"
-      ? { categoryId: content.categoryId, limit }
-      : { featuredOnly: true, limit },
+  const featured = !content.categoryId || content.categoryId === "featured";
+  let products = await getProducts(
+    featured ? { featuredOnly: true, limit } : { categoryId: content.categoryId, limit },
   );
+  // Nothing marked featured yet: show the newest instead of an empty row, the
+  // way the homepage always has.
+  if (featured && !products.length) products = await getProducts({ limit });
 
   if (!products.length) return null;
 
@@ -472,9 +532,19 @@ async function CategoriesBlock({ content }: { content: Content }) {
   // Only ones with something in them. A card promising a selection and
   // delivering an empty page is worse than not offering the card.
   const products = await getProducts();
-  const used = categories.filter((category) =>
-    products.some((product) => product.category_id === category.id),
-  );
+  // Chosen categories, in the order chosen; otherwise every category with
+  // coffee in it.
+  const chosen = (content.categoryIds ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+  const used = chosen.length
+    ? chosen
+        .map((id) => categories.find((category) => category.id === id))
+        .filter((category): category is NonNullable<typeof category> => Boolean(category))
+    : categories.filter((category) =>
+        products.some((product) => product.category_id === category.id),
+      );
   if (!used.length) return null;
 
   return (
@@ -489,7 +559,14 @@ async function CategoriesBlock({ content }: { content: Content }) {
           </p>
         )}
 
-        <div className="mt-10 grid gap-px bg-sea-200 sm:grid-cols-2 lg:grid-cols-3">
+        {/* As many columns as there are cards (up to three), so two
+            categories never leave an empty third cell. */}
+        <div
+          className={cn(
+            "mt-10 grid gap-px bg-sea-200 sm:grid-cols-2",
+            used.length >= 3 && "lg:grid-cols-3",
+          )}
+        >
           {used.map((category) => (
             <Link
               key={category.id}

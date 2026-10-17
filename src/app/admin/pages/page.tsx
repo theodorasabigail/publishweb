@@ -1,126 +1,100 @@
 import Link from "next/link";
-import { ExternalLink, Plus } from "lucide-react";
-import { EmptyRow, Field, PageHeader, Panel } from "@/components/admin/ui";
+import { ChevronRight, Plus } from "lucide-react";
+import { Field, PageHeader, Panel } from "@/components/admin/ui";
+import { MenuArrows } from "@/components/admin/menu-arrows";
 import { createPage } from "@/app/admin/_actions/blocks";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { BUILT_IN_PAGES, type PageRecord } from "@/lib/blocks";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Every page of the site, in one list.
+ *
+ * The pages in the top menu come first, in menu order, with arrows to change
+ * it; the rest follow. Tapping a page opens its sections. The simplest way to
+ * edit is still on the site itself ("Edit this page"); this is the map.
+ */
 export default async function AdminPagesPage() {
   const supabase = createAdminClient();
-
   const [{ data: pageRows }, { data: blockRows }] = await Promise.all([
     supabase.from("pages").select("*").order("nav_order"),
-    supabase.from("page_blocks").select("page, is_active"),
+    supabase.from("page_blocks").select("page"),
   ]);
 
-  const allPages = (pageRows ?? []) as PageRecord[];
-  const pages = allPages.filter((page) => !page.is_built_in);
-  const byslug = new Map(allPages.map((page) => [page.slug, page]));
-  const blocks = (blockRows ?? []) as { page: string; is_active: boolean }[];
+  const records = (pageRows ?? []) as PageRecord[];
+  const known = new Set(records.map((page) => page.slug));
+  // Built-in pages always exist, even before the database has a row for them.
+  const all = [
+    ...records,
+    ...BUILT_IN_PAGES.filter((page) => !known.has(page.slug)).map(
+      (page) =>
+        ({ ...page, show_in_nav: false, is_built_in: true, is_published: true, href: page.href }) as unknown as PageRecord,
+    ),
+  ];
+  const sectionCount = (slug: string) =>
+    ((blockRows ?? []) as { page: string }[]).filter((block) => block.page === slug).length;
+  const inMenu = all.filter((page) => page.show_in_nav);
+  const notInMenu = all.filter((page) => !page.show_in_nav);
 
-  const countFor = (slug: string) => blocks.filter((b) => b.page === slug).length;
-  const liveFor = (slug: string) =>
-    blocks.filter((b) => b.page === slug && b.is_active).length;
+  const row = (page: PageRecord, arrows?: { first: boolean; last: boolean }) => {
+    const href = page.href ?? (page.is_built_in ? "/" : `/p/${page.slug}`);
+    const count = sectionCount(page.slug);
+    return (
+      <div key={page.slug} className="flex items-center gap-3 py-2.5">
+        {arrows ? <MenuArrows slug={page.slug} {...arrows} /> : <span className="w-[22px]" />}
+        <Link href={`/admin/pages/${page.slug}`} className="group flex min-w-0 flex-1 items-center gap-3">
+          <span className="min-w-0 flex-1">
+            <span className="block font-medium group-hover:underline">{page.title}</span>
+            <span className="block text-xs text-sea-800">
+              {href} · {count ? `${count} section${count === 1 ? "" : "s"}` : "no sections added"}
+            </span>
+          </span>
+          {!page.is_built_in && !page.is_published && (
+            <span className="badge bg-sea-100 text-sea-800">Draft</span>
+          )}
+          <ChevronRight className="h-4 w-4 shrink-0 text-sea-800" />
+        </Link>
+      </div>
+    );
+  };
 
   return (
-    <div>
+    <div className="max-w-3xl">
       <PageHeader
         title="Pages"
-        description="Every page on the site. Rewrite its wording, decide whether your blocks add to it or replace it entirely, and set what appears in the top menu."
+        description="Tap a page to change what is on it. Easier still: open the page on your site while signed in and press Edit this page."
       />
 
-      <Panel
-        title="The site’s pages"
-        description="These always exist. You can rename them in the menu, rewrite them, or hand them over to blocks."
-        className="mb-6"
-      >
+      <Panel title="In the top menu" description="In the order they appear. Use the arrows to move them." className="mb-6">
         <div className="divide-y divide-sea-200">
-          {BUILT_IN_PAGES.map((builtIn) => {
-            const record = byslug.get(builtIn.slug);
-            return (
-              <Link
-                key={builtIn.slug}
-                href={`/admin/pages/${builtIn.slug}`}
-                className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 hover:bg-sea-50"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium">{record?.title ?? builtIn.title}</p>
-                  <p className="text-sm text-sea-800">
-                    {countFor(builtIn.slug)
-                      ? `${liveFor(builtIn.slug)} of ${countFor(builtIn.slug)} blocks showing`
-                      : "No blocks yet"}
-                  </p>
-                </div>
-                {record?.blocks_mode === "replace" && (
-                  <span className="badge bg-sea-900 text-cream">Built from blocks</span>
-                )}
-                {record?.show_in_nav && (
-                  <span className="badge bg-sea-100 text-sea-800">In menu</span>
-                )}
-                <span className="text-sm text-sea-800">{builtIn.href}</span>
-              </Link>
-            );
-          })}
+          {inMenu.length ? (
+            inMenu.map((page, index) => row(page, { first: index === 0, last: index === inMenu.length - 1 }))
+          ) : (
+            <p className="py-2 text-sm text-sea-800">No pages in the menu.</p>
+          )}
         </div>
       </Panel>
 
-      <Panel
-        title="Your own pages"
-        description="Anything else — a lookbook, wholesale, an about-the-farm page. They live at /p/your-address."
-        className="mb-6"
-      >
-        {pages.length ? (
-          <div className="divide-y divide-sea-200">
-            {pages.map((page) => (
-              <div key={page.id} className="flex items-center gap-4 py-3">
-                <Link href={`/admin/pages/${page.slug}`} className="min-w-0 flex-1">
-                  <p className="font-medium hover:underline">{page.title}</p>
-                  <p className="text-sm text-sea-800">
-                    /p/{page.slug} ·{" "}
-                    {countFor(page.slug)
-                      ? `${liveFor(page.slug)} of ${countFor(page.slug)} blocks showing`
-                      : "no blocks yet"}
-                  </p>
-                </Link>
-                <span
-                  className={`badge ${
-                    page.is_published
-                      ? "bg-emerald-100 text-emerald-800"
-                      : "bg-sea-100 text-sea-800"
-                  }`}
-                >
-                  {page.is_published ? "Live" : "Draft"}
-                </span>
-                {page.is_published && (
-                  <a
-                    href={`/p/${page.slug}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sea-800 hover:text-ink"
-                    aria-label="View page"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </a>
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <EmptyRow>No pages of your own yet.</EmptyRow>
-        )}
-      </Panel>
+      {notInMenu.length > 0 && (
+        <Panel
+          title="Not in the menu"
+          description="Still on the site at their address. Switch “Show in the top menu” on in a page's settings (the gear) to add one."
+          className="mb-6"
+        >
+          <div className="divide-y divide-sea-200">{notInMenu.map((page) => row(page))}</div>
+        </Panel>
+      )}
 
-      <Panel title="Add a page">
+      <Panel title="Add a page" description="A lookbook, wholesale, about the farm — it lives at /p/its-name.">
         <form action={createPage} className="flex flex-wrap items-end gap-3">
           <div className="min-w-56 flex-1">
-            <Field label="Name" hint="The address is made from this. You can change it after.">
-              <input name="title" className="input" placeholder="Lookbook" />
+            <Field label="Name">
+              <input name="title" className="input" placeholder="Wholesale" required />
             </Field>
           </div>
           <button type="submit" className="btn-primary py-2 text-xs">
-            <Plus className="h-4 w-4" /> Create
+            <Plus className="h-4 w-4" /> Add page
           </button>
         </form>
       </Panel>

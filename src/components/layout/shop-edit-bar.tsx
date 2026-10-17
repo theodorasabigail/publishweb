@@ -3,8 +3,16 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ExternalLink, Pencil, Table2, X } from "lucide-react";
+import { ExternalLink, LayoutTemplate, Pencil, Table2, X } from "lucide-react";
 import { shopEditorFor } from "@/app/admin/_actions/shop-editor";
+import { pageEditorData, type EditorData } from "@/app/admin/_actions/page-editor";
+import dynamic from "next/dynamic";
+
+// Loaded only when an admin opens it, so visitors never download the editor.
+const PageEditor = dynamic(
+  () => import("@/components/admin/page-editor").then((module) => module.PageEditor),
+  { ssr: false, loading: () => <p className="text-sm text-sea-800">Loading the editor…</p> },
+);
 import {
   updateProductField,
   updateVariantField,
@@ -22,8 +30,9 @@ import type { ProductWithVariants } from "@/lib/types";
  * page it opens a panel beside the page with that coffee's name, notes,
  * description and every size's price, stock and availability; each field
  * saves as you leave it and the page behind refreshes, so the change is seen
- * exactly as a customer will see it. Elsewhere the button goes to the
- * products sheet.
+ * exactly as a customer will see it. On every other page of the site it says
+ * "Edit this page" and opens the same section editor as Admin → Pages, beside
+ * the page it is editing.
  *
  * Nobody else sees anything: the check runs after the page has loaded (the
  * shop itself never reads the session, so it can stay cached) and returns
@@ -37,14 +46,30 @@ function slugFrom(pathname: string): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
+/** Which page of the site this is, for the page editor. */
+function pageSlugFrom(pathname: string): string | null {
+  const builtIn: Record<string, string> = {
+    "/": "home",
+    "/shop": "shop",
+    "/roasting": "roasting",
+    "/blog": "blog",
+    "/about": "about",
+  };
+  if (builtIn[pathname]) return builtIn[pathname];
+  const custom = pathname.match(/^\/p\/([^/]+)$/);
+  return custom ? decodeURIComponent(custom[1]) : null;
+}
+
 export function ShopEditBar() {
   const pathname = usePathname();
   const router = useRouter();
   const slug = slugFrom(pathname);
+  const pageSlug = slug ? null : pageSlugFrom(pathname);
   const [state, setState] = useState<{
     path: string;
     admin: boolean;
     product: ProductWithVariants | null;
+    page: EditorData | null;
   } | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -52,21 +77,69 @@ export function ShopEditBar() {
     // No sign-in cookie, no question to ask: the common case costs nothing.
     if (!AUTH_COOKIE.test(document.cookie)) return;
     let live = true;
-    shopEditorFor(slug)
-      .then((result) => {
-        if (live) setState({ path: pathname, ...result });
-      })
-      .catch(() => {});
+    if (pageSlug) {
+      // Null for anyone who is not an admin, so nothing is shown to them.
+      pageEditorData(pageSlug)
+        .then((page) => {
+          if (live) setState({ path: pathname, admin: Boolean(page), product: null, page });
+        })
+        .catch(() => {});
+    } else {
+      shopEditorFor(slug)
+        .then((result) => {
+          if (live) setState({ path: pathname, ...result, page: null });
+        })
+        .catch(() => {});
+    }
     return () => {
       live = false;
     };
-  }, [pathname, slug]);
+  }, [pathname, slug, pageSlug]);
 
   // Answers for a page we have since left are not shown.
   const current = state && state.path === pathname ? state : null;
   if (!current?.admin) return null;
 
   const product = current.product;
+
+  if (current.page && pageSlug) {
+    const page = current.page;
+    return open ? (
+      <aside
+        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-sea-200 bg-cream shadow-2xl"
+        aria-label={`Edit ${page.title}`}
+      >
+        <div className="flex items-center justify-between border-b border-sea-200 bg-white px-4 py-3">
+          <p className="text-sm font-medium">Editing this page</p>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="rounded p-1.5 text-sea-800 hover:bg-sea-100"
+            aria-label="Close the editor"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          <PageEditor
+            key={pathname}
+            initial={page}
+            compact
+            load={() => pageEditorData(pageSlug)}
+            onChanged={() => router.refresh()}
+          />
+        </div>
+      </aside>
+    ) : (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full bg-sea-800 px-4 py-2.5 text-sm text-cream shadow-lg hover:bg-sea-900"
+      >
+        <LayoutTemplate className="h-4 w-4" /> Edit this page
+      </button>
+    );
+  }
 
   if (!product) {
     return (

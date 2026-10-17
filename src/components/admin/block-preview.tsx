@@ -59,6 +59,55 @@ function shapeFor(type: BlockType) {
         </>
       );
 
+    case "hero":
+      return (
+        <>
+          <rect x="0" y="0" width="120" height="72" fill={LINE} opacity={0.75} />
+          <rect x="10" y="20" width="62" height="8" fill="#ffffff" opacity={0.95} />
+          <rect x="10" y="32" width="44" height="8" fill="#ffffff" opacity={0.95} />
+          <rect x="10" y="50" width="26" height="8" fill="#ffffff" opacity={0.9} />
+        </>
+      );
+
+    case "features":
+      return (
+        <>
+          {[8, 46, 84].map((x) => (
+            <g key={x}>
+              <rect x={x} y="28" width="5" height="5" fill={LINE} opacity={0.6} />
+              <rect x={x + 8} y="28" width="18" height="3" fill={LINE} />
+              {lines(x + 8, 36, 20, 2)}
+            </g>
+          ))}
+        </>
+      );
+
+    case "categories":
+      return (
+        <>
+          {[6, 44, 82].map((x) => (
+            <g key={x}>
+              <rect x={x} y="18" width="32" height="36" fill="none" stroke={LINE} strokeOpacity={0.35} />
+              <rect x={x + 5} y="25" width="18" height="4" fill={LINE} />
+              {lines(x + 5, 34, 20, 2)}
+            </g>
+          ))}
+        </>
+      );
+
+    case "posts":
+      return (
+        <>
+          {[6, 44, 82].map((x) => (
+            <g key={x}>
+              <rect x={x} y="12" width="32" height="22" fill={FILL} />
+              <rect x={x} y="39" width="26" height="3" fill={LINE} />
+              {lines(x, 46, 30, 2)}
+            </g>
+          ))}
+        </>
+      );
+
     case "full_image":
       return (
         <>

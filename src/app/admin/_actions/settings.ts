@@ -13,14 +13,19 @@ import { adminClient, boolean, describeDbError, integer, optionalText, text } fr
 export async function updateSiteSettings(formData: FormData) {
   const { supabase } = await adminClient();
 
+  // The homepage's words are edited on the homepage now. Only fields this form
+  // actually sent are written, so saving settings can never blank them.
+  const hero: Record<string, string | null> = {};
+  if (formData.has("hero_image")) hero.hero_image = optionalText(formData, "hero_image");
+  if (formData.has("hero_title")) hero.hero_title = text(formData, "hero_title") || "Coffee, published.";
+  if (formData.has("hero_subtitle")) hero.hero_subtitle = optionalText(formData, "hero_subtitle");
+  if (formData.has("hero_cta_label")) hero.hero_cta_label = optionalText(formData, "hero_cta_label");
+  if (formData.has("hero_cta_href")) hero.hero_cta_href = optionalText(formData, "hero_cta_href");
+
   const { error } = await supabase
     .from("site_settings")
     .update({
-      hero_image: optionalText(formData, "hero_image"),
-      hero_title: text(formData, "hero_title") || "Coffee, published.",
-      hero_subtitle: optionalText(formData, "hero_subtitle"),
-      hero_cta_label: optionalText(formData, "hero_cta_label"),
-      hero_cta_href: optionalText(formData, "hero_cta_href"),
+      ...hero,
       banner_enabled: boolean(formData, "banner_enabled"),
       banner_image: optionalText(formData, "banner_image"),
       banner_text: optionalText(formData, "banner_text"),
@@ -70,19 +75,6 @@ export async function updateSiteSettings(formData: FormData) {
   if (error) throw new Error(describeDbError(error, "Could not save the settings."));
 
   revalidatePath("/", "layout");
-}
-
-/** Which categories appear on the homepage, and in what order. */
-export async function updateHomepageCategories(ids: string[]) {
-  const { supabase } = await adminClient();
-
-  await supabase
-    .from("site_settings")
-    .update({ homepage_category_ids: ids, updated_at: new Date().toISOString() })
-    .eq("id", true);
-
-  revalidatePath("/");
-  return { ok: true };
 }
 
 export async function setFeaturedPost(formData: FormData) {
