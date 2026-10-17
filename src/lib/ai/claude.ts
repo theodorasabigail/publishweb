@@ -43,10 +43,13 @@ export async function readStructured<Schema extends z.ZodType>({
   schema,
   system,
   text,
+  image,
 }: {
   schema: Schema;
   system: string;
   text: string;
+  /** A picture to read alongside the text -- a screenshot, a photo of a list. */
+  image?: { data: Buffer; mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp" };
 }): Promise<z.infer<Schema>> {
   if (!aiConfigured()) {
     throw new AiUnavailableError(
@@ -64,7 +67,24 @@ export async function readStructured<Schema extends z.ZodType>({
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default",
       system,
-      messages: [{ role: "user", content: text }],
+      messages: [
+        {
+          role: "user",
+          content: image
+            ? [
+                {
+                  type: "image",
+                  source: {
+                    type: "base64",
+                    media_type: image.mediaType,
+                    data: image.data.toString("base64"),
+                  },
+                },
+                { type: "text", text },
+              ]
+            : text,
+        },
+      ],
       output_config: {
         effort: "medium",
         format: betaZodOutputFormat(schema),

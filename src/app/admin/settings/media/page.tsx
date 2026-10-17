@@ -5,6 +5,7 @@ import { deleteUnusedMedia } from "@/app/admin/_actions/settings";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatBytes } from "@/lib/image-compression";
 import { formatDate } from "@/lib/utils";
+import { ConfirmSubmit } from "@/components/admin/confirm-submit";
 
 export const dynamic = "force-dynamic";
 
@@ -108,10 +109,14 @@ export default async function AdminMediaPage() {
             </ul>
 
             <form action={deleteUnusedMedia}>
-              <button type="submit" className="btn-danger py-2 text-xs">
+              <ConfirmSubmit
+                question={`Delete all ${unused.length} unused files from storage? This cannot be undone.`}
+                confirmLabel="Yes, delete them"
+                className="btn-danger py-2 text-xs"
+              >
                 <Trash2 className="h-3.5 w-3.5" /> Delete all {unused.length} unused
                 files
-              </button>
+              </ConfirmSubmit>
             </form>
           </>
         ) : (

@@ -57,11 +57,12 @@ import { cn, formatIDR } from "@/lib/utils";
  * for finding a coffee is the valuable part, and it should not change because
  * the customer happened to message rather than walk in.
  *
- * One real difference: a manual order can be for coffee that is not roasted
- * yet. A counter sale cannot — the bag is in the customer's hand — but a chat
- * order is a promise, and a roaster makes promises ahead of the roast. Sold
- * out sizes stay tappable in manual mode, and the part of a line the shelf
- * cannot cover is shown as "to roast".
+ * Either can be for coffee the stock count says is not there. Sold-out sizes
+ * stay tappable, and the part of a line the count cannot cover is shown as
+ * "to roast". A chat order is simply a promise ahead of the roast. A counter
+ * sale asks one question first, because it is normally finished on the spot:
+ * is the bag in their hand (the count was off), or are they paying now and
+ * collecting after the roast (the order stays open until they do)?
  */
 
 type Mode = "counter" | "manual";
@@ -166,6 +167,10 @@ export function PosTerminal({
   const [note, setNote] = useState("");
   const [customPricing, setCustomPricing] = useState(false);
   const [showMore, setShowMore] = useState(false);
+  // A counter sale with coffee the count does not cover: "now" -- the bag is
+  // in their hand and the count was off; "later" -- paid now, collected after
+  // the roast. Unanswered until the operator says.
+  const [counterShort, setCounterShort] = useState<"now" | "later" | null>(null);
   // What the last pasted order could not settle, shown above the basket until
   // the order is saved or cleared.
   const [readNote, setReadNote] = useState<{
@@ -173,6 +178,13 @@ export function PosTerminal({
     unmatched: string[];
     notice?: string;
     unsaid: string[];
+  } | null>(null);
+  // A read order waiting because the till already has an order in progress:
+  // replacing someone's half-built basket is asked, never done silently.
+  const [pendingFill, setPendingFill] = useState<{
+    order: ReadOrder;
+    source: "ai" | "basic";
+    notice?: string;
   } | null>(null);
   // Bumped when an address arrives from a read order, so the address card
   // looks up the courier's area for it the way a paste does.
@@ -189,6 +201,7 @@ export function PosTerminal({
     paid: boolean;
     ships: boolean;
     toRoast: number;
+    counterShort: "now" | "later" | null;
   } | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -305,24 +318,13 @@ export function PosTerminal({
     setLines((current) => {
       const existing = current.find((line) => line.variantId === variantId);
       if (existing) {
-        // Never let a counter sale build a basket the shelf cannot cover. A
-        // manual order can: the rest is roasted for it.
-        if (!isManual && existing.quantity >= variant.available) {
-          setError(
-            `Only ${variant.available} of ${product.name} (${variant.size}) available.`,
-          );
-          return current;
-        }
+        // Past what the count says is allowed: the rest is shown as "to
+        // roast", and the till asks what that means before saving.
         return current.map((line) =>
           line.variantId === variantId
             ? { ...line, quantity: line.quantity + 1 }
             : line,
         );
-      }
-
-      if (!isManual && variant.available < 1) {
-        setError(`${product.name} (${variant.size}) is not available.`);
-        return current;
       }
 
       return [
@@ -346,7 +348,7 @@ export function PosTerminal({
         ? current.filter((line) => line.variantId !== variantId)
         : current.map((line) =>
             line.variantId === variantId
-              ? { ...line, quantity: isManual ? quantity : Math.min(quantity, line.available) }
+              ? { ...line, quantity }
               : line,
           ),
     );
@@ -382,6 +384,7 @@ export function PosTerminal({
     setError(null);
     setReceipt(null);
     setReadNote(null);
+    setCounterShort(null);
   }
 
   /** Fill the till from a message that was read for us. */
@@ -471,8 +474,8 @@ export function PosTerminal({
   /** What is stopping this order being saved, in the words the operator needs. */
   const blocker = useMemo(() => {
     if (!lines.length) return "Add something to the order first.";
-    if (!isManual && toRoast > 0) {
-      return "Not all of this is on the shelf. Switch to Manual order to sell it before it is roasted.";
+    if (!isManual && toRoast > 0 && !counterShort) {
+      return "Some of this is not in the stock count. Say whether they take it now or collect it after the roast.";
     }
     if (paid && method === "cash" && cashReceived !== null && cashReceived < total) {
       return "Cash received is less than the total.";
@@ -484,7 +487,7 @@ export function PosTerminal({
       return "Say what the discount is for.";
     }
     return null;
-  }, [lines, isManual, toRoast, paid, method, cashReceived, total, discount, discountReason]);
+  }, [lines, isManual, toRoast, counterShort, paid, method, cashReceived, total, discount, discountReason]);
 
   function submit() {
     setError(null);
@@ -515,7 +518,8 @@ export function PosTerminal({
         discountIdr: discount,
         discountReason: discount > 0 ? discountReason : null,
         shipAfter: shipAfter || null,
-        allowShort: isManual && toRoast > 0,
+        allowShort: toRoast > 0,
+        collectLater: !isManual && toRoast > 0 && counterShort === "later",
       });
 
       if (!result.ok || !result.order) {
@@ -533,8 +537,10 @@ export function PosTerminal({
         points: result.order.points_awarded,
         paid: Boolean(result.order.paid_at),
         ships: isManual && ships,
-        toRoast: isManual ? toRoast : 0,
+        toRoast,
+        counterShort: isManual || toRoast === 0 ? null : counterShort,
       });
+      setCounterShort(null);
       setLines([]);
       setCashReceived(null);
       setCustomer(null);
@@ -607,7 +613,27 @@ export function PosTerminal({
           )}
         </dl>
 
-        {receipt.toRoast > 0 && (
+        {receipt.toRoast > 0 && receipt.counterShort === "now" && (
+          <p className="mt-6 rounded-lg bg-amber-50 p-3 text-left text-xs text-amber-900">
+            The stock count was{" "}
+            <strong>
+              {receipt.toRoast} {receipt.toRoast === 1 ? "bag" : "bags"} short
+            </strong>{" "}
+            and now reads below zero. Recount that coffee in{" "}
+            <strong>Products</strong> when you have a moment.
+          </p>
+        )}
+        {receipt.toRoast > 0 && receipt.counterShort === "later" && (
+          <p className="mt-6 rounded-lg bg-amber-50 p-3 text-left text-xs text-amber-900">
+            Paid, with{" "}
+            <strong>
+              {receipt.toRoast} {receipt.toRoast === 1 ? "bag" : "bags"} to roast
+            </strong>
+            . It stays open in <strong>Orders</strong> — mark it collected there
+            when they pick it up.
+          </p>
+        )}
+        {receipt.toRoast > 0 && receipt.counterShort === null && (
           <p className="mt-6 rounded-lg bg-amber-50 p-3 text-left text-xs text-amber-900">
             <strong>
               {receipt.toRoast} {receipt.toRoast === 1 ? "bag" : "bags"} to roast
@@ -646,7 +672,46 @@ export function PosTerminal({
   // saving one of them.
   return (
     <div>
-      <OrderReader onFill={applyReadOrder} />
+      <OrderReader
+        onFill={(order, source, notice) => {
+          if (lines.length > 0 && !receipt) setPendingFill({ order, source, notice });
+          else applyReadOrder(order, source, notice);
+        }}
+      />
+      {pendingFill && (
+        <div
+          role="alertdialog"
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+        >
+          <span>
+            The till already has an order in progress ({lines.length}{" "}
+            {lines.length === 1 ? "item" : "items"}). Replace it with the pasted order from{" "}
+            <strong>
+              {pendingFill.order.customerName || pendingFill.order.phone || "the message"}
+            </strong>
+            ?
+          </span>
+          <span className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                applyReadOrder(pendingFill.order, pendingFill.source, pendingFill.notice);
+                setPendingFill(null);
+              }}
+              className="btn-primary py-1.5 text-xs"
+            >
+              Replace it
+            </button>
+            <button
+              type="button"
+              onClick={() => setPendingFill(null)}
+              className="text-xs underline"
+            >
+              Keep the current order
+            </button>
+          </span>
+        </div>
+      )}
       {receiptView ?? (
         <div>
           <nav className="mb-4 inline-flex rounded-full border border-sea-200 bg-white p-1">
@@ -730,27 +795,23 @@ export function PosTerminal({
                       {product.product_variants.map((variant) => {
                         const soldOut = variant.available < 1;
                         const held = variant.reserved > 0;
-                        // Sold out stops a counter sale; a manual order can still
-                        // take it, to be roasted.
-                        const blocked = soldOut && !isManual;
+                        // Sold out still sells: the bag may be on the shelf with
+                        // the count wrong, or it is roasted for this order.
                         return (
                           <button
                             key={variant.id}
                             type="button"
-                            disabled={blocked}
                             onClick={() => addVariant(product, variant.id)}
                             title={
-                              soldOut && isManual
-                                ? "None on the shelf — this order will be roasted for."
+                              soldOut
+                                ? "None in the stock count — sell it anyway and the till asks what that means."
                                 : undefined
                             }
                             className={cn(
                               "flex-1 rounded-lg border px-2 py-2 text-center transition-colors",
-                              blocked
-                                ? "cursor-not-allowed border-sea-200 opacity-40"
-                                : soldOut
-                                  ? "border-dashed border-amber-400 hover:bg-amber-50 active:bg-amber-100"
-                                  : "border-sea-200 hover:border-sea-700 hover:bg-sea-50 active:bg-sea-100",
+                              soldOut
+                                ? "border-dashed border-amber-400 hover:bg-amber-50 active:bg-amber-100"
+                                : "border-sea-200 hover:border-sea-700 hover:bg-sea-50 active:bg-sea-100",
                             )}
                           >
                             <span className="block text-sm font-medium">{variant.size}</span>
@@ -763,11 +824,7 @@ export function PosTerminal({
                                 variant.available <= 3 ? "text-amber-700" : "text-sea-800",
                               )}
                             >
-                              {soldOut
-                                ? isManual
-                                  ? "roast to order"
-                                  : "none free"
-                                : `${variant.available} left`}
+                              {soldOut ? (isManual ? "roast to order" : "0 in count") : `${variant.available} left`}
                             </span>
                             {held && (
                               <span className="block text-[10px] text-sea-800/70">
@@ -865,8 +922,7 @@ export function PosTerminal({
                         <button
                           type="button"
                           onClick={() => setQuantity(line.variantId, line.quantity + 1)}
-                          disabled={!isManual && line.quantity >= line.available}
-                          className="p-1.5 disabled:opacity-30"
+                          className="p-1.5"
                           aria-label={`One more ${line.productName}`}
                         >
                           <Plus className="h-3 w-3" />
@@ -1438,14 +1494,44 @@ export function PosTerminal({
 
                 {!isManual && toRoast > 0 && (
                   <div className="mt-3 rounded-lg bg-amber-50 p-2.5 text-xs text-amber-900">
-                    Not all of this is on the shelf, so it cannot be a counter sale.
-                    <button
-                      type="button"
-                      onClick={() => switchMode("manual")}
-                      className="mt-1.5 block font-medium underline"
-                    >
-                      Make it a manual order and roast the rest
-                    </button>
+                    <p className="mb-2">
+                      {toRoast} {toRoast === 1 ? "bag is" : "bags are"} not in the
+                      stock count. Are they taking it now?
+                    </p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {(
+                        [
+                          ["now", "Taking it now", "The bag is here — the count was off"],
+                          ["later", "Collecting later", "Paid now, we roast it first"],
+                        ] as const
+                      ).map(([value, label, hint]) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setCounterShort(value)}
+                          className={cn(
+                            "rounded-lg border px-2 py-1.5 text-left transition-colors",
+                            counterShort === value
+                              ? "border-amber-700 bg-amber-100 text-amber-950 ring-2 ring-amber-600"
+                              : "border-amber-300 bg-white hover:border-amber-500",
+                          )}
+                        >
+                          <span className="block font-medium">{label}</span>
+                          <span className="block text-[10px] text-amber-800">
+                            {hint}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                    {counterShort === "later" && !customer && (
+                      <input
+                        value={note}
+                        onChange={(event) => setNote(event.target.value)}
+                        placeholder="Who is collecting? (name or number)"
+                        aria-label="Who is collecting"
+                        className="input mt-2 bg-white text-xs"
+                      />
+                    )}
                   </div>
                 )}
 

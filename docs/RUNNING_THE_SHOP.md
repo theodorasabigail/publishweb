@@ -181,10 +181,16 @@ The sale is recorded the moment you press the button. Stock comes down straight
 away, so **the website cannot sell a bag you just sold over the counter**. That
 is the main reason to ring sales up here rather than in a notebook.
 
-If something is out of stock, the till says so and refuses the counter sale
-rather than letting you sell what you do not have. If that happens and you know
-the stock figure is wrong, fix it in **Products** and ring the sale up again.
-If it is an order you will roast for, switch to **Manual order** (below).
+**Coffee the stock count says is sold out** can still be tapped: it shows
+"0 in count" with a dashed border. The till then asks one question before you
+can take the money:
+
+- **Taking it now** — the bag is in front of you, so the count was wrong. The
+  sale finishes as normal and the stock reads below zero, which is your cue to
+  recount that coffee in **Products**.
+- **Collecting later** — they pay now and you roast it first. Type who it is
+  for. The sale stays open in **Orders**, with the other orders still to be
+  handed over, until you mark it collected.
 
 ### Manual order — WhatsApp, Instagram, a marketplace
 
@@ -247,9 +253,8 @@ are not roasted yet**. Products and the dashboard show it as "3 to roast". The
 website still sees the coffee as sold out, so it never sells those bags twice.
 When you roast, add the bags to the number as usual: −3 and a 5-bag roast is 2.
 
-A counter sale cannot do this, because the bag is in the customer's hand. If
-you tap a sold-out size and then switch to Counter sale, the till tells you and
-offers to switch back.
+The counter can do the same; see *Counter sale* above for the one question it
+asks first.
 
 **Finding who it is.** As soon as there is a phone number on the order (the
 WhatsApp box or the address), the till looks for the customer it belongs to —
@@ -339,10 +344,48 @@ undoes what you were typing.
 *"Gayo 200g stock 12, Kintamani sold out, 1kg Gayo now 500rb, new coffee
 Toraja Sapan 250g 140rb"*. Press **Check changes** and it lists exactly what it
 will do ("Gayo Arunika 200g: stock 4 → 12"). Untick anything you did not
-mean, then **Apply**. Nothing changes before that.
+mean, then **Apply**. Nothing changes before that. Anything that would *create*
+a coffee or a size is marked "new — tick to add" and starts unticked, so a
+misread name never quietly adds one.
+
+**Import price list.** When the roastery's price list changes, bring the shop
+in line in one go: in the spreadsheet, select from the header row (Coffee, 15gr,
+45gr … 1KG) down to the last coffee, copy, and paste into **Import price list**.
+Region rows like "Jawa Barat" are understood. You can also upload or paste a
+**screenshot or photo** of the list instead (this needs the AI key; check the
+prices it read before applying).
+
+Before anything changes you see the whole plan, and **nothing is created,
+switched off or hidden unless you tick it**:
+
+- Coffees already in the shop get their new prices and any new sizes.
+- A coffee not in the shop yet has an **Add this coffee** tick, unticked to
+  start (**Tick all** if you mean all of them).
+- If a name on the list is close to one in the shop — "Aceh G1 Washed Arabica"
+  vs "Aceh G1 Washed" — the row asks whether it is the same coffee, and Apply
+  waits until you answer, so a coffee is never added twice by accident. Any row
+  can also be pointed at a coffee from its dropdown.
+- Sizes a coffee sells that are not on the list, and coffees on the shop that
+  are not on the list, stay as they are unless you tick them to go off sale or
+  be hidden.
+- Above **Apply**, one line says exactly what will happen ("add 2 new coffees
+  (hidden), change 1 price…").
+
+New coffees are added hidden (unless you tick otherwise) with 0 stock, their
+region as the origin, and the matching category if you have one with that name.
+Nothing is ever deleted, and importing the same list again changes nothing.
 
 **List** at the top switches to the older view, where you drag coffees into
 order and change several at once.
+
+## Nothing goes without asking
+
+Every delete button in the admin asks first: the first click only asks ("Delete
+Gayo Arunika for good?"), and nothing happens until you press the red **Yes**.
+Where there is a gentler option — hiding a coffee instead of deleting it,
+taking a size off sale instead of removing it — the question says so. Removing
+a size that is already saved asks too. Pasting an order into the till while
+another is half-built asks before replacing it.
 
 ## Editing from the shop itself
 
@@ -464,27 +507,53 @@ that is empty), your contact details, the order lines and the totals, exactly
 as they were charged. Discounts and their reason appear on the receipt; kode
 unik and voided orders do too where they apply.
 
-## Rewording a page
+## Editing the website's pages
 
-**Admin → Pages → Jasa Roasting.** The heading and the paragraph under it have
-always been editable. Now so is everything else on that page: the four steps,
-the WhatsApp nudge, and every label inside the quote form — "Your name", the
-button, the message people see after sending.
+**The easiest way: on the site itself.** Signed in as an admin, open any page —
+the homepage, Shop, Jasa Roasting, Journal, About, or one of your own — and press
+**Edit this page** in the bottom corner. A panel opens beside the page.
 
-Each box shows the wording it came with as grey placeholder text. Type over it
-to change it; **clear a box to go back to the original**. You can never end up
-with a blank label, because an empty box means "use the built-in wording"
-rather than "show nothing".
+A page is a **list of sections**, shown top to bottom in the order they appear:
 
-Two useful details:
+- **Tap a section to open it** and change its words or picture. Every box saves
+  by itself when you click away — there are no Save buttons — and the page
+  behind updates so you see the change straight away.
+- **↑ ↓** move a section. **The eye** hides or shows it (hidden sections are
+  kept for later). **Remove this section…** asks before it removes anything.
+- **More options** inside a section holds the things you rarely change: which
+  side the picture sits, a second button, icons, a video instead of a picture.
+- **Add a section** puts a new one at the bottom: big picture at the top,
+  picture and text, words (or one big statement), a row of coffees, short
+  points, a picture grid, ways to browse, or journal posts. It shows on the
+  page as soon as you type something into it.
+- **The gear** holds the page's settings: its name in the menu, whether it is
+  in the menu, and the title and description Google shows.
+
+**Admin → Pages** is the same editor inside the admin, plus the list of every
+page: the ones in the top menu first, with arrows to change the menu order, and
+**Add page** for a new one (it lives at /p/its-name).
+
+**The homepage.** The first time you edit it, it offers to **set the homepage
+up**: one click copies everything on it — the big picture and its words, your
+chosen categories, every heading — into sections. The words stay the same; the
+headings take on the sections' style. From then on everything on the homepage
+is edited on the homepage. Nothing is deleted, and **Undo the homepage
+setup…** under the gear puts the old homepage back.
+
+**Shop, Jasa Roasting, Journal and About** each have their own part — the
+coffee list, the quote form, the posts — shown in the list as a locked section
+that cannot be moved. Its heading and paragraph are editable; Jasa Roasting's
+also has **Edit all the other wording** for the four steps, the WhatsApp nudge
+and every label in the quote form. Each box shows the original wording faintly;
+**clear a box to go back to the original**. On the roasting page:
 
 - **Roast levels offered** is one option per line. Rewrite the list to change
   what customers can pick from.
 - **Emptying both boxes for a step removes that step** from the page, if you
   only want three.
 
-This is set up for the roasting page for now. The other pages still only offer
-their heading and paragraph.
+The About page's own text is still written into the site; sections you add go
+below it.
 
 ## Addresses
 
@@ -580,19 +649,18 @@ to clear it off the list.
 
 ## Changing how the site looks
 
-**Admin → Site settings** covers the parts that are safe to change while the
-shop is open:
+What is on each page — including the homepage's big picture and categories — is
+edited on the page (see *Editing the website's pages*). **Admin → Site settings**
+covers what applies to the whole site:
 
-- **Hero** — the big headline block at the top of the homepage.
 - **Announcement banner** — the thin strip above the menu. Good for a sale, a
   holiday closure, or a new lot. Turn it off when it stops being true.
-- **Homepage categories** — which groups of coffee show on the front page, and
-  in what order.
+- **Coming-soon page** — its words and background picture.
 - **Contact** — WhatsApp, Instagram and email, used in the footer and on the
   roasting page.
 - **Search engines** — the title and description that show on Google.
 
-Anything beyond this — page layout, spacing, new kinds of pages — is a code
+Anything beyond this — spacing, fonts, new kinds of sections — is a code
 change. That is deliberate: it keeps the dashboard something you can use
 confidently without being able to break the site.
 

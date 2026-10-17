@@ -20,8 +20,24 @@
 -- rather than "awaiting fulfilment", which is the pending badge.
 -- ===========================================================================
 
+-- Runs once. setup.sql is pasted again with every new feature, and a backfill
+-- that ran every time would also close counter sales that are rightly still
+-- open: one reopened by hand, or one paid now and collected after the roast.
+-- The marker row says it has been done; once it exists this is a no-op.
+create table if not exists public.migration_markers (
+  name text primary key,
+  done_at timestamptz not null default now()
+);
+-- Internal bookkeeping, never read by the site: no policies, so the public API
+-- cannot see or change it.
+alter table public.migration_markers enable row level security;
+
 do $$
 begin
+  if exists (select 1 from public.migration_markers where name = '0038_backfill_pos_delivered') then
+    return;
+  end if;
+
   execute $sql$
     update public.orders
        set status = 'delivered'::public.order_status
@@ -29,6 +45,8 @@ begin
        and paid_at is not null
        and status = 'pending'::public.order_status
   $sql$;
+
+  insert into public.migration_markers (name) values ('0038_backfill_pos_delivered');
 exception when others then
   raise notice
     'Skipping POS delivered backfill on this run (%). It will complete on the next setup.sql paste.',

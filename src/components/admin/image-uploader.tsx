@@ -32,10 +32,14 @@ export function ImageUploader({
   defaultValue,
   folder = "uploads",
   hint,
+  onChange,
 }: {
   name: string;
   label: string;
   defaultValue?: string | null;
+  /** Told whenever the file changes -- uploaded or removed -- so an editor
+   *  can save straight away instead of waiting for a form submit. */
+  onChange?: (url: string) => void;
   folder?: string;
   hint?: string;
 }) {
@@ -97,6 +101,7 @@ export function ImageUploader({
       } = supabase.storage.from("media").getPublicUrl(path);
 
       setUrl(publicUrl);
+      onChange?.(publicUrl);
       setResult(compressed);
     } catch (uploadError) {
       setError(
@@ -131,6 +136,7 @@ export function ImageUploader({
             type="button"
             onClick={() => {
               setUrl("");
+              onChange?.("");
               setResult(null);
             }}
             className="absolute -right-2 -top-2 rounded-full bg-white p-1 shadow ring-1 ring-sea-200 hover:bg-red-50"

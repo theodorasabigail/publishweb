@@ -4,7 +4,10 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Sparkles, TriangleAlert } from "lucide-react";
 import { applyProductChanges, readProductChanges } from "@/app/admin/_actions/product-changes";
-import type { ProductChange } from "@/lib/product-changes";
+import type { ChangeKind, ProductChange } from "@/lib/product-changes";
+
+/** Kinds that create something rather than change what exists. */
+const CREATES = new Set<ChangeKind>(["new_coffee", "new_size"]);
 
 /**
  * "Tell it what changed."
@@ -44,7 +47,10 @@ export function ChangeBox() {
       }
       setProposal({
         changes: result.changes,
-        picked: result.changes.map(() => true),
+        // Changes to coffees already in the shop are what was typed, so they
+        // start ticked. Anything that would create a coffee or a size waits
+        // for its own tick -- a misread name must never quietly add one.
+        picked: result.changes.map((change) => !CREATES.has(change.kind)),
         notUnderstood: result.notUnderstood,
         source: result.source,
         notice: result.notice,
@@ -124,7 +130,14 @@ export function ChangeBox() {
                         }
                         className="mt-0.5 h-4 w-4 shrink-0 rounded border-sea-400"
                       />
-                      {change.summary}
+                      <span>
+                        {change.summary}
+                        {CREATES.has(change.kind) && (
+                          <span className="ml-1.5 rounded bg-emerald-100 px-1.5 py-0.5 text-[11px] text-emerald-900">
+                            new — tick to add
+                          </span>
+                        )}
+                      </span>
                     </label>
                   </li>
                 ))}

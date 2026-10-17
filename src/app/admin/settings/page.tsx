@@ -1,25 +1,24 @@
 import Link from "next/link";
 import { ImageIcon, Mail, Truck } from "lucide-react";
-import { HomepageCategoryPicker } from "@/components/admin/homepage-categories";
 import { VisibilityStatus } from "@/components/admin/visibility-status";
 import { ImageUploader } from "@/components/admin/image-uploader";
 import { Field, PageHeader, Panel } from "@/components/admin/ui";
 import { updateSiteSettings } from "@/app/admin/_actions/settings";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { COMING_SOON_DEFAULTS } from "@/lib/coming-soon";
-import type { Category, SiteSettings } from "@/lib/types";
+import type { SiteSettings } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminSettingsPage() {
   const supabase = createAdminClient();
-  const [{ data: settings }, { data: categories }] = await Promise.all([
-    supabase.from("site_settings").select("*").eq("id", true).maybeSingle(),
-    supabase.from("categories").select("*").order("sort_order"),
-  ]);
+  const { data: settings } = await supabase
+    .from("site_settings")
+    .select("*")
+    .eq("id", true)
+    .maybeSingle();
 
   const site = settings as SiteSettings;
-  const categoryRows = (categories ?? []) as Category[];
 
   return (
     <div>
@@ -50,58 +49,25 @@ export default async function AdminSettingsPage() {
         </Panel>
 
         <Panel
-          title="Homepage categories"
-          description="Which groups of coffee are shown on the front page, and in what order."
+          title="The homepage"
+          description="Its big picture, its words and which categories it shows."
         >
-          <HomepageCategoryPicker
-            categories={categoryRows}
-            selectedIds={site?.homepage_category_ids ?? []}
-          />
+          <p className="text-sm text-sea-800">
+            Everything on the homepage is now edited on the homepage itself: open your site
+            while signed in and press <strong>Edit this page</strong>. (The first time, it
+            asks to set the homepage up — one click, nothing is lost.)
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link href="/" className="btn-primary py-2 text-xs">
+              Edit the homepage
+            </Link>
+            <Link href="/admin/pages/home" className="btn-secondary py-2 text-xs">
+              Or edit it here in the admin
+            </Link>
+          </div>
         </Panel>
 
         <form action={updateSiteSettings} className="space-y-6">
-          <Panel title="Hero" description="The big block at the top of the homepage.">
-            <div className="space-y-5">
-              <ImageUploader
-                name="hero_image"
-                label="Background image"
-                defaultValue={site?.hero_image}
-                folder="hero"
-                hint="Optional. Wide images work best; text sits on top of it."
-              />
-              <Field label="Headline">
-                <input
-                  name="hero_title"
-                  className="input"
-                  defaultValue={site?.hero_title ?? "Coffee, published."}
-                />
-              </Field>
-              <Field label="Sub-heading">
-                <textarea
-                  name="hero_subtitle"
-                  className="input min-h-20"
-                  defaultValue={site?.hero_subtitle ?? ""}
-                />
-              </Field>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Button text">
-                  <input
-                    name="hero_cta_label"
-                    className="input"
-                    defaultValue={site?.hero_cta_label ?? ""}
-                  />
-                </Field>
-                <Field label="Button link" hint="A path on this site, like /shop.">
-                  <input
-                    name="hero_cta_href"
-                    className="input"
-                    defaultValue={site?.hero_cta_href ?? "/shop"}
-                  />
-                </Field>
-              </div>
-            </div>
-          </Panel>
-
           <Panel
             title="Announcement banner"
             description="The thin strip above the menu. Good for a sale, a holiday closure, or a new lot."
@@ -189,8 +155,17 @@ export default async function AdminSettingsPage() {
                 </Field>
               </div>
             </div>
+            <div className="mt-5">
+              <ImageUploader
+                name="hero_image"
+                label="Background picture"
+                defaultValue={site?.hero_image}
+                folder="hero"
+                hint="Shown behind the coming-soon page."
+              />
+            </div>
             <p className="mt-4 text-xs text-sea-800">
-              The background is the hero image set above, and the contact
+              The contact
               buttons appear on their own once WhatsApp, Instagram or an email
               address is filled in below. To see the page as visitors do, open{" "}
               <span className="font-mono">/coming-soon</span>.

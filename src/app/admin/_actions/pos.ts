@@ -93,10 +93,12 @@ export async function recordManualOrder(input: {
   discountReason?: string | null;
   /** YYYY-MM-DD, in shop time. Recorded as a plain date, not an instant. */
   shipAfter?: string | null;
-  /** Take the order even where the coffee is not on the shelf yet. Stock runs
-   *  below zero and the shortfall reads as bags owed. Manual orders only: a
-   *  counter sale is coffee in the customer's hand, so it cannot be short. */
+  /** Take the order even where the stock count does not cover it. Stock runs
+   *  below zero and the shortfall reads as bags owed. */
   allowShort?: boolean;
+  /** A counter sale paid now and collected after the roast: left open at
+   *  pending instead of finished on the spot, so it is not forgotten. */
+  collectLater?: boolean;
 }): Promise<PosSaleResult> {
   const { supabase, session } = await adminClient();
 
@@ -109,7 +111,7 @@ export async function recordManualOrder(input: {
   if (input.markPaid && !input.paymentMethod) {
     return { ok: false, error: "Say how the money arrived." };
   }
-  const allowShort = Boolean(input.allowShort) && input.channel !== "pos";
+  const allowShort = Boolean(input.allowShort);
   // No completeness check here on purpose. An order whose address is still
   // coming is a real order, and it belongs in the books now rather than in a
   // chat thread until the customer gets round to sending it. What it cannot do
@@ -164,6 +166,14 @@ export async function recordManualOrder(input: {
   }
 
   const order = (Array.isArray(data) ? data[0] : data) as PosSaleResult["order"];
+
+  // record_manual_order finishes a paid counter sale on the spot. One the
+  // customer collects after the roast is not finished yet, so it goes back to
+  // pending and waits in Orders with everything else still to hand over.
+  if (order && input.collectLater && input.channel === "pos") {
+    await supabase.from("orders").update({ status: "pending" }).eq("id", order.id);
+    order.status = "pending";
+  }
 
   // A paid order that has to be packed is a real order the customer should get
   // a receipt for. A counter sale is not — they are standing in front of you,

@@ -6,6 +6,7 @@ import { getShippingProvider } from "@/lib/shipping";
 import { deleteShippingZone, saveShippingZone, updateShippingOrigin } from "@/app/admin/_actions/settings";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ShippingZone, SiteSettings } from "@/lib/types";
+import { ConfirmSubmit } from "@/components/admin/confirm-submit";
 
 export const dynamic = "force-dynamic";
 
@@ -102,12 +103,13 @@ export default async function AdminShippingPage() {
               <ZoneForm zone={zone} />
               <form action={deleteShippingZone} className="mt-3 border-t border-sea-200 pt-3">
                 <input type="hidden" name="id" value={zone.id} />
-                <button
-                  type="submit"
+                <ConfirmSubmit
+                  question={`Delete the “${zone.name}” zone? Places in it will no longer get a shipping price.`}
+                  confirmLabel="Yes, delete it"
                   className="flex items-center gap-1.5 text-xs text-sea-800 hover:text-red-700"
                 >
                   <Trash2 className="h-3.5 w-3.5" /> Delete this zone
-                </button>
+                </ConfirmSubmit>
               </form>
             </Panel>
           ))

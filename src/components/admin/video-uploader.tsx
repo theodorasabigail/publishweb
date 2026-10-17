@@ -32,10 +32,14 @@ export function VideoUploader({
   label,
   defaultValue,
   hint,
+  onChange,
 }: {
   name: string;
   label: string;
   defaultValue?: string | null;
+  /** Told whenever the file changes -- uploaded or removed -- so an editor
+   *  can save straight away instead of waiting for a form submit. */
+  onChange?: (url: string) => void;
   hint?: string;
 }) {
   const [url, setUrl] = useState(defaultValue ?? "");
@@ -78,6 +82,7 @@ export function VideoUploader({
       } = supabase.storage.from("media").getPublicUrl(path);
 
       setUrl(publicUrl);
+      onChange?.(publicUrl);
 
       const plays = Math.floor(SUPABASE_MONTHLY_EGRESS / picked.size);
       setNote(
@@ -115,6 +120,7 @@ export function VideoUploader({
               type="button"
               onClick={() => {
                 setUrl("");
+              onChange?.("");
                 setNote(null);
               }}
               className="mt-2 flex items-center gap-1 text-xs text-red-700 hover:underline"
